@@ -1,0 +1,12 @@
+{
+  "name": "cyberlearn-root",
+  "version": "1.0.0",
+  "scripts": {
+    "server": "npm run dev --prefix cyberlearn/server",
+    "frontend": "npm run dev --prefix cyberlearn/frontend",
+    "dev": "concurrently \"npm run server\" \"npm run frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
