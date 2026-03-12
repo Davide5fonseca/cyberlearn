@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import Auth from './components/Auth';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import ProfessorDashboard from './components/ProfessorDashboard'; // NOVO IMPORT!
 import Cursos from './components/Cursos';
 import Licao from './components/Licao';
 import Profile from './components/Profile';
 import Quizzes from './components/Quizzes';
+import ProfessorDashboard from './components/ProfessorDashboard';
+import ProfessorAlunos from './components/ProfessorAlunos';
+import ProfessorCursos from './components/ProfessorCursos';
 
 function App() {
   const [view, setView] = useState('login'); 
@@ -50,30 +52,16 @@ function App() {
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const data = await response.json();
-      
       if (response.ok) {
-        if (view === 'register') { 
-            alert('Conta criada com sucesso!'); 
-            setView('login'); 
-            setFormData({ ...formData, password: '', confirmarPassword: '' }); 
-        } 
+        if (view === 'register') { alert('Conta criada com sucesso!'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); } 
         else if (view === 'login') { 
-            // 1. Guardar os dados do utilizador no React
             setUser(data.utilizador); 
-            
-            // 2. Imprimir na consola para termos a certeza do que veio da BD
-            console.log("Dados recebidos da BD:", data.utilizador);
-
-            // 3. A MÁGICA DA DISTINÇÃO:
-            if (data.utilizador.tipo === 'professor') {
-                setView('professor_dashboard'); // Vai para o painel de gestão
-            } else {
-                setView('dashboard'); // Vai para o painel de estudo normal
-            }
+            if (data.utilizador.tipo === 'professor') setView('professor_dashboard'); else setView('dashboard'); 
         }
       } else { alert(`Erro: ${data.erro}`); }
     } catch (error) { alert("Erro de ligação ao servidor."); }
   };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (profileData.novaSenha && profileData.novaSenha !== profileData.confirmarNovaSenha) { alert("As novas palavras-passe não coincidem!"); return; }
@@ -85,64 +73,65 @@ function App() {
   };
 
   const theme = {
-    bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 10px 25px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981'
+    bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 8px 20px rgba(0,0,0,0.4)' : '0 4px 10px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981'
   };
 
-  if (['login', 'register', 'forgot', 'reset'].includes(view)) {
-    return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
-  }
+  if (['login', 'register', 'forgot', 'reset'].includes(view)) return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
 
-  // MUDANÇA: Adicionado 'professor_dashboard' às vistas permitidas
-  if (['dashboard', 'professor_dashboard', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
+  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
     return (
       <div style={{ display: 'flex', height: '100vh', width: '100%', backgroundColor: 'transparent', overflow: 'hidden' }}>
-        
-        {/* Passamos o 'user' para a Sidebar saber o que mostrar */}
         <Sidebar view={view} setView={setView} handleLogout={handleLogout} theme={theme} user={user} />
         
-        <div style={{ flex: 1, padding: '20px 30px', boxSizing: 'border-box', overflowY: 'auto', height: '100vh' }}>
+        {/* COMPACTAÇÃO AQUI: padding reduzido para '15px 25px' */}
+        <div style={{ flex: 1, padding: '15px 25px', boxSizing: 'border-box', overflowY: 'auto', height: '100vh' }}>
           
           {view !== 'licao' && (
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
               <div>
-                <h1 style={{fontSize: '24px', color: theme.textMain, margin: 0, fontWeight: 'bold'}}>
-                  {view === 'dashboard' ? `Olá, ${user?.nome.split(' ')[0]} 👋` : 
-                   view === 'professor_dashboard' ? `Painel do Professor 👨‍🏫` : 
-                   view === 'cursos' ? 'Catálogo de Cursos 📚' : 
-                   view === 'quizzes' ? 'Quizzes e Avaliações 🎯' : 'O Teu Perfil ⚙️'}
+                {/* COMPACTAÇÃO AQUI: Título principal reduzido de 24px para 20px */}
+                <h1 style={{fontSize: '20px', color: theme.textMain, margin: 0, fontWeight: 'bold'}}>
+                  {view === 'dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` : 
+                   view === 'professor_dashboard' ? `Painel do Professor ` : 
+                   view === 'professor_alunos' ? `Gestão de Alunos ` :
+                   view === 'professor_cursos' ? `O Teu Cofre de Cursos ` :
+                   view === 'cursos' ? 'Catálogo de Cursos ' : 
+                   view === 'quizzes' ? 'Quizzes e Avaliações ' : 'O Teu Perfil '}
                 </h1>
-                <p style={{color: theme.textSub, margin: '4px 0 0 0', fontSize: '13px'}}>
+                {/* COMPACTAÇÃO AQUI: Subtítulo para 12px */}
+                <p style={{color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px'}}>
                   {view === 'dashboard' ? 'Bem-vindo de volta ao teu centro de treino.' : 
-                   view === 'professor_dashboard' ? 'Gere os teus cursos, quizzes e o progresso dos alunos.' : 
+                   view === 'professor_dashboard' ? 'Monitoriza a atividade recente da tua plataforma.' : 
+                   view === 'professor_alunos' ? 'Acompanha o progresso e as notas da tua turma.' : 
+                   view === 'professor_cursos' ? 'Cria, gere e apaga conteúdos educativos.' : 
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
                    view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
               </div>
-              <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-                <div style={{ backgroundColor: theme.iconBg, padding: '8px', borderRadius: '8px', cursor: 'pointer', color: theme.iconColor }} onClick={() => setIsDarkMode(!isDarkMode)}>
-                  {isDarkMode ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>}
+              <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                <div style={{ backgroundColor: theme.iconBg, padding: '6px', borderRadius: '6px', cursor: 'pointer', color: theme.iconColor }} onClick={() => setIsDarkMode(!isDarkMode)}>
+                  {isDarkMode ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>}
                 </div>
-                <div style={{width: '40px', height: '40px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '16px', boxShadow: `0 4px 10px ${theme.primary}50`}}>
+                {/* COMPACTAÇÃO AQUI: Avatar de 40px para 32px */}
+                <div style={{width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', boxShadow: `0 4px 8px ${theme.primary}50`}}>
                   {user?.nome.charAt(0).toUpperCase()}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Injeta as views */}
           {view === 'dashboard' && <Dashboard theme={theme} />}
-          {view === 'professor_dashboard' && <ProfessorDashboard theme={theme} user={user} />}
           {view === 'cursos' && <Cursos setView={setView} theme={theme} />}
           {view === 'licao' && <Licao setView={setView} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
           {view === 'quizzes' && <Quizzes theme={theme} />}
+          {view === 'professor_dashboard' && <ProfessorDashboard theme={theme} user={user} />}
+          {view === 'professor_alunos' && <ProfessorAlunos theme={theme} />}
+          {view === 'professor_cursos' && <ProfessorCursos theme={theme} user={user} />}
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} />}
-        
         </div>
       </div>
     );
   }
-
   return null;
 }
-
 export default App;
