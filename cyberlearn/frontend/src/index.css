@@ -6,8 +6,6 @@ html, body, #root {
   box-sizing: border-box;
   font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   
-  /* Retirámos todas as cores de fundo daqui! 
-     Agora quem manda no fundo é o App.jsx */
 }
 
 body {

@@ -36,7 +36,6 @@ app.post('/registar', async (req, res) => {
     const { nome, email, password, tipo } = req.body;
 
     try {
-        // MUDANÇA AQUI: de Utilizador para utilizadores
         const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
         if (userExists.rows.length > 0) {
             return res.status(400).json({ erro: 'Este email já está registado.' });
@@ -45,7 +44,6 @@ app.post('/registar', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // MUDANÇA AQUI: de Utilizador para utilizadores
         const novoUtilizador = await pool.query(
             `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo) 
              VALUES ($1, $2, $3, $4, NOW(), true) RETURNING id, nome, email, perfil`,
@@ -67,7 +65,6 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // MUDANÇA AQUI: de Utilizador para utilizadores
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
         
         if (result.rows.length === 0) {
@@ -75,11 +72,27 @@ app.post('/login', async (req, res) => {
         }
 
         const utilizador = result.rows[0];
-
         const passwordValida = await bcrypt.compare(password, utilizador.password_hash);
         
         if (!passwordValida) {
             return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
+        }
+
+        // ============================================================
+        // CORREÇÃO: FORÇAR O CÁLCULO DO ID ANTES DE INSERIR
+        // ============================================================
+        try {
+            await pool.query(`
+                INSERT INTO logs_acesso (id, utilizador_id, data_hora_acesso) 
+                VALUES (
+                    (SELECT COALESCE(MAX(id), 0) + 1 FROM logs_acesso), 
+                    $1, 
+                    NOW()
+                )
+            `, [utilizador.id]);
+            console.log(`✅ LOGIN GRAVADO NA BD: O utilizador ${utilizador.nome} entrou na plataforma!`);
+        } catch (erroAcesso) {
+            console.error("❌ ERRO AO GRAVAR ACESSO:", erroAcesso.message);
         }
 
         res.status(200).json({ 
@@ -88,7 +101,7 @@ app.post('/login', async (req, res) => {
                 id: utilizador.id,
                 nome: utilizador.nome,
                 email: utilizador.email,
-                perfil: utilizador.perfil
+                tipo: utilizador.perfil
             }
         });
 
@@ -96,11 +109,6 @@ app.post('/login', async (req, res) => {
         console.error("Erro no login:", err.message);
         res.status(500).json({ erro: 'Erro interno ao fazer login.' });
     }
-});
-
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
 });
 
 // ==========================================
@@ -119,7 +127,6 @@ app.post('/recuperar-senha', async (req, res) => {
         const resetToken = crypto.randomBytes(32).toString('hex');
         const tokenExpiry = new Date(Date.now() + 3600000); // 1 hora de validade
 
-        // Guardar o token na base de dados
         await pool.query(
             'UPDATE utilizadores SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
             [resetToken, tokenExpiry, email]
@@ -127,9 +134,6 @@ app.post('/recuperar-senha', async (req, res) => {
 
         const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
 
-        // ---------------------------------------------------------
-        // CONFIGURAR O NODEMAILER E ENVIAR O EMAIL REAL
-        // ---------------------------------------------------------
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -154,7 +158,6 @@ app.post('/recuperar-senha', async (req, res) => {
             `
         };
 
-        // Envia efetivamente o email!
         await transporter.sendMail(mailOptions);
         console.log(`✅ Email de recuperação enviado com sucesso para: ${email}`);
 
@@ -173,7 +176,6 @@ app.post('/reset-password', async (req, res) => {
     const { token, novaPassword } = req.body;
 
     try {
-        // 1. Procurar o utilizador que tem este token E cujo token ainda está na validade (> NOW())
         const result = await pool.query(
             'SELECT * FROM utilizadores WHERE reset_token = $1 AND reset_token_expiry > NOW()',
             [token]
@@ -184,12 +186,9 @@ app.post('/reset-password', async (req, res) => {
         }
 
         const utilizador = result.rows[0];
-
-        // 2. Encriptar a nova senha
         const salt = await bcrypt.genSalt(10);
         const novaPasswordHash = await bcrypt.hash(novaPassword, salt);
 
-        // 3. Atualizar a base de dados e apagar o token (para não ser usado 2 vezes)
         await pool.query(
             'UPDATE utilizadores SET password_hash = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
             [novaPasswordHash, utilizador.id]
@@ -207,11 +206,9 @@ app.post('/reset-password', async (req, res) => {
 // ROTA PARA ATUALIZAR O PERFIL
 // ==========================================
 app.post('/atualizar-perfil', async (req, res) => {
-    // Recebe os dados do frontend
     const { id, nome, senhaAtual, novaSenha } = req.body;
 
     try {
-        // 1. Procurar o utilizador na base de dados
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ erro: 'Utilizador não encontrado.' });
@@ -220,24 +217,20 @@ app.post('/atualizar-perfil', async (req, res) => {
         const utilizador = result.rows[0];
         let newPasswordHash = utilizador.password_hash;
 
-        // 2. Se o utilizador quiser mudar a palavra-passe, temos de validar a antiga!
         if (novaSenha) {
             if (!senhaAtual) {
                 return res.status(400).json({ erro: 'Precisas de inserir a senha atual para mudar a segurança.' });
             }
             
-            // Verifica se a senha atual está correta
             const isValid = await bcrypt.compare(senhaAtual, utilizador.password_hash);
             if (!isValid) {
                 return res.status(401).json({ erro: 'A palavra-passe atual está incorreta.' });
             }
 
-            // Encripta a nova senha
             const salt = await bcrypt.genSalt(10);
             newPasswordHash = await bcrypt.hash(novaSenha, salt);
         }
 
-        // 3. Atualizar o Nome e a Palavra-Passe (se alterada) na Base de Dados
         await pool.query(
             'UPDATE utilizadores SET nome = $1, password_hash = $2 WHERE id = $3',
             [nome, newPasswordHash, id]
@@ -249,4 +242,31 @@ app.post('/atualizar-perfil', async (req, res) => {
         console.error("Erro ao atualizar perfil:", err.message);
         res.status(500).json({ erro: 'Erro interno ao processar o pedido.' });
     }
+});
+
+// ==========================================
+// ROTA PARA O PROFESSOR VER OS ACESSOS (SÓ ALUNOS)
+// ==========================================
+app.get('/acessos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT a.id, u.nome, u.email, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
+            FROM logs_acesso a
+            JOIN utilizadores u ON a.utilizador_id = u.id
+            WHERE u.perfil = 'aluno'
+            ORDER BY a.data_hora_acesso DESC
+            LIMIT 50
+        `);
+        
+        console.log(`📡 Professor pediu lista de acessos. Total encontrados: ${result.rows.length}`);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("Erro ao buscar acessos:", err.message);
+        res.status(500).json({ erro: 'Erro interno ao carregar a tabela.' });
+    }
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
 });
