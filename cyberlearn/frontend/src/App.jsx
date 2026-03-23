@@ -9,11 +9,16 @@ import Quizzes from './components/Quizzes';
 import ProfessorDashboard from './components/ProfessorDashboard';
 import ProfessorAlunos from './components/ProfessorAlunos';
 import ProfessorCursos from './components/ProfessorCursos';
+import AdminDashboard from './components/AdminDashboard';     // IMPORTAÇÃO DO ADMIN
+import AdminProfessores from './components/AdminProfessores'; // IMPORTAÇÃO DO ADMIN
 
 function App() {
   const [view, setView] = useState('login'); 
   const [user, setUser] = useState(null); 
-  const [formData, setFormData] = useState({ nome: '', email: '', password: '', confirmarPassword: '', tipo: 'aluno' });
+  // ADICIONADO: codigo2FA no formData
+  const [formData, setFormData] = useState({ nome: '', email: '', password: '', confirmarPassword: '', tipo: 'aluno', codigo2FA: '' });
+  // ADICIONADO: Estado para guardar o ID temporário do utilizador durante o login com 2FA
+  const [tempUserId, setTempUserId] = useState(null);
   const [resetToken, setResetToken] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [profileData, setProfileData] = useState({ nome: '', senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
@@ -25,10 +30,38 @@ function App() {
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); };
+  // ADICIONADO: Limpar codigo2FA e tempUserId no logout
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '', codigo2FA: '' }); setTempUserId(null); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ============================================
+    // NOVO BLOCO: VERIFICAR CÓDIGO DO 2FA (GOOGLE AUTHENTICATOR)
+    // ============================================
+    if (view === '2fa-verify') {
+      try {
+        const response = await fetch('http://localhost:8080/login-2fa', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ utilizadorId: tempUserId, token: formData.codigo2FA }) 
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setUser(data.utilizador);
+          // Atualizado para incluir o encaminhamento do Admin
+          if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
+          else if (data.utilizador.tipo === 'professor') setView('professor_dashboard');
+          else setView('dashboard');
+        } else { 
+          alert(`Erro: ${data.erro}`); 
+        }
+      } catch (error) { 
+        alert("Erro de ligação."); 
+      }
+      return;
+    }
+
     if (view === 'reset') {
       if (formData.password !== formData.confirmarPassword) { alert("As palavras-passe não coincidem!"); return; }
       try {
@@ -38,6 +71,7 @@ function App() {
       } catch (error) { alert("Erro de ligação."); }
       return;
     }
+    
     if (view === 'forgot') {
       try {
         const response = await fetch('http://localhost:8080/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
@@ -46,17 +80,34 @@ function App() {
       } catch (error) { alert("Erro de ligação."); }
       return;
     }
+    
     if (view === 'register' && formData.password !== formData.confirmarPassword) { alert("As palavras-passe não coincidem!"); return; }
     
     const endpoint = view === 'login' ? 'http://localhost:8080/login' : 'http://localhost:8080/registar';
     try {
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const data = await response.json();
+      
       if (response.ok) {
-        if (view === 'register') { alert('Conta criada com sucesso!'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); } 
+        if (view === 'register') { 
+            alert('Conta criada com sucesso!'); 
+            setView('login'); 
+            setFormData({ ...formData, password: '', confirmarPassword: '' }); 
+        } 
         else if (view === 'login') { 
-            setUser(data.utilizador); 
-            if (data.utilizador.tipo === 'professor') setView('professor_dashboard'); else setView('dashboard'); 
+            // ============================================
+            // NOVO: SE PRECISAR DE 2FA, MUDA O ECRÃ
+            // ============================================
+            if (data.requires2FA) {
+                setTempUserId(data.utilizadorId);
+                setView('2fa-verify');
+            } else {
+                setUser(data.utilizador); 
+                // Atualizado para incluir o encaminhamento do Admin no login normal
+                if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
+                else if (data.utilizador.tipo === 'professor') setView('professor_dashboard'); 
+                else setView('dashboard'); 
+            }
         }
       } else { alert(`Erro: ${data.erro}`); }
     } catch (error) { alert("Erro de ligação ao servidor."); }
@@ -76,9 +127,11 @@ function App() {
     bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 8px 20px rgba(0,0,0,0.4)' : '0 4px 10px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981'
   };
 
-  if (['login', 'register', 'forgot', 'reset'].includes(view)) return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
+  // ADICIONADO: O ecrã '2fa-verify' agora é renderizado pelo Auth
+  if (['login', 'register', 'forgot', 'reset', '2fa-verify'].includes(view)) return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />;
 
-  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
+  // ADICIONADO: Inclusão do 'admin_dashboard' e 'admin_professores'
+  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
     return (
       <div style={{ display: 'flex', height: '100vh', width: '100%', backgroundColor: 'transparent', overflow: 'hidden' }}>
         <Sidebar view={view} setView={setView} handleLogout={handleLogout} theme={theme} user={user} />
@@ -93,10 +146,12 @@ function App() {
                 <h1 style={{fontSize: '20px', color: theme.textMain, margin: 0, fontWeight: 'bold'}}>
                   {view === 'dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` : 
                    view === 'professor_dashboard' ? `Painel do Professor ` : 
-                   view === 'professor_alunos' ? `Gestão de Alunos ` :
-                   view === 'professor_cursos' ? `O Teu Cofre de Cursos ` :
-                   view === 'cursos' ? 'Catálogo de Cursos ' : 
-                   view === 'quizzes' ? 'Quizzes e Avaliações ' : 'O Teu Perfil '}
+                   view === 'professor_alunos' ? `Gestão de Alunos 👥` :
+                   view === 'professor_cursos' ? `O Teu Cofre de Cursos 🔐` :
+                   view === 'admin_dashboard' ? `Painel de Administração 🛡️` : 
+                   view === 'admin_professores' ? `Gestão de Professores 👨‍🏫` : 
+                   view === 'cursos' ? 'Catálogo de Cursos 📚' : 
+                   view === 'quizzes' ? 'Quizzes e Avaliações 🎯' : 'O Teu Perfil ⚙️'}
                 </h1>
                 {/* COMPACTAÇÃO AQUI: Subtítulo para 12px */}
                 <p style={{color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px'}}>
@@ -104,6 +159,8 @@ function App() {
                    view === 'professor_dashboard' ? 'Monitoriza a atividade recente da tua plataforma.' : 
                    view === 'professor_alunos' ? 'Acompanha o progresso e as notas da tua turma.' : 
                    view === 'professor_cursos' ? 'Cria, gere e apaga conteúdos educativos.' : 
+                   view === 'admin_dashboard' ? 'Monitoriza a atividade dos professores.' : 
+                   view === 'admin_professores' ? 'Consulta perfis e remove professores do sistema.' : 
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
                    view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
@@ -127,6 +184,10 @@ function App() {
           {view === 'professor_dashboard' && <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos' && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos' && <ProfessorCursos theme={theme} user={user} />}
+          {/* ADICIONADO: Componentes do Administrador */}
+          {view === 'admin_dashboard' && <AdminDashboard theme={theme} />}
+          {view === 'admin_professores' && <AdminProfessores theme={theme} />}
+          
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} />}
         </div>
       </div>

@@ -1,28 +1,38 @@
 export default function Sidebar({ view, setView, handleLogout, theme, user }) {
   const isProfessor = user?.tipo === 'professor';
+  const isAdmin = user?.tipo === 'admin';
 
   const styles = {
-    // COMPACTAÇÃO: Largura reduzida
     sidebar: { width: '220px', backgroundColor: theme.sidebarBg, padding: '15px', display: 'flex', flexDirection: 'column', boxShadow: theme.shadow, transition: 'all 0.3s ease', zIndex: 10 },
     sidebarMenu: { flex: 1, marginTop: '25px', display: 'flex', flexDirection: 'column', gap: '4px' },
-    // COMPACTAÇÃO: Texto a 12px, padding menor
     menuItem: (active) => ({ padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: active ? 'white' : theme.textSub, backgroundColor: active ? theme.primary : 'transparent', fontWeight: active ? '600' : '500', transition: 'all 0.2s', fontSize: '12px' }),
-    shieldIcon: { backgroundColor: theme.primary, width: '28px', height: '28px', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: `0 0 15px ${theme.primary}80` }
+    // Removi o fundo azul antigo e preparei a caixa para receber a tua imagem
+    logoContainer: { width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, boxShadow: theme.shadow }
   };
 
-  const getIconSize = () => 16; // Ícones menores
+  const getIconSize = () => 16;
 
   return (
     <div style={styles.sidebar}>
-      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-        <div style={styles.shieldIcon}>
-           <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+        {/* AQUI ESTÁ A TUA IMAGEM A SUBSTITUIR O ESCUDO */}
+        <div style={styles.logoContainer}>
+           <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <h2 style={{color: theme.textMain, margin: 0, fontSize: '16px', fontWeight: 'bold'}}>CyberLearn</h2>
       </div>
 
       <div style={styles.sidebarMenu}>
-        {isProfessor ? (
+        {isAdmin ? (
+          <>
+            <div style={styles.menuItem(view === 'admin_dashboard')} onClick={() => setView('admin_dashboard')}>
+              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Painel Admin
+            </div>
+            <div style={styles.menuItem(view === 'admin_professores')} onClick={() => setView('admin_professores')}>
+              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Professores
+            </div>
+          </>
+        ) : isProfessor ? (
           <>
             <div style={styles.menuItem(view === 'professor_dashboard')} onClick={() => setView('professor_dashboard')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Painel Geral

@@ -3,7 +3,10 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     authContainer: { display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%', position: 'relative', padding: '10px 0' },
     topIcon: { position: 'absolute', top: '20px', right: '20px', backgroundColor: theme.iconBg, padding: '8px', borderRadius: '8px', cursor: 'pointer', color: theme.iconColor, transition: 'all 0.3s ease' },
     logoArea: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' },
-    shieldIcon: { backgroundColor: theme.primary, width: '40px', height: '40px', borderRadius: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: `0 0 20px ${theme.primary}80`, marginBottom: '10px' },
+    
+    // NOVO: Estilo para a tua imagem no ecrã de Login
+    logoImage: { width: '60px', height: '60px', borderRadius: '16px', objectFit: 'cover', marginBottom: '12px', boxShadow: theme.shadow },
+    
     mainTitle: { fontSize: '24px', fontWeight: 'bold', margin: '0 0 2px 0', letterSpacing: '0.5px', color: theme.textMain },
     subTitle: { fontSize: '10px', color: theme.textUniversal, textTransform: 'uppercase', letterSpacing: '1.5px', margin: '0', textAlign: 'center' },
     card: { backgroundColor: theme.cardBg, padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '380px', boxSizing: 'border-box', boxShadow: theme.shadow, transition: 'all 0.3s ease' },
@@ -26,13 +29,43 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     </div>
   );
 
+  if (view === '2fa-verify') {
+    return (
+      <div style={styles.authContainer}>
+        {renderThemeToggle()}
+        <div style={styles.card}>
+          <div style={styles.logoArea}>
+            <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={styles.logoImage} />
+            <h1 style={styles.mainTitle}>Segurança 2FA</h1>
+            <p style={{...styles.subTitle, marginTop: '8px'}}>Insere o código do Google Authenticator.</p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div style={styles.inputWrapper}>
+              <label style={styles.label}>Código de 6 dígitos</label>
+              <div style={styles.inputBox}>
+                <svg style={styles.iconInside} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <input style={{...styles.input, letterSpacing: '3px', textAlign: 'center', fontWeight: 'bold'}} type="text" name="codigo2FA" placeholder="000000" maxLength="6" value={formData?.codigo2FA || ''} onChange={handleInputChange} required />
+              </div>
+            </div>
+            <button type="submit" style={styles.submitButton}>Verificar Acesso</button>
+          </form>
+          <div style={styles.footerText}>
+            <span style={{cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}} onClick={() => setView('login')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Voltar ao Login
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'reset') {
     return (
       <div style={styles.authContainer}>
         {renderThemeToggle()}
         <div style={styles.card}>
           <div style={styles.logoArea}>
-            <div style={styles.shieldIcon}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+            <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={styles.logoImage} />
             <h1 style={styles.mainTitle}>Nova Senha</h1>
             <p style={{...styles.subTitle, marginTop: '8px'}}>Cria uma nova palavra-passe segura.</p>
           </div>
@@ -58,7 +91,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
         {renderThemeToggle()}
         <div style={styles.card}>
           <div style={styles.logoArea}>
-            <div style={styles.shieldIcon}><svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
+            <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={styles.logoImage} />
             <h1 style={styles.mainTitle}>Recuperar Senha</h1>
             <p style={{...styles.subTitle, marginTop: '8px'}}>Introduz o teu e-mail para receberes um link.</p>
           </div>
@@ -79,7 +112,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     <div style={styles.authContainer}>
       {renderThemeToggle()}
       <div style={styles.logoArea}>
-        <div style={styles.shieldIcon}><svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
+        <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={styles.logoImage} />
         <h1 style={styles.mainTitle}>CyberLearn</h1>
         <p style={styles.subTitle}>Plataforma de cibersegurança</p>
       </div>
@@ -110,9 +143,10 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <div style={styles.inputBox}><svg style={styles.iconInside} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input style={styles.input} type="password" name="confirmarPassword" placeholder="........" value={formData.confirmarPassword} onChange={handleInputChange} required /></div>
               </div>
               <label style={styles.label}>Tipo de Conta</label>
-              <div style={{display: 'flex', gap: '20px', marginTop: '5px'}}>
+              <div style={{display: 'flex', gap: '15px', marginTop: '5px'}}>
                 <label style={{fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', color: theme.textMain}}><input type="radio" name="tipo" value="aluno" checked={formData.tipo === 'aluno'} onChange={handleInputChange} /> Aluno</label>
                 <label style={{fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', color: theme.textMain}}><input type="radio" name="tipo" value="professor" checked={formData.tipo === 'professor'} onChange={handleInputChange} /> Professor</label>
+                <label style={{fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', color: theme.textMain}}><input type="radio" name="tipo" value="admin" checked={formData.tipo === 'admin'} onChange={handleInputChange} /> Administrador</label>
               </div>
             </>
           )}
