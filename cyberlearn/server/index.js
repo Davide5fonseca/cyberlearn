@@ -1,12 +1,12 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
-require('dotenv').config();
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
+const crypto = require('crypto'); // Mantido caso precises no futuro, embora agora não estejamos a gerar hashes aleatórias longas para o reset
+
+console.log("👉 A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
 
 const app = express();
 
@@ -80,7 +80,26 @@ app.post('/registar', async (req, res) => {
 });
 
 // ==========================================
-// ROTA DE LOGIN
+// CONFIGURAÇÃO DO EMAIL (NODEMAILER)
+// ==========================================
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+transporter.verify(function(error, success) {
+    if (error) {
+        console.error("❌ Erro de ligação ao Email (Verifica o .env e a Palavra-passe de App):", error.message);
+    } else {
+        console.log("✅ Servidor de Email pronto para enviar mensagens!");
+    }
+});
+
+// ==========================================
+// ROTA DE LOGIN (ENVIA EMAIL OBRIGATORIAMENTE)
 // ==========================================
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -99,27 +118,41 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
         }
 
-        // ============================================================
-        // VERIFICAR SE O 2FA ESTÁ ATIVADO ANTES DE ENTRAR
-        // ============================================================
-        if (utilizador.two_factor_enabled) {
-            // Se tiver 2FA, pedimos o código ao frontend e não gravamos log ainda
-            return res.status(200).json({ requires2FA: true, utilizadorId: utilizador.id });
-        }
+        // 1. GERAR CÓDIGO DE 6 DÍGITOS ALEATÓRIO
+        const codigo2FA = Math.floor(100000 + Math.random() * 900000).toString();
+        // 2. DEFINIR VALIDADE (10 minutos)
+        const expiracao = new Date(Date.now() + 10 * 60000); 
 
-        // ============================================================
-        // SE NÃO TIVER 2FA, GRAVA O ACESSO E FAZ LOGIN
-        // ============================================================
-        await gravarLogAcesso(utilizador.id, utilizador.nome);
+        // 3. GUARDAR NA BASE DE DADOS
+        await pool.query(
+            'UPDATE utilizadores SET codigo_email_2fa = $1, codigo_email_expiracao = $2 WHERE id = $3',
+            [codigo2FA, expiracao, utilizador.id]
+        );
 
+        // 4. ENVIAR O EMAIL COM O CÓDIGO
+        const mailOptions = {
+            from: `"CyberLearn Segurança" <${process.env.EMAIL_USER}>`,
+            to: utilizador.email,
+            subject: 'CyberLearn - Código de Verificação',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 10px; text-align: center;">
+                    <h2 style="color: #171f2f;">Código de Segurança 🛡️</h2>
+                    <p style="color: #333; font-size: 16px;">Olá ${utilizador.nome},</p>
+                    <p style="color: #333; font-size: 16px;">Para entrares na tua conta CyberLearn, insere o seguinte código de 6 dígitos:</p>
+                    <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #3b82f6; background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        ${codigo2FA}
+                    </div>
+                    <p style="color: #6b7280; font-size: 12px;">Este código é válido por 10 minutos. Se não tentaste fazer login, ignora este e-mail.</p>
+                </div>
+            `
+        };
+        await transporter.sendMail(mailOptions);
+
+        // 5. AVISAR O FRONTEND QUE PRECISA DO 2FA
         res.status(200).json({ 
-            mensagem: 'Login efetuado com sucesso!', 
-            utilizador: {
-                id: utilizador.id,
-                nome: utilizador.nome,
-                email: utilizador.email,
-                tipo: utilizador.perfil
-            }
+            requires2FA: true, 
+            utilizadorId: utilizador.id, 
+            mensagem: 'Código enviado para o teu email!' 
         });
 
     } catch (err) {
@@ -129,32 +162,36 @@ app.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// NOVA ROTA: LOGIN COM CÓDIGO 2FA (GOOGLE AUTHENTICATOR)
+// ROTA: VERIFICAR CÓDIGO DE 6 DÍGITOS DO EMAIL
 // ==========================================
 app.post('/login-2fa', async (req, res) => {
     const { utilizadorId, token } = req.body;
+    
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [utilizadorId]);
         if (result.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
         
         const utilizador = result.rows[0];
-        const verificado = speakeasy.totp.verify({
-            secret: utilizador.two_factor_secret,
-            encoding: 'base32',
-            token: token
+
+        // 1. VERIFICAR SE O CÓDIGO ESTÁ CORRETO
+        if (!utilizador.codigo_email_2fa || utilizador.codigo_email_2fa !== token) {
+            return res.status(401).json({ erro: 'Código incorreto. Tenta novamente.' });
+        }
+
+        // 2. VERIFICAR SE O CÓDIGO NÃO EXPIROU
+        if (new Date() > new Date(utilizador.codigo_email_expiracao)) {
+            return res.status(401).json({ erro: 'Este código já expirou. Volta ao login para receber um novo.' });
+        }
+
+        // 3. TUDO CERTO! LIMPAR O CÓDIGO E FAZER LOGIN
+        await pool.query('UPDATE utilizadores SET codigo_email_2fa = NULL, codigo_email_expiracao = NULL WHERE id = $1', [utilizador.id]);
+        await gravarLogAcesso(utilizador.id, utilizador.nome);
+
+        res.status(200).json({ 
+            mensagem: 'Acesso validado com sucesso!', 
+            utilizador: { id: utilizador.id, nome: utilizador.nome, email: utilizador.email, tipo: utilizador.perfil } 
         });
 
-        if (verificado) {
-            // Se o código for válido, regista o acesso e faz o login final
-            await gravarLogAcesso(utilizador.id, utilizador.nome);
-
-            res.status(200).json({ 
-                mensagem: 'Acesso validado!', 
-                utilizador: { id: utilizador.id, nome: utilizador.nome, email: utilizador.email, tipo: utilizador.perfil } 
-            });
-        } else {
-            res.status(401).json({ erro: 'Código inválido.' });
-        }
     } catch (err) {
         console.error("Erro no 2FA:", err.message);
         res.status(500).json({ erro: 'Erro interno ao verificar o código.' });
@@ -162,47 +199,7 @@ app.post('/login-2fa', async (req, res) => {
 });
 
 // ==========================================
-// ROTAS PARA CONFIGURAR E ATIVAR O 2FA (GERA O QR CODE)
-// ==========================================
-app.post('/2fa/setup', async (req, res) => {
-    const { id } = req.body;
-    try {
-        // Gera um segredo para a app Google Authenticator
-        const secret = speakeasy.generateSecret({ name: "CyberLearn" });
-        
-        // Transforma o segredo num QR Code (imagem)
-        QRCode.toDataURL(secret.otpauth_url, async (err, data_url) => {
-            if (err) return res.status(500).json({ erro: 'Erro ao gerar QR Code.' });
-            
-            // Guarda o segredo de forma temporária na Base de Dados (mas ainda não ativa)
-            await pool.query('UPDATE utilizadores SET two_factor_secret = $1 WHERE id = $2', [secret.base32, id]);
-            
-            res.status(200).json({ secret: secret.base32, qrCode: data_url });
-        });
-    } catch (err) { res.status(500).json({ erro: 'Erro interno ao configurar 2FA.' }); }
-});
-
-app.post('/2fa/enable', async (req, res) => {
-    const { id, token } = req.body;
-    try {
-        const result = await pool.query('SELECT two_factor_secret FROM utilizadores WHERE id = $1', [id]);
-        if (result.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
-
-        // Verifica se o primeiro código que o utilizador inseriu da app está correto
-        const verificado = speakeasy.totp.verify({ secret: result.rows[0].two_factor_secret, encoding: 'base32', token: token });
-        
-        if (verificado) {
-            // Se estiver correto, aí sim, ativamos oficialmente o 2FA para a conta dele
-            await pool.query('UPDATE utilizadores SET two_factor_enabled = true WHERE id = $1', [id]);
-            res.status(200).json({ mensagem: '2FA ativado com sucesso!' });
-        } else {
-            res.status(400).json({ erro: 'Código incorreto. Tenta novamente.' });
-        }
-    } catch (err) { res.status(500).json({ erro: 'Erro ao ativar 2FA.' }); }
-});
-
-// ==========================================
-// ROTA DE RECUPERAR SENHA (ENVIO REAL DE EMAIL)
+// ROTA DE RECUPERAR SENHA (AGORA ENVIA CÓDIGO 6 DÍGITOS)
 // ==========================================
 app.post('/recuperar-senha', async (req, res) => {
     const { email } = req.body;
@@ -211,47 +208,41 @@ app.post('/recuperar-senha', async (req, res) => {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
         
         if (result.rows.length === 0) {
-            return res.status(200).json({ mensagem: 'Se o email existir, receberás um link de recuperação.' });
+            // Em segurança, não dizemos se o email existe ou não, dizemos sempre isto:
+            return res.status(200).json({ mensagem: 'Se o email existir, receberás um código.' });
         }
 
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const tokenExpiry = new Date(Date.now() + 3600000); // 1 hora de validade
+        // 1. Gera código de 6 dígitos
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const tokenExpiry = new Date(Date.now() + 15 * 60000); // 15 minutos
 
+        // 2. Guarda na BD (usamos a coluna que já tinhas para o token)
         await pool.query(
             'UPDATE utilizadores SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
-            [resetToken, tokenExpiry, email]
+            [resetCode, tokenExpiry, email]
         );
 
-        const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
-
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-
+        // 3. Envia Email
         const mailOptions = {
             from: `"CyberLearn Suporte" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: 'CyberLearn - Recuperação de Palavra-Passe',
+            subject: 'CyberLearn - Código de Recuperação de Senha',
             html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
-                    <h2 style="color: #171f2f;">Recuperação de Palavra-Passe - CyberLearn 🛡️</h2>
-                    <p style="color: #333;">Olá,</p>
-                    <p style="color: #333;">Recebemos um pedido para repor a tua palavra-passe na plataforma CyberLearn.</p>
-                    <p style="color: #333;">Clica no botão abaixo para escolheres uma nova palavra-passe (o link é válido por 1 hora):</p>
-                    <a href="${resetLink}" style="padding: 12px 20px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; font-weight: bold;">Criar Nova Palavra-Passe</a>
-                    <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">Se não fizeste este pedido, podes simplesmente ignorar e apagar este email. A tua conta continua segura.</p>
+                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 10px; text-align: center;">
+                    <h2 style="color: #171f2f;">Recuperação de Palavra-Passe 🛡️</h2>
+                    <p style="color: #333; font-size: 16px;">Para criares uma nova palavra-passe, insere este código na plataforma:</p>
+                    <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #3b82f6; background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        ${resetCode}
+                    </div>
+                    <p style="color: #6b7280; font-size: 12px;">Válido por 15 minutos. Se não pediste isto, ignora o email.</p>
                 </div>
             `
         };
 
         await transporter.sendMail(mailOptions);
-        console.log(`✅ Email de recuperação enviado com sucesso para: ${email}`);
+        console.log(`✅ Código de recuperação enviado para: ${email}`);
 
-        res.status(200).json({ mensagem: 'Se o email existir, receberás um link de recuperação.' });
+        res.status(200).json({ mensagem: 'Código enviado com sucesso.' });
 
     } catch (err) {
         console.error("Erro na recuperação de senha:", err.message);
@@ -260,19 +251,19 @@ app.post('/recuperar-senha', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PARA ATUALIZAR A SENHA (COM O TOKEN)
+// ROTA PARA ATUALIZAR A SENHA (COM O CÓDIGO)
 // ==========================================
 app.post('/reset-password', async (req, res) => {
-    const { token, novaPassword } = req.body;
+    const { email, token, novaPassword } = req.body;
 
     try {
         const result = await pool.query(
-            'SELECT * FROM utilizadores WHERE reset_token = $1 AND reset_token_expiry > NOW()',
-            [token]
+            'SELECT * FROM utilizadores WHERE email = $1 AND reset_token = $2 AND reset_token_expiry > NOW()',
+            [email, token]
         );
 
         if (result.rows.length === 0) {
-            return res.status(400).json({ erro: 'O link de recuperação é inválido ou já expirou.' });
+            return res.status(400).json({ erro: 'O código inserido está incorreto ou já expirou.' });
         }
 
         const utilizador = result.rows[0];
@@ -348,7 +339,6 @@ app.get('/acessos', async (req, res) => {
             LIMIT 50
         `);
         
-        console.log(`📡 Professor pediu lista de acessos. Total encontrados: ${result.rows.length}`);
         res.status(200).json(result.rows);
     } catch (err) {
         console.error("Erro ao buscar acessos:", err.message);
@@ -356,16 +346,10 @@ app.get('/acessos', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
-});
-
 // ==========================================
 // ROTAS DE ADMINISTRAÇÃO (PROFESSORES)
 // ==========================================
 
-// 1. Obter a lista de todos os professores
 app.get('/professores', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -381,7 +365,6 @@ app.get('/professores', async (req, res) => {
     }
 });
 
-// 2. Obter os logs de acesso (logins) exclusivamente dos professores
 app.get('/acessos-professores', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -398,32 +381,20 @@ app.get('/acessos-professores', async (req, res) => {
     }
 });
 
-// 3. Eliminar um professor (e os seus cursos associados para não quebrar a base de dados)
-// 3. Eliminar um professor (e todos os dados dependentes para evitar erros de Foreign Key)
 app.delete('/professores/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // 1º Apagar os registos de login (logs de acesso) deste professor
         await pool.query('DELETE FROM logs_acesso WHERE utilizador_id = $1', [id]);
-
-        // 2º Apagar as perguntas dos quizzes que pertencem aos cursos deste professor
         await pool.query(`
             DELETE FROM perguntas_quiz 
-            WHERE quiz_id IN (
-                SELECT id FROM quizzes WHERE curso_id IN (SELECT id FROM cursos WHERE professor_id = $1)
-            )
+            WHERE quiz_id IN (SELECT id FROM quizzes WHERE curso_id IN (SELECT id FROM cursos WHERE professor_id = $1))
         `, [id]);
-
-        // 3º Apagar os quizzes que pertencem aos cursos deste professor
         await pool.query(`
             DELETE FROM quizzes 
             WHERE curso_id IN (SELECT id FROM cursos WHERE professor_id = $1)
         `, [id]);
-
-        // 4º Apagar os cursos criados pelo professor
         await pool.query('DELETE FROM cursos WHERE professor_id = $1', [id]);
         
-        // 5º Por fim, apagar o próprio professor da tabela de utilizadores
         const result = await pool.query("DELETE FROM utilizadores WHERE id = $1 AND LOWER(TRIM(perfil)) = 'professor' RETURNING *", [id]);
         
         if (result.rows.length === 0) return res.status(404).json({ erro: 'Professor não encontrado.' });
@@ -432,4 +403,33 @@ app.delete('/professores/:id', async (req, res) => {
         console.error("Erro fatal ao eliminar professor:", err);
         res.status(500).json({ erro: 'Erro interno ao tentar eliminar o professor.' }); 
     }
+});
+
+// ==========================================
+// ESTATÍSTICAS REAIS PARA O DASHBOARD ADMIN
+// ==========================================
+app.get('/admin-estatisticas', async (req, res) => {
+    try {
+        const profsResult = await pool.query("SELECT COUNT(*) FROM utilizadores WHERE LOWER(TRIM(perfil)) = 'professor'");
+        const sessoesResult = await pool.query("SELECT COUNT(DISTINCT utilizador_id) FROM logs_acesso WHERE data_hora_acesso >= NOW() - INTERVAL '24 hours'");
+        const acessosResult = await pool.query("SELECT COUNT(*) FROM logs_acesso");
+
+        res.status(200).json({
+            professoresAtivos: parseInt(profsResult.rows[0].count),
+            sessoesAtivas: parseInt(sessoesResult.rows[0].count),
+            totalAcessos: parseInt(acessosResult.rows[0].count),
+            cargaSistema: 0 
+        });
+    } catch (err) {
+        console.error("Erro nas estatísticas:", err);
+        res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
+    }
+});
+
+// ==========================================
+// ARRANQUE DO SERVIDOR
+// ==========================================
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
 });
