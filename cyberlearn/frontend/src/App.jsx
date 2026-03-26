@@ -12,6 +12,7 @@ import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';     
 import AdminProfessores from './components/AdminProfessores'; 
 
+
 function App() {
   const [view, setView] = useState('login'); 
   const [user, setUser] = useState(null); 
