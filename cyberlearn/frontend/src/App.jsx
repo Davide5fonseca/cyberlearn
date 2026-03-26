@@ -21,19 +21,16 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [profileData, setProfileData] = useState({ nome: '', senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
-  
-  // ESTADO QUE CONTROLA SE MOSTRA O LOGIN NORMAL OU OS QUADRADOS DO 2FA
   const [show2FA, setShow2FA] = useState(false);
+  const [avatarImg, setAvatarImg] = useState(null);
 
   useEffect(() => { if (user) setProfileData(prev => ({ ...prev, nome: user.nome })); }, [user]);
   useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#060b14' : '#f0f2f5'; document.body.style.transition = 'background-color 0.3s ease'; }, [isDarkMode]);
   
-  // NOTA: O useEffect que lia o "token" do link no URL foi removido, pois agora usamos o código de 6 dígitos!
-
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
   
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); };
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,8 +57,11 @@ function App() {
         
         if (response.ok) {
           setUser(data.utilizador);
-          setShow2FA(false); // Limpa o 2FA para o próximo login
-          setFormData({ ...formData, password: '' }); // Limpa a password por segurança
+          // NOVO: Carrega o avatar que veio da BD (se existir)
+          setAvatarImg(data.utilizador.avatar || null);
+          
+          setShow2FA(false); 
+          setFormData({ ...formData, password: '' }); 
           if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
           else if (data.utilizador.tipo === 'professor') setView('professor_dashboard');
           else setView('dashboard');
@@ -107,7 +107,6 @@ function App() {
         const response = await fetch('http://localhost:8080/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
         const data = await response.json();
         if (response.ok) { 
-          // MUDA IMEDIATAMENTE PARA O ECRÃ DE INSERIR O CÓDIGO (Sem sair da página!)
           setView('reset'); 
         } else { alert(`Erro: ${data.erro}`); }
       } catch (error) { alert("Erro de ligação."); }
@@ -133,7 +132,7 @@ function App() {
         else if (view === 'login') { 
             if (data.requires2FA) {
                 setTempUserId(data.utilizadorId);
-                setShow2FA(true); // Isto vai forçar o ecrã a mudar para os quadradinhos!
+                setShow2FA(true);
             }
         }
       } else { alert(`Erro: ${data.erro}`); }
@@ -144,9 +143,25 @@ function App() {
     e.preventDefault();
     if (profileData.novaSenha && profileData.novaSenha !== profileData.confirmarNovaSenha) { alert("As novas palavras-passe não coincidem!"); return; }
     try {
-      const response = await fetch('http://localhost:8080/atualizar-perfil', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: user.id, nome: profileData.nome, senhaAtual: profileData.senhaAtual, novaSenha: profileData.novaSenha }) });
+      const response = await fetch('http://localhost:8080/atualizar-perfil', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        // NOVO: Adicionado o campo "avatar" para enviar a Base64 para a BD
+        body: JSON.stringify({ 
+          id: user.id, 
+          nome: profileData.nome, 
+          senhaAtual: profileData.senhaAtual, 
+          novaSenha: profileData.novaSenha,
+          avatar: avatarImg 
+        }) 
+      });
       const data = await response.json();
-      if (response.ok) { alert("Alterações guardadas com sucesso!"); setUser({ ...user, nome: profileData.nome }); setProfileData({ ...profileData, senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' }); } else { alert(`Erro: ${data.erro}`); }
+      if (response.ok) { 
+        alert("Alterações guardadas com sucesso!"); 
+        // Atualiza o utilizador local para refletir a nova imagem
+        setUser({ ...user, nome: profileData.nome, avatar: avatarImg }); 
+        setProfileData({ ...profileData, senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' }); 
+      } else { alert(`Erro: ${data.erro}`); }
     } catch (error) { alert("Erro de ligação ao servidor."); }
   };
 
@@ -189,12 +204,33 @@ function App() {
                    view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
               </div>
-              <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-                <div style={{ backgroundColor: theme.iconBg, padding: '6px', borderRadius: '6px', cursor: 'pointer', color: theme.iconColor }} onClick={() => setIsDarkMode(!isDarkMode)}>
-                  {isDarkMode ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>}
+              <div style={{display: 'flex', gap: '14px', alignItems: 'center'}}>
+                <div 
+                  style={{ backgroundColor: theme.iconBg, width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }} 
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  title={isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
+                >
+                  {isDarkMode ? 
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> 
+                    : 
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                  }
                 </div>
-                <div style={{width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', boxShadow: `0 4px 8px ${theme.primary}50`}}>
-                  {user?.nome?.charAt(0).toUpperCase()}
+                
+                <div 
+                  onClick={() => setView('profile')} 
+                  title="Aceder ao Perfil"
+                  style={{
+                    width: '38px', height: '38px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: `0 4px 10px ${theme.primary}50`, transition: 'transform 0.2s ease', overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  {avatarImg ? (
+                    <img src={avatarImg} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    user?.nome?.charAt(0).toUpperCase()
+                  )}
                 </div>
               </div>
             </div>
@@ -210,7 +246,7 @@ function App() {
           {view === 'admin_dashboard' && <AdminDashboard theme={theme} />}
           {view === 'admin_professores' && <AdminProfessores theme={theme} />}
           
-          {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} />}
+          {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} avatarImg={avatarImg} setAvatarImg={setAvatarImg} />}
         </div>
       </div>
     );

@@ -11,7 +11,8 @@ console.log("👉 A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -187,9 +188,17 @@ app.post('/login-2fa', async (req, res) => {
         await pool.query('UPDATE utilizadores SET codigo_email_2fa = NULL, codigo_email_expiracao = NULL WHERE id = $1', [utilizador.id]);
         await gravarLogAcesso(utilizador.id, utilizador.nome);
 
+        // NOVO: Adicionado avatar à resposta do login
         res.status(200).json({ 
             mensagem: 'Acesso validado com sucesso!', 
-            utilizador: { id: utilizador.id, nome: utilizador.nome, email: utilizador.email, tipo: utilizador.perfil } 
+            utilizador: { 
+                id: utilizador.id, 
+                nome: utilizador.nome, 
+                email: utilizador.email, 
+                tipo: utilizador.perfil, 
+                data_registo: utilizador.data_registo,
+                avatar: utilizador.avatar_url 
+            } 
         });
 
     } catch (err) {
@@ -284,10 +293,10 @@ app.post('/reset-password', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PARA ATUALIZAR O PERFIL
+// ROTA PARA ATUALIZAR O PERFIL (AGORA RECEBE O AVATAR)
 // ==========================================
 app.post('/atualizar-perfil', async (req, res) => {
-    const { id, nome, senhaAtual, novaSenha } = req.body;
+    const { id, nome, senhaAtual, novaSenha, avatar } = req.body; // <-- Adicionado o avatar aqui
 
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [id]);
@@ -312,9 +321,10 @@ app.post('/atualizar-perfil', async (req, res) => {
             newPasswordHash = await bcrypt.hash(novaSenha, salt);
         }
 
+        // NOVO: Atualiza a Base de Dados incluindo o avatar_url
         await pool.query(
-            'UPDATE utilizadores SET nome = $1, password_hash = $2 WHERE id = $3',
-            [nome, newPasswordHash, id]
+            'UPDATE utilizadores SET nome = $1, password_hash = $2, avatar_url = $3 WHERE id = $4',
+            [nome, newPasswordHash, avatar, id]
         );
 
         res.status(200).json({ mensagem: 'Perfil atualizado com sucesso!' });
