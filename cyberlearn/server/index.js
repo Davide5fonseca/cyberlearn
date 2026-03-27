@@ -443,3 +443,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
 });
+

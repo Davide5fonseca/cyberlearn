@@ -2,15 +2,18 @@ import { useState } from 'react';
 
 const translations = {
   pt: {
-    'sidebar.adminPlatform': 'Painel Admin',
+    // ALTERAÇÕES FEITAS AQUI (Para o Administrador):
+    'sidebar.adminPlatform': 'Dashboard', 
     'sidebar.adminUsers': 'Professores',
+    'sidebar.profile': 'Perfil',
+    
+    // Restantes traduções (Professores e Alunos):
     'sidebar.profAnalytics': 'Painel Geral',
     'sidebar.profStudents': 'Alunos',
     'sidebar.profStudio': 'Gerir Cursos',
     'sidebar.dashboard': 'Dashboard',
     'sidebar.courses': 'Cursos',
     'sidebar.quizzes': 'Quizzes',
-    'sidebar.profile': 'Perfil',
     'sidebar.logout': 'Sair da Conta'
   }
 };
@@ -70,8 +73,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user }) {
       
       <div style={{display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px'}}>
         <div style={styles.logoContainer}>
-           {/* Carrega o logo.png da pasta public, tal como fizemos no Auth.jsx */}
-           <img src="/logo.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+           <img src="/Gemini_Generated_Image_b082ehb082ehb082.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <h2 style={{color: theme.textMain, margin: 0, fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px'}}>CyberLearn</h2>
       </div>
@@ -118,9 +120,79 @@ export default function Sidebar({ view, setView, handleLogout, theme, user }) {
         </div>
       </div>
       
-      <div className="table-row" style={{...styles.menuItem(false), color: theme.danger, marginTop: 'auto'}} onClick={handleLogout} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.danger}15`)} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
-        <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> {t('sidebar.logout')}
+      {/* ---------------------------------------------------- */}
+      {/* BLOCO DE PERFIL E SAIR (FUNDO DA SIDEBAR) */}
+      {/* ---------------------------------------------------- */}
+      <div style={{ paddingTop: '20px', borderTop: `1px solid ${theme.inputBorder}`, marginTop: 'auto' }}>
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px',
+            backgroundColor: theme.inputBg,
+            borderRadius: '12px',
+            border: `1px solid transparent`
+          }}
+        >
+          {/* Avatar do Utilizador */}
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: theme.primary,
+            color: 'white',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            flexShrink: 0,
+            overflow: 'hidden'
+          }}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              user?.nome?.charAt(0).toUpperCase() || 'U'
+            )}
+          </div>
+
+          {/* Nome e Email */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, color: theme.textMain, fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user?.nome || 'Utilizador'}
+            </p>
+            <p style={{ margin: '2px 0 0 0', color: theme.textSub, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user?.email || 'email@exemplo.com'}
+            </p>
+          </div>
+
+          {/* Ícone de Sair (Porta) */}
+          <div 
+            onClick={handleLogout}
+            title="Terminar Sessão"
+            style={{ 
+              color: theme.danger, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '6px', 
+              cursor: 'pointer',
+              borderRadius: '6px',
+              transition: 'background-color 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}15`}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </div>
+        </div>
       </div>
+
     </div>
   );
 }
