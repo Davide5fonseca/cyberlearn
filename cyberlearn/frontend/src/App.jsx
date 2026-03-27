@@ -11,6 +11,7 @@ import ProfessorAlunos from './components/ProfessorAlunos';
 import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';     
 import AdminProfessores from './components/AdminProfessores'; 
+import { apiFetch } from './api';
 
 
 function App() {
@@ -49,7 +50,7 @@ function App() {
       }
 
       try {
-        const response = await fetch('http://localhost:8080/login-2fa', { 
+        const response = await apiFetch('/login-2fa', { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({ utilizadorId: tempUserId, token: tokenFinal }) 
@@ -85,7 +86,7 @@ function App() {
       if (!codigoReset || codigoReset.length !== 6) return alert("Por favor, insere o código de 6 dígitos que recebeste no email.");
 
       try {
-        const response = await fetch('http://localhost:8080/reset-password', { 
+        const response = await apiFetch('/reset-password', { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({ email: formData.email, token: codigoReset, novaPassword: formData.password }) 
@@ -105,7 +106,7 @@ function App() {
     // ============================================
     if (view === 'forgot') {
       try {
-        const response = await fetch('http://localhost:8080/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
+        const response = await apiFetch('/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
         const data = await response.json();
         if (response.ok) { 
           setView('reset'); 
@@ -119,9 +120,9 @@ function App() {
     // ============================================
     if (view === 'register' && formData.password !== formData.confirmarPassword) { alert("As palavras-passe não coincidem!"); return; }
     
-    const endpoint = view === 'login' ? 'http://localhost:8080/login' : 'http://localhost:8080/registar';
+    const endpoint = view === 'login' ? '/login' : '/registar';
     try {
-      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      const response = await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const data = await response.json();
       
       if (response.ok) {
@@ -144,7 +145,7 @@ function App() {
     e.preventDefault();
     if (profileData.novaSenha && profileData.novaSenha !== profileData.confirmarNovaSenha) { alert("As novas palavras-passe não coincidem!"); return; }
     try {
-      const response = await fetch('http://localhost:8080/atualizar-perfil', { 
+      const response = await apiFetch('/atualizar-perfil', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         // NOVO: Adicionado o campo "avatar" para enviar a Base64 para a BD

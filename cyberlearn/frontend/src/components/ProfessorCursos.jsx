@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 
 export default function ProfessorCursos({ theme, user }) {
   const [activeTab, setActiveTab] = useState('gerirCursos'); 
@@ -18,7 +19,7 @@ export default function ProfessorCursos({ theme, user }) {
   const buscarCursos = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:8080/cursos');
+      const res = await apiFetch('/cursos');
       if (res.ok) setCursosReais(await res.json());
     } catch (err) { 
       console.error("Erro ao buscar cursos:", err); 
@@ -31,7 +32,7 @@ export default function ProfessorCursos({ theme, user }) {
     if (!window.confirm("Tens a certeza que queres APAGAR este curso para sempre? Esta ação não pode ser desfeita!")) return; 
     
     try {
-      const response = await fetch(`http://localhost:8080/cursos/${cursoId}`, { method: 'DELETE' });
+      const response = await apiFetch(`/cursos/${cursoId}`, { method: 'DELETE' });
       const data = await response.json();
       if (response.ok) {
         alert("✅ " + data.mensagem);
@@ -50,7 +51,7 @@ export default function ProfessorCursos({ theme, user }) {
   const handleSubmitCurso = async (e) => { 
     e.preventDefault(); 
     try {
-      const res = await fetch('http://localhost:8080/cursos', {
+      const res = await apiFetch('/cursos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...cursoData, professor_id: user.id })
       });
@@ -77,7 +78,7 @@ export default function ProfessorCursos({ theme, user }) {
     const dadosParaEnviar = { ...quizData, curso_id: cursoEncontrado.id };
 
     try {
-      const res = await fetch('http://localhost:8080/quizzes', {
+      const res = await apiFetch('/quizzes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosParaEnviar)
       });

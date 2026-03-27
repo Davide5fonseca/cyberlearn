@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 
 export default function Cursos({ setView, theme }) {
   const [cursosReais, setCursosReais] = useState([]);
@@ -7,7 +8,7 @@ export default function Cursos({ setView, theme }) {
   useEffect(() => {
     const fetchCursos = async () => {
       try {
-        const response = await fetch('http://localhost:8080/cursos');
+        const response = await apiFetch('/cursos');
         const data = await response.json();
         if (response.ok) {
           setCursosReais(data);

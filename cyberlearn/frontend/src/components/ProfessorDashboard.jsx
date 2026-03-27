@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../api';
 
 export default function ProfessorDashboard({ theme }) {
   const [loginsReais, setLoginsReais] = useState([]);
@@ -14,7 +15,7 @@ export default function ProfessorDashboard({ theme }) {
   const buscarAcessos = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/acessos');
+      const response = await apiFetch('/acessos');
       const data = await response.json();
       if (response.ok) {
         setLoginsReais(data);

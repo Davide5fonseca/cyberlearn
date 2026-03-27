@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../api';
 
 // Dicionário de traduções
 const translations = {
@@ -41,12 +42,12 @@ export default function AdminDashboard({ theme, user }) {
   });
 
   const carregarDados = () => {
-    fetch('http://localhost:8080/acessos-professores')
+    apiFetch('/acessos-professores')
       .then(res => res.json())
       .then(data => setAcessos(data))
       .catch(err => console.error("Erro:", err));
 
-    fetch('http://localhost:8080/admin-estatisticas')
+    apiFetch('/admin-estatisticas')
       .then(res => res.json())
       .then(data => setEstatisticas(data))
       .catch(err => console.error("Erro nas estatísticas:", err));

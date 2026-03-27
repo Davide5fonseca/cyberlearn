@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 import Profile from './Profile'; // Importamos o Perfil para o usar em modo "Read-Only"
+import { apiFetch } from '../api';
 
 export default function AdminProfessores({ theme }) {
   const [professores, setProfessores] = useState([]);
@@ -9,7 +10,7 @@ export default function AdminProfessores({ theme }) {
   const [professorSelecionado, setProfessorSelecionado] = useState(null);
 
   const carregarProfessores = () => {
-    fetch('http://localhost:8080/professores')
+    apiFetch('/professores')
       .then(res => res.json())
       .then(data => setProfessores(data))
       .catch(err => console.error("Erro ao carregar:", err));
@@ -23,7 +24,7 @@ export default function AdminProfessores({ theme }) {
     if (!window.confirm(`Tens a certeza absoluta que pretendes eliminar o professor ${nome}? Todos os cursos criados por ele serão também apagados permanentemente.`)) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/professores/${id}`, { method: 'DELETE' });
+      const response = await apiFetch(`/professores/${id}`, { method: 'DELETE' });
       const data = await response.json();
       if (response.ok) {
         alert(data.mensagem);
