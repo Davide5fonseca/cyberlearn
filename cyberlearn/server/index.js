@@ -58,7 +58,10 @@ const gravarLogAcesso = async (utilizadorId, nome) => {
 // CONFIGURAÇÃO DO EMAIL (NODEMAILER)
 // ==========================================
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Importante ser false para a porta 587
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
