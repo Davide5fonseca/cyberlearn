@@ -8,9 +8,11 @@ const translations = {
     'sidebar.profile': 'Perfil',
     
     // Restantes traduções (Professores e Alunos):
-    'sidebar.profAnalytics': 'Painel Geral',
-    'sidebar.profStudents': 'Alunos',
-    'sidebar.profStudio': 'Gerir Cursos',
+    // ALTERADO AQUI: Os nomes do menu do Professor!
+    'sidebar.profAnalytics': 'Dashboard', 
+    'sidebar.profStudents': 'Turmas',
+    'sidebar.profStudio': 'Cursos',
+    
     'sidebar.dashboard': 'Dashboard',
     'sidebar.courses': 'Cursos',
     'sidebar.quizzes': 'Quizzes',
@@ -192,7 +194,8 @@ export default function Sidebar({ view, setView, handleLogout, theme, user }) {
           </div>
         </div>
       </div>
-
+            
     </div>
+    
   );
 }

@@ -4,7 +4,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-const crypto = require('crypto'); // Mantido caso precises no futuro, embora agora não estejamos a gerar hashes aleatórias longas para o reset
+const crypto = require('crypto');
 
 console.log("👉 A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
 
@@ -15,13 +15,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_DATABASE
+    // O Render vai injetar aqui o link da base de dados
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false // OBRIGATÓRIO: Permite ligações seguras na nuvem
+    }
 });
 
+// ==========================================
+// TESTE DE LIGAÇÃO
+// ==========================================
 app.get('/teste-bd', async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW()');
@@ -52,35 +55,6 @@ const gravarLogAcesso = async (utilizadorId, nome) => {
 };
 
 // ==========================================
-// ROTA DE REGISTO
-// ==========================================
-app.post('/registar', async (req, res) => {
-    const { nome, email, password, tipo } = req.body;
-
-    try {
-        const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        if (userExists.rows.length > 0) {
-            return res.status(400).json({ erro: 'Este email já está registado.' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
-
-        const novoUtilizador = await pool.query(
-            `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo) 
-             VALUES ($1, $2, $3, $4, NOW(), true) RETURNING id, nome, email, perfil`,
-            [nome, email, passwordHash, tipo]
-        );
-
-        res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
-
-    } catch (err) {
-        console.error("Erro ao registar:", err.message);
-        res.status(500).json({ erro: 'Erro interno ao criar conta.' });
-    }
-});
-
-// ==========================================
 // CONFIGURAÇÃO DO EMAIL (NODEMAILER)
 // ==========================================
 const transporter = nodemailer.createTransport({
@@ -100,37 +74,51 @@ transporter.verify(function(error, success) {
 });
 
 // ==========================================
-// ROTA DE LOGIN (ENVIA EMAIL OBRIGATORIAMENTE)
+// ROTA DE REGISTO E LOGIN
 // ==========================================
+app.post('/registar', async (req, res) => {
+    const { nome, email, password, tipo } = req.body;
+
+    try {
+        const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
+        if (userExists.rows.length > 0) return res.status(400).json({ erro: 'Este email já está registado.' });
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        const novoUtilizador = await pool.query(
+            `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo) 
+             VALUES ($1, $2, $3, $4, NOW(), true) RETURNING id, nome, email, perfil`,
+            [nome, email, passwordHash, tipo]
+        );
+
+        res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
+
+    } catch (err) {
+        console.error("Erro ao registar:", err.message);
+        res.status(500).json({ erro: 'Erro interno ao criar conta.' });
+    }
+});
+
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        
-        if (result.rows.length === 0) {
-            return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
-        }
+        if (result.rows.length === 0) return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
 
         const utilizador = result.rows[0];
         const passwordValida = await bcrypt.compare(password, utilizador.password_hash);
-        
-        if (!passwordValida) {
-            return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
-        }
+        if (!passwordValida) return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
 
-        // 1. GERAR CÓDIGO DE 6 DÍGITOS ALEATÓRIO
         const codigo2FA = Math.floor(100000 + Math.random() * 900000).toString();
-        // 2. DEFINIR VALIDADE (10 minutos)
         const expiracao = new Date(Date.now() + 10 * 60000); 
 
-        // 3. GUARDAR NA BASE DE DADOS
         await pool.query(
             'UPDATE utilizadores SET codigo_email_2fa = $1, codigo_email_expiracao = $2 WHERE id = $3',
             [codigo2FA, expiracao, utilizador.id]
         );
 
-        // 4. ENVIAR O EMAIL COM O CÓDIGO
         const mailOptions = {
             from: `"CyberLearn Segurança" <${process.env.EMAIL_USER}>`,
             to: utilizador.email,
@@ -149,12 +137,7 @@ app.post('/login', async (req, res) => {
         };
         await transporter.sendMail(mailOptions);
 
-        // 5. AVISAR O FRONTEND QUE PRECISA DO 2FA
-        res.status(200).json({ 
-            requires2FA: true, 
-            utilizadorId: utilizador.id, 
-            mensagem: 'Código enviado para o teu email!' 
-        });
+        res.status(200).json({ requires2FA: true, utilizadorId: utilizador.id, mensagem: 'Código enviado para o teu email!' });
 
     } catch (err) {
         console.error("Erro no login:", err.message);
@@ -162,9 +145,6 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// ==========================================
-// ROTA: VERIFICAR CÓDIGO DE 6 DÍGITOS DO EMAIL
-// ==========================================
 app.post('/login-2fa', async (req, res) => {
     const { utilizadorId, token } = req.body;
     
@@ -174,21 +154,16 @@ app.post('/login-2fa', async (req, res) => {
         
         const utilizador = result.rows[0];
 
-        // 1. VERIFICAR SE O CÓDIGO ESTÁ CORRETO
         if (!utilizador.codigo_email_2fa || utilizador.codigo_email_2fa !== token) {
             return res.status(401).json({ erro: 'Código incorreto. Tenta novamente.' });
         }
-
-        // 2. VERIFICAR SE O CÓDIGO NÃO EXPIROU
         if (new Date() > new Date(utilizador.codigo_email_expiracao)) {
             return res.status(401).json({ erro: 'Este código já expirou. Volta ao login para receber um novo.' });
         }
 
-        // 3. TUDO CERTO! LIMPAR O CÓDIGO E FAZER LOGIN
         await pool.query('UPDATE utilizadores SET codigo_email_2fa = NULL, codigo_email_expiracao = NULL WHERE id = $1', [utilizador.id]);
         await gravarLogAcesso(utilizador.id, utilizador.nome);
 
-        // NOVO: Adicionado avatar à resposta do login
         res.status(200).json({ 
             mensagem: 'Acesso validado com sucesso!', 
             utilizador: { 
@@ -197,7 +172,15 @@ app.post('/login-2fa', async (req, res) => {
                 email: utilizador.email, 
                 tipo: utilizador.perfil, 
                 data_registo: utilizador.data_registo,
-                avatar: utilizador.avatar_url 
+                avatar: utilizador.avatar_url,
+                biografiaProf: utilizador.biografia_prof,
+                metodologia: utilizador.metodologia,
+                nivelExperiencia: utilizador.nivel_experiencia,
+                interesse: utilizador.interesse,
+                biografia: utilizador.biografia,
+                conquistas: utilizador.conquistas,
+                github: utilizador.github,
+                linkedin: utilizador.linkedin
             } 
         });
 
@@ -208,30 +191,23 @@ app.post('/login-2fa', async (req, res) => {
 });
 
 // ==========================================
-// ROTA DE RECUPERAR SENHA (AGORA ENVIA CÓDIGO 6 DÍGITOS)
+// ROTA DE RECUPERAR SENHA
 // ==========================================
 app.post('/recuperar-senha', async (req, res) => {
     const { email } = req.body;
 
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        
-        if (result.rows.length === 0) {
-            // Em segurança, não dizemos se o email existe ou não, dizemos sempre isto:
-            return res.status(200).json({ mensagem: 'Se o email existir, receberás um código.' });
-        }
+        if (result.rows.length === 0) return res.status(200).json({ mensagem: 'Se o email existir, receberás um código.' });
 
-        // 1. Gera código de 6 dígitos
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const tokenExpiry = new Date(Date.now() + 15 * 60000); // 15 minutos
+        const tokenExpiry = new Date(Date.now() + 15 * 60000); 
 
-        // 2. Guarda na BD (usamos a coluna que já tinhas para o token)
         await pool.query(
             'UPDATE utilizadores SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
             [resetCode, tokenExpiry, email]
         );
 
-        // 3. Envia Email
         const mailOptions = {
             from: `"CyberLearn Suporte" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -259,9 +235,6 @@ app.post('/recuperar-senha', async (req, res) => {
     }
 });
 
-// ==========================================
-// ROTA PARA ATUALIZAR A SENHA (COM O CÓDIGO)
-// ==========================================
 app.post('/reset-password', async (req, res) => {
     const { email, token, novaPassword } = req.body;
 
@@ -271,9 +244,7 @@ app.post('/reset-password', async (req, res) => {
             [email, token]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(400).json({ erro: 'O código inserido está incorreto ou já expirou.' });
-        }
+        if (result.rows.length === 0) return res.status(400).json({ erro: 'O código inserido está incorreto ou já expirou.' });
 
         const utilizador = result.rows[0];
         const salt = await bcrypt.genSalt(10);
@@ -293,38 +264,39 @@ app.post('/reset-password', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PARA ATUALIZAR O PERFIL (AGORA RECEBE O AVATAR)
+// ROTA PARA ATUALIZAR O PERFIL
 // ==========================================
 app.post('/atualizar-perfil', async (req, res) => {
-    const { id, nome, senhaAtual, novaSenha, avatar } = req.body; // <-- Adicionado o avatar aqui
+    const { 
+        id, nome, senhaAtual, novaSenha, avatar, 
+        biografiaProf, metodologia, 
+        nivelExperiencia, interesse, biografia, conquistas, github, linkedin 
+    } = req.body; 
 
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ erro: 'Utilizador não encontrado.' });
-        }
+        if (result.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
 
         const utilizador = result.rows[0];
         let newPasswordHash = utilizador.password_hash;
 
         if (novaSenha) {
-            if (!senhaAtual) {
-                return res.status(400).json({ erro: 'Precisas de inserir a senha atual para mudar a segurança.' });
-            }
+            if (!senhaAtual) return res.status(400).json({ erro: 'Precisas de inserir a senha atual para mudar a segurança.' });
             
             const isValid = await bcrypt.compare(senhaAtual, utilizador.password_hash);
-            if (!isValid) {
-                return res.status(401).json({ erro: 'A palavra-passe atual está incorreta.' });
-            }
+            if (!isValid) return res.status(401).json({ erro: 'A palavra-passe atual está incorreta.' });
 
             const salt = await bcrypt.genSalt(10);
             newPasswordHash = await bcrypt.hash(novaSenha, salt);
         }
 
-        // NOVO: Atualiza a Base de Dados incluindo o avatar_url
         await pool.query(
-            'UPDATE utilizadores SET nome = $1, password_hash = $2, avatar_url = $3 WHERE id = $4',
-            [nome, newPasswordHash, avatar, id]
+            `UPDATE utilizadores SET 
+                nome = $1, password_hash = $2, avatar_url = $3, 
+                biografia_prof = $4, metodologia = $5,
+                nivel_experiencia = $6, interesse = $7, biografia = $8, conquistas = $9, github = $10, linkedin = $11
+            WHERE id = $12`,
+            [nome, newPasswordHash, avatar, biografiaProf, metodologia, nivelExperiencia, interesse, biografia, conquistas, github, linkedin, id]
         );
 
         res.status(200).json({ mensagem: 'Perfil atualizado com sucesso!' });
@@ -336,8 +308,100 @@ app.post('/atualizar-perfil', async (req, res) => {
 });
 
 // ==========================================
-// ROTA PARA O PROFESSOR VER OS ACESSOS (SÓ ALUNOS)
+// ROTAS PARA CRIAR, LISTAR E APAGAR CURSOS
 // ==========================================
+app.get('/cursos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, u.nome as nome_professor 
+            FROM cursos c 
+            LEFT JOIN utilizadores u ON c.professor_id = u.id 
+            ORDER BY c.id DESC
+        `);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("Erro ao buscar cursos:", err.message);
+        res.status(500).json({ erro: 'Erro ao carregar os cursos.' });
+    }
+});
+
+app.post('/cursos', async (req, res) => {
+    const { titulo, nivel, descricao, conteudo_licao, professor_id } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO cursos (titulo, nivel, descricao, conteudo_licao, professor_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [titulo, nivel, descricao, conteudo_licao, professor_id]
+        );
+        res.status(201).json({ mensagem: 'Curso publicado com sucesso na plataforma!', curso: result.rows[0] });
+    } catch (err) {
+        console.error("Erro ao criar curso:", err.message);
+        res.status(500).json({ erro: 'Erro interno ao criar o curso.' });
+    }
+});
+
+app.delete('/cursos/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM quizzes WHERE curso_id = $1', [id]);
+        await pool.query('DELETE FROM cursos WHERE id = $1', [id]);
+        res.status(200).json({ mensagem: 'Curso apagado permanentemente!' });
+    } catch (err) {
+        console.error("Erro ao apagar curso:", err.message);
+        res.status(500).json({ erro: 'Erro interno ao apagar o curso.' });
+    }
+});
+
+// ==========================================
+// ROTAS PARA CRIAR E LISTAR QUIZZES
+// ==========================================
+app.get('/quizzes', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT q.*, c.titulo as nome_curso 
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            ORDER BY q.id DESC
+        `);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("Erro ao buscar quizzes:", err.message);
+        res.status(500).json({ erro: 'Erro ao carregar as avaliações.' });
+    }
+});
+
+app.post('/quizzes', async (req, res) => {
+    const { titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO quizzes (titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta]
+        );
+        res.status(201).json({ mensagem: 'Avaliação adicionada ao curso com sucesso!' });
+    } catch (err) {
+        console.error("Erro ao criar quiz:", err.message);
+        res.status(500).json({ erro: 'Erro ao guardar a avaliação na base de dados.' });
+    }
+});
+
+// ==========================================
+// ROTAS DE GESTÃO E ADMINISTRAÇÃO
+// ==========================================
+app.get('/alunos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo,
+                   avatar_url, nivel_experiencia as "nivelExperiencia", interesse, biografia, conquistas, github, linkedin
+            FROM utilizadores 
+            WHERE LOWER(TRIM(perfil)) = 'aluno' 
+            ORDER BY nome ASC
+        `);
+        res.status(200).json(result.rows);
+    } catch (err) { 
+        console.error(err);
+        res.status(500).json({ erro: 'Erro interno ao carregar a lista de alunos.' }); 
+    }
+});
+
 app.get('/acessos', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -348,7 +412,6 @@ app.get('/acessos', async (req, res) => {
             ORDER BY a.data_hora_acesso DESC
             LIMIT 50
         `);
-        
         res.status(200).json(result.rows);
     } catch (err) {
         console.error("Erro ao buscar acessos:", err.message);
@@ -356,14 +419,11 @@ app.get('/acessos', async (req, res) => {
     }
 });
 
-// ==========================================
-// ROTAS DE ADMINISTRAÇÃO (PROFESSORES)
-// ==========================================
-
 app.get('/professores', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo 
+            SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo,
+                   avatar_url, biografia_prof as "biografiaProf", metodologia 
             FROM utilizadores 
             WHERE LOWER(TRIM(perfil)) = 'professor' 
             ORDER BY nome ASC
@@ -396,10 +456,6 @@ app.delete('/professores/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM logs_acesso WHERE utilizador_id = $1', [id]);
         await pool.query(`
-            DELETE FROM perguntas_quiz 
-            WHERE quiz_id IN (SELECT id FROM quizzes WHERE curso_id IN (SELECT id FROM cursos WHERE professor_id = $1))
-        `, [id]);
-        await pool.query(`
             DELETE FROM quizzes 
             WHERE curso_id IN (SELECT id FROM cursos WHERE professor_id = $1)
         `, [id]);
@@ -415,9 +471,6 @@ app.delete('/professores/:id', async (req, res) => {
     }
 });
 
-// ==========================================
-// ESTATÍSTICAS REAIS PARA O DASHBOARD ADMIN
-// ==========================================
 app.get('/admin-estatisticas', async (req, res) => {
     try {
         const profsResult = await pool.query("SELECT COUNT(*) FROM utilizadores WHERE LOWER(TRIM(perfil)) = 'professor'");
@@ -437,10 +490,52 @@ app.get('/admin-estatisticas', async (req, res) => {
 });
 
 // ==========================================
-// ARRANQUE DO SERVIDOR
+// ROTAS PARA CRIAR E LISTAR QUIZZES
 // ==========================================
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor a correr na porta ${PORT} e à escuta de pedidos!`);
+app.get('/quizzes', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT q.*, c.titulo as nome_curso 
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            ORDER BY q.id DESC
+        `);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        res.status(500).json({ erro: 'Erro ao carregar as avaliações.' });
+    }
 });
 
+app.post('/quizzes', async (req, res) => {
+    const { titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO quizzes (titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta]
+        );
+        res.status(201).json({ mensagem: 'Avaliação adicionada ao curso com sucesso!' });
+    } catch (err) {
+        console.error("Erro ao criar quiz:", err.message);
+        res.status(500).json({ erro: 'Erro ao guardar a avaliação na base de dados.' });
+    }
+});
+
+// NOVA ROTA A ADICIONAR: APAGAR QUIZ PELO TÍTULO
+app.delete('/quizzes/:titulo', async (req, res) => {
+    const { titulo } = req.params;
+    try {
+        await pool.query('DELETE FROM quizzes WHERE titulo = $1', [titulo]);
+        res.status(200).json({ mensagem: 'Avaliação apagada permanentemente!' });
+    } catch (err) {
+        console.error("Erro ao apagar quiz:", err.message);
+        res.status(500).json({ erro: 'Erro interno ao apagar o quiz.' });
+    }
+});
+
+// ==========================================
+// ARRANQUE DO SERVIDOR
+// ==========================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor a correr na porta ${PORT}`);
+});

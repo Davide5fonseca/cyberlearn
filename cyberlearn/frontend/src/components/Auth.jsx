@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 // Dicionário de traduções incluído para funcionar de imediato
 const translations = {
   pt: {
-    'auth.welcome': 'Bem-vindo de volta',
+    'auth.welcome': 'Bem-vindo',
     'auth.subtitleLogin': 'Insere as tuas credenciais para aceder à plataforma.',
     'auth.email': 'Endereço de E-mail',
     'auth.password': 'Palavra-Passe',
@@ -41,7 +41,7 @@ const translations = {
     'auth.brandSub': 'Aprende, pratica e protege. Junta-te à elite da segurança digital.'
   },
   en: {
-    'auth.welcome': 'Welcome back',
+    'auth.welcome': 'Welcome',
     'auth.subtitleLogin': 'Enter your credentials to access the platform.',
     'auth.email': 'Email Address',
     'auth.password': 'Password',
@@ -534,9 +534,6 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
           </div>
           
           <div style={{ zIndex: 1, textAlign: 'center', maxWidth: '400px' }}>
-            <div style={{ width: '80px', height: '80px', borderRadius: '24px', backgroundColor: '#ffffff', color: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px auto', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
             <h2 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2', whiteSpace: 'pre-line' }}>{t('auth.brandTitle')}</h2>
             <p style={{ fontSize: '16px', opacity: 0.8, lineHeight: '1.6' }}>{t('auth.brandSub')}</p>
           </div>

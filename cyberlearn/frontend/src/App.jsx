@@ -13,33 +13,63 @@ import AdminDashboard from './components/AdminDashboard';
 import AdminProfessores from './components/AdminProfessores'; 
 import { apiFetch } from './api';
 
-
 function App() {
   const [view, setView] = useState('login'); 
   const [user, setUser] = useState(null); 
   
+  // NOVO: Estado para guardar o curso que o aluno clicou!
+  const [activeCourse, setActiveCourse] = useState(null);
+  
   const [formData, setFormData] = useState({ nome: '', email: '', password: '', confirmarPassword: '', tipo: 'aluno' });
   const [tempUserId, setTempUserId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [profileData, setProfileData] = useState({ nome: '', senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
+  
+  const [profileData, setProfileData] = useState({ 
+    nome: '', 
+    senhaAtual: '', 
+    novaSenha: '', 
+    confirmarNovaSenha: '',
+    biografiaProf: '',
+    metodologia: '',
+    nivelExperiencia: 'iniciante',
+    interesse: '',
+    biografia: '',
+    conquistas: '',
+    github: '',
+    linkedin: ''
+  });
+  
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const [avatarImg, setAvatarImg] = useState(null);
 
-  useEffect(() => { if (user) setProfileData(prev => ({ ...prev, nome: user.nome })); }, [user]);
+  useEffect(() => { 
+    if (user) {
+      setProfileData(prev => ({ 
+        ...prev, 
+        nome: user.nome || '',
+        biografiaProf: user.biografiaProf || '',
+        metodologia: user.metodologia || '',
+        nivelExperiencia: user.nivelExperiencia || 'iniciante',
+        interesse: user.interesse || '',
+        biografia: user.biografia || '',
+        conquistas: user.conquistas || '',
+        github: user.github || '',
+        linkedin: user.linkedin || ''
+      })); 
+    }
+  }, [user]);
+
   useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#060b14' : '#f0f2f5'; document.body.style.transition = 'background-color 0.3s ease'; }, [isDarkMode]);
   
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
   
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); };
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ============================================
-    // 1. SE ESTIVER A INSERIR O CÓDIGO 2FA
-    // ============================================
     if (view === 'login' && show2FA) {
       const formDataObj = new FormData(e.currentTarget);
       const tokenFinal = formDataObj.get('codigo2FA');
@@ -59,7 +89,6 @@ function App() {
         
         if (response.ok) {
           setUser(data.utilizador);
-          // NOVO: Carrega o avatar que veio da BD (se existir)
           setAvatarImg(data.utilizador.avatar || null);
           
           setShow2FA(false); 
@@ -74,9 +103,6 @@ function App() {
       return;
     }
 
-    // ============================================
-    // 2. RECUPERAR SENHA (INSERIR CÓDIGO E NOVA SENHA)
-    // ============================================
     if (view === 'reset') {
       if (formData.password !== formData.confirmarPassword) { alert("As palavras-passe não coincidem!"); return; }
       
@@ -101,9 +127,6 @@ function App() {
       return;
     }
     
-    // ============================================
-    // 3. PEDIR CÓDIGO PARA RECUPERAR SENHA
-    // ============================================
     if (view === 'forgot') {
       try {
         const response = await apiFetch('/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
@@ -115,9 +138,6 @@ function App() {
       return;
     }
     
-    // ============================================
-    // 4. REGISTO E LOGIN NORMAL
-    // ============================================
     if (view === 'register' && formData.password !== formData.confirmarPassword) { alert("As palavras-passe não coincidem!"); return; }
     
     const endpoint = view === 'login' ? '/login' : '/registar';
@@ -148,20 +168,39 @@ function App() {
       const response = await apiFetch('/atualizar-perfil', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        // NOVO: Adicionado o campo "avatar" para enviar a Base64 para a BD
         body: JSON.stringify({ 
           id: user.id, 
           nome: profileData.nome, 
           senhaAtual: profileData.senhaAtual, 
           novaSenha: profileData.novaSenha,
-          avatar: avatarImg 
+          avatar: avatarImg,
+          biografiaProf: profileData.biografiaProf,
+          metodologia: profileData.metodologia,
+          nivelExperiencia: profileData.nivelExperiencia,
+          interesse: profileData.interesse,
+          biografia: profileData.biografia,
+          conquistas: profileData.conquistas,
+          github: profileData.github,
+          linkedin: profileData.linkedin
         }) 
       });
       const data = await response.json();
       if (response.ok) { 
         alert("Alterações guardadas com sucesso!"); 
-        // Atualiza o utilizador local para refletir a nova imagem
-        setUser({ ...user, nome: profileData.nome, avatar: avatarImg }); 
+
+        setUser({ 
+          ...user, 
+          nome: profileData.nome, 
+          avatar: avatarImg,
+          biografiaProf: profileData.biografiaProf,
+          metodologia: profileData.metodologia,
+          nivelExperiencia: profileData.nivelExperiencia,
+          interesse: profileData.interesse,
+          biografia: profileData.biografia,
+          conquistas: profileData.conquistas,
+          github: profileData.github,
+          linkedin: profileData.linkedin
+        }); 
         setProfileData({ ...profileData, senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' }); 
       } else { alert(`Erro: ${data.erro}`); }
     } catch (error) { alert("Erro de ligação ao servidor."); }
@@ -185,26 +224,28 @@ function App() {
           {view !== 'licao' && (
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
               <div>
+                <div>
                 <h1 style={{fontSize: '20px', color: theme.textMain, margin: 0, fontWeight: 'bold'}}>
                   {view === 'dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` : 
-                   view === 'professor_dashboard' ? `Painel do Professor ` : 
-                   view === 'professor_alunos' ? `Gestão de Alunos 👥` :
+                   view === 'professor_dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` :
+                   view === 'professor_alunos' ? `Gestão de Turmas 👥` :
                    view === 'professor_cursos' ? `O Teu Cofre de Cursos 🔐` :
-                   view === 'admin_dashboard' ? `Painel de Administração 🛡️` : 
+                   view === 'admin_dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` :
                    view === 'admin_professores' ? `Gestão de Professores 👨‍🏫` : 
                    view === 'cursos' ? 'Catálogo de Cursos 📚' : 
                    view === 'quizzes' ? 'Quizzes e Avaliações 🎯' : 'O Teu Perfil ⚙️'}
                 </h1>
                 <p style={{color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px'}}>
-                  {view === 'dashboard' ? 'Bem-vindo de volta ao teu centro de treino.' : 
-                   view === 'professor_dashboard' ? 'Monitoriza a atividade recente da tua plataforma.' : 
+                  {view === 'dashboard' ? 'Bem-vindo ao teu centro de treino.' : 
+                   view === 'professor_dashboard' ? 'Aqui está a atividade dos alunos.' :  
                    view === 'professor_alunos' ? 'Acompanha o progresso e as notas da tua turma.' : 
                    view === 'professor_cursos' ? 'Cria, gere e apaga conteúdos educativos.' : 
-                   view === 'admin_dashboard' ? 'Monitoriza a atividade dos professores.' : 
+                   view === 'admin_dashboard' ? 'Aqui está a atividade dos professores.' : 
                    view === 'admin_professores' ? 'Consulta perfis e remove professores do sistema.' : 
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
                    view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
+              </div>
               </div>
               <div style={{display: 'flex', gap: '14px', alignItems: 'center'}}>
                 <div 
@@ -239,13 +280,15 @@ function App() {
           )}
 
           {view === 'dashboard' && <Dashboard theme={theme} />}
-          {view === 'cursos' && <Cursos setView={setView} theme={theme} />}
-          {view === 'licao' && <Licao setView={setView} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
+          {/* ALTERADO: Passagem da função setActiveCourse para o Cursos.jsx */}
+          {view === 'cursos' && <Cursos setView={setView} theme={theme} setActiveCourse={setActiveCourse} />}
+          {/* ALTERADO: Passagem do activeCourse para a Licao.jsx */}
+          {view === 'licao' && <Licao setView={setView} theme={theme} curso={activeCourse} />}
           {view === 'quizzes' && <Quizzes theme={theme} />}
           {view === 'professor_dashboard' && <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos' && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos' && <ProfessorCursos theme={theme} user={user} />}
-          {view === 'admin_dashboard' && <AdminDashboard theme={theme} />}
+          {view === 'admin_dashboard' && <AdminDashboard theme={theme} user={user} />}
           {view === 'admin_professores' && <AdminProfessores theme={theme} />}
           
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} avatarImg={avatarImg} setAvatarImg={setAvatarImg} />}

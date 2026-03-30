@@ -209,16 +209,6 @@ export default function AdminDashboard({ theme, user }) {
   return (
     <div style={styles.layout}>
       
-      {/* NOVO BLOCO: Saudação e Mensagem */}
-      <div style={{ marginBottom: '8px' }}>
-        <h1 style={{ fontSize: '24px', color: theme.textMain, margin: '0 0 4px 0', fontWeight: 'bold' }}>
-          Olá, {user?.nome ? user.nome.split(' ')[0] : 'Administrador'}!
-        </h1>
-        <p style={{ color: theme.textSub, margin: 0, fontSize: '14px' }}>
-          Aqui está a atividade dos professores.
-        </p>
-      </div>
-
       {/* Top Metric Grid */}
       <div style={styles.metricGrid}>
         <div style={styles.metricCard}>

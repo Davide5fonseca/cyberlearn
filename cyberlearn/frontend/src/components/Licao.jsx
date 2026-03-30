@@ -1,61 +1,105 @@
-export default function Licao({ setView, theme, isDarkMode, setIsDarkMode }) {
+/* eslint-disable react/prop-types */
+import { useState } from 'react';
+
+export default function Licao({ setView, theme, curso }) {
+  // Estado para saber em que lição o aluno está (começa na 0)
+  const [currentLicaoIndex, setCurrentLicaoIndex] = useState(0);
+
   const styles = {
-    badge: { padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: `${theme.primary}20`, color: theme.primary },
-    submitButton: { width: '100%', backgroundColor: theme.primary, color: 'white', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', textTransform: 'uppercase' },
-    iconBg: theme.iconBg,
-    iconColor: theme.iconColor
+    container: { maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease' },
+    headerBadges: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' },
+    badge: { padding: '6px 12px', backgroundColor: `${theme.primary}20`, color: theme.primary, borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' },
+    subBadge: { color: theme.textSub, fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' },
+    contentCard: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}` },
+    title: { fontSize: '32px', fontWeight: 'bold', color: theme.textMain, margin: '0 0 30px 0', lineHeight: '1.2' },
+    text: { fontSize: '16px', color: theme.textSub, lineHeight: '1.8' },
+    footer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '50px', paddingTop: '25px', borderTop: `1px solid ${theme.inputBorder}60` },
+    backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s' },
+    nextBtn: { backgroundColor: theme.primary, color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: `0 4px 12px ${theme.primary}50`, transition: 'transform 0.2s' }
   };
 
-  const renderThemeToggle = () => (
-    <div style={{ backgroundColor: styles.iconBg, padding: '8px', borderRadius: '8px', cursor: 'pointer', color: styles.iconColor }} onClick={() => setIsDarkMode(!isDarkMode)}>
-      {isDarkMode ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>}
-    </div>
-  );
+  if (!curso) {
+    return (
+      <div style={styles.container}>
+        <div style={{...styles.contentCard, textAlign: 'center', padding: '60px'}}>
+           <h2 style={{color: theme.textMain}}>Nenhum curso selecionado.</h2>
+           <p style={{color: theme.textSub}}>Por favor, volta ao catálogo e escolhe um curso.</p>
+           <button onClick={() => setView('cursos')} style={{...styles.nextBtn, margin: '20px auto 0 auto'}}>Voltar aos Cursos</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Descodificar o texto da Base de Dados de volta para uma Lista
+  let conteudosDasLicoes = [];
+  try {
+    conteudosDasLicoes = JSON.parse(curso.conteudo_licao);
+    if (!Array.isArray(conteudosDasLicoes)) conteudosDasLicoes = [curso.conteudo_licao];
+  } catch (error) {
+    // Se por acaso houver um erro a ler o JSON, assume que o texto é todo uma única lição
+    conteudosDasLicoes = [curso.conteudo_licao];
+  }
+
+  const totalLicoes = conteudosDasLicoes.length;
+  const licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || "O professor ainda não adicionou conteúdo a esta lição.";
+
+  const handleNext = () => {
+    if (currentLicaoIndex < totalLicoes - 1) {
+      setCurrentLicaoIndex(currentLicaoIndex + 1); // Avança para a próxima lição
+      window.scrollTo(0, 0); // Sobe a página para o topo
+    } else {
+      setView('quizzes'); // Vai para os testes no fim do curso
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentLicaoIndex > 0) {
+      setCurrentLicaoIndex(currentLicaoIndex - 1); // Volta para a lição anterior
+      window.scrollTo(0, 0);
+    } else {
+      setView('cursos'); // Volta ao catálogo
+    }
+  };
 
   return (
-    <div style={{display: 'flex', flexDirection: 'column', minHeight: '100%'}}>
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: theme.textSub, cursor: 'pointer', fontWeight: 'bold', fontSize: '14px'}} onClick={() => setView('cursos')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          Voltar aos Cursos
+    <div style={styles.container}>
+      <div style={styles.contentCard}>
+        
+        <div style={styles.headerBadges}>
+          <span style={styles.badge}>{curso.titulo}</span>
+          <span style={styles.subBadge}>Lição {currentLicaoIndex + 1} de {totalLicoes}</span>
         </div>
-        {renderThemeToggle()}
-      </div>
+        
+        <h1 style={styles.title}>
+          {totalLicoes > 1 ? `Parte ${currentLicaoIndex + 1}` : curso.titulo}
+        </h1>
+        
+        <div 
+          style={styles.text} 
+          dangerouslySetInnerHTML={{ __html: licaoAtualHTML }} 
+        />
 
-      <div style={{backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, flex: 1}}>
-        <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
-          <div style={styles.badge}>Módulo 1</div>
-          <div style={{...styles.badge, backgroundColor: theme.inputBg, color: theme.textSub}}>Lição 1 de 5</div>
-        </div>
-        
-        <h1 style={{color: theme.textMain, marginTop: 0, fontSize: '28px', marginBottom: '30px'}}>O que é o Phishing?</h1>
-        
-        <div style={{color: theme.textMain, fontSize: '15px', lineHeight: '1.8'}}>
-          <p>O <strong>Phishing</strong> é uma das formas mais antigas e mais perigosas de ciberataques. Trata-se de uma técnica de engenharia social usada por hackers para enganar as pessoas.</p>
+        <div style={styles.footer}>
+          <button 
+            style={styles.backBtn} 
+            onClick={handlePrev}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
+          >
+            {currentLicaoIndex === 0 ? "Voltar ao Catálogo" : "Lição Anterior"}
+          </button>
           
-          <div style={{backgroundColor: theme.inputBg, borderLeft: `4px solid ${theme.primary}`, padding: '20px', margin: '30px 0', borderRadius: '0 8px 8px 0'}}>
-            <h4 style={{margin: '0 0 10px 0', color: theme.primary, display: 'flex', alignItems: 'center', gap: '8px'}}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              Dica de Segurança
-            </h4>
-            <p style={{margin: 0, color: theme.textSub, fontSize: '14px'}}>Os atacantes disfarçam-se frequentemente de entidades confiáveis para criar um sentido de urgência ou medo.</p>
-          </div>
-
-          <h3 style={{marginTop: '30px', color: theme.textMain}}>Sinais Vermelhos a procurar:</h3>
-          <ul style={{color: theme.textSub}}>
-            <li style={{marginBottom: '10px'}}><strong>Remetente estranho:</strong> O email diz ser do "PayPal", mas o endereço é <em>suporte@pay-pal-seguranca.xyz</em>.</li>
-            <li style={{marginBottom: '10px'}}><strong>Erros ortográficos:</strong> Os emails oficiais são revistos várias vezes. Erros de gramática são um sinal claro de fraude.</li>
-          </ul>
-        </div>
-
-        <div style={{width: '100%', height: '1px', backgroundColor: theme.inputBorder, margin: '40px 0'}}></div>
-
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-          <button style={{backgroundColor: 'transparent', border: 'none', color: theme.textSub, cursor: 'not-allowed', fontWeight: 'bold', fontSize: '14px'}}>Anterior</button>
-          <button style={{...styles.submitButton, width: 'auto', padding: '14px 24px', marginTop: 0}} onClick={() => { alert("Parabéns! Lição concluída. Ganháste +50 Pontos XP!"); setView('cursos'); }}>
-            Concluir e Avançar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          <button 
+            style={styles.nextBtn} 
+            onClick={handleNext}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            {currentLicaoIndex === totalLicoes - 1 ? "CONCLUIR CURSO" : "PRÓXIMA LIÇÃO"}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </button>
         </div>
+        
       </div>
     </div>
   );
