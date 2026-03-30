@@ -5,6 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    open: true // Isto faz com que o browser abra sozinho
+    open: true 
   }
 })
