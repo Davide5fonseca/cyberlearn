@@ -59,15 +59,17 @@ const gravarLogAcesso = async (utilizadorId, nome) => {
 // ==========================================
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Importante ser false para a porta 587
-    requireTLS: true,
+    port: 465,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        // Isto fura os bloqueios de segurança exagerados dos servidores na nuvem
+        rejectUnauthorized: false 
     }
 });
-
 transporter.verify(function(error, success) {
     if (error) {
         console.error("❌ Erro de ligação ao Email (Verifica o .env e a Palavra-passe de App):", error.message);
