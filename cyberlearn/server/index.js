@@ -66,9 +66,10 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        // Isto fura os bloqueios de segurança exagerados dos servidores na nuvem
         rejectUnauthorized: false 
-    }
+    },
+    // A MAGIA ESTÁ AQUI: Forçar o uso do IPv4 e ignorar o IPv6 que bloqueia no Render
+    family: 4 
 });
 transporter.verify(function(error, success) {
     if (error) {
