@@ -1,7 +1,5 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 
-// Dicionário de traduções incluído para funcionar de imediato
 const translations = {
   pt: {
     'auth.welcome': 'Bem-vindo',
@@ -89,7 +87,6 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    // Agora não limpamos o OTP se formos para a vista 'reset' (para poderem escrever o código lá)
     if (!show2FA && view !== 'reset') setOtp(['', '', '', '', '', '']);
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -504,7 +501,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
           </div>
         </div>
 
-        {/* RIGHT PANEL: Branding */}
+        {/* Branding */}
         <div className="auth-right-panel">
           <div style={{ position: 'absolute', top: '50%', left: '50%', opacity: 0.35 }}>
             <svg className="parallax-padlock" viewBox="0 0 200 200" width="400" height="400">

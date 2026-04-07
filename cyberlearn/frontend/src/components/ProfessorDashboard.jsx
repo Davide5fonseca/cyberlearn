@@ -28,13 +28,11 @@ export default function ProfessorDashboard({ theme, user }) {
     carregarDados();
   }, []);
 
-  // Cálculos automáticos para as métricas baseados na lista de acessos
   const totalAcessos = acessos.length;
   const alunosAtivos = new Set(acessos.map(a => a.email)).size;
 
-  // ========================================================
-  // LÓGICA PARA EXPORTAR PDF
-  // ========================================================
+
+  // EXPORTAR PDF
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF();
@@ -127,9 +125,7 @@ export default function ProfessorDashboard({ theme, user }) {
     buttonDanger: { backgroundColor: theme.danger, border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'opacity 0.2s' }
   };
 
-  // ========================================================
-  // VISTA 1: "PÁGINA" DO HISTÓRICO COMPLETO
-  // ========================================================
+  // VISTA 1: HISTÓRICO COMPLETO DE ACESSOS
   if (showHistory) {
     return (
       <div style={styles.layout}>
@@ -211,15 +207,12 @@ export default function ProfessorDashboard({ theme, user }) {
     );
   }
 
-  // ========================================================
-  // VISTA 2: PAINEL PRINCIPAL (DASHBOARD COM MÉTRICAS)
-  // ========================================================
+  // VISTA 2: DASHBOARD
   const acessosExibidos = acessos.slice(0, 5);
 
   return (
     <div style={styles.layout}>
 
-      {/* Top Metric Grid */}
       <div style={styles.metricGrid}>
         <div style={styles.metricCard}>
           <div style={styles.iconBox}>
@@ -251,17 +244,16 @@ export default function ProfessorDashboard({ theme, user }) {
           </div>
           
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {acessos.length > 5 && (
-              <button 
-                onClick={() => setShowHistory(true)}
-                style={styles.buttonSecondary}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Ver Todo o Histórico
-              </button>
-            )}
+            
+            <button 
+              onClick={() => setShowHistory(true)}
+              style={styles.buttonSecondary}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Ver Todo o Histórico
+            </button>
 
             <button 
               onClick={() => { carregarDados(); alert("Aviso: Dados atualizados."); }}

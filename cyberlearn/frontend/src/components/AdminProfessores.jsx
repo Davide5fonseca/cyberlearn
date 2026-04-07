@@ -1,15 +1,12 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
-import Profile from './Profile'; // Importamos o Perfil para podermos espreitar os dados
+import Profile from './Profile'; 
 import { apiFetch } from '../api';
 
 export default function AdminProfessores({ theme }) {
   const [professores, setProfessores] = useState([]);
   
-  // Guardamos aqui o professor que o Administrador quer ver no momento
   const [professorSelecionado, setProfessorSelecionado] = useState(null);
 
-  // Função que vai buscar a nossa equipa de professores ao servidor
   const carregarProfessores = () => {
     apiFetch('/professores')
       .then(res => res.json())
@@ -17,14 +14,11 @@ export default function AdminProfessores({ theme }) {
       .catch(err => console.error("Ups, problema ao carregar a equipa:", err));
   };
 
-  // Assim que a página abre, chamamos a equipa
   useEffect(() => {
     carregarProfessores();
   }, []);
 
-  // Função para despedir/remover um professor
   const handleEliminar = async (id, nome) => {
-    // Um aviso mais humano e claro sobre as consequências
     const confirmacao = window.confirm(
       `Queres mesmo remover o professor ${nome} da plataforma? 😢\n\nAtenção: Todos os cursos, materiais e quizzes que esta pessoa criou vão desaparecer para sempre. Esta ação não tem volta a dar!`
     );
@@ -46,9 +40,7 @@ export default function AdminProfessores({ theme }) {
     }
   };
 
-  // ==========================================
-  // VISTA 1: ESPREITAR O PERFIL DO PROFESSOR
-  // ==========================================
+  // VISTA 1: VER O PERFIL DO PROFESSOR
   if (professorSelecionado) {
     return (
       <div style={{ maxHeight: 'calc(100vh - 130px)', overflowY: 'auto', paddingRight: '10px' }}>
@@ -81,9 +73,7 @@ export default function AdminProfessores({ theme }) {
     );
   }
 
-  // ==========================================
-  // VISTA 2: MONTRA DE PROFESSORES (GRELHA)
-  // ==========================================
+  // VISTA 2: PÁGINA PROFESSORES 
   return (
     <div style={{ maxHeight: 'calc(100vh - 130px)', overflowY: 'auto', paddingRight: '10px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
@@ -122,7 +112,7 @@ export default function AdminProfessores({ theme }) {
                 onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                Espreitar Perfil
+                Ver Perfil
               </button>
 
               <button 

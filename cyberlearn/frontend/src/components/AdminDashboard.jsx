@@ -1,10 +1,8 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { apiFetch } from '../api';
 
-// Dicionário de traduções
 const translations = {
   pt: {
     'admin.activeInstructors': 'Professores Registados',
@@ -27,7 +25,6 @@ const translations = {
   }
 };
 
-// ALTERADO: Recebemos a prop `user` para sabermos o nome do Administrador
 export default function AdminDashboard({ theme, user }) {
   const [lang] = useState('pt');
   const t = (key) => translations[lang][key] || key;
@@ -57,9 +54,7 @@ export default function AdminDashboard({ theme, user }) {
     carregarDados();
   }, []);
 
-  // ========================================================
   // LÓGICA PARA EXPORTAR PDF
-  // ========================================================
   const handleExportPDF = () => {
     const doc = new jsPDF();
     
@@ -117,9 +112,8 @@ export default function AdminDashboard({ theme, user }) {
     buttonDanger: { backgroundColor: theme.danger, border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'opacity 0.2s' }
   };
 
-  // ========================================================
+
   // VISTA 1: "PÁGINA" DO HISTÓRICO COMPLETO
-  // ========================================================
   if (showHistory) {
     return (
       <div style={styles.layout}>
@@ -201,9 +195,7 @@ export default function AdminDashboard({ theme, user }) {
     );
   }
 
-  // ========================================================
-  // VISTA 2: PAINEL PRINCIPAL (DASHBOARD COM MÉTRICAS)
-  // ========================================================
+  // VISTA 2: DASHBOARD
   const acessosExibidos = acessos.slice(0, 5);
 
   return (

@@ -6,13 +6,17 @@ export default function Licao({ setView, theme, curso }) {
   const [currentLicaoIndex, setCurrentLicaoIndex] = useState(0);
 
   const styles = {
-    container: { maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease' },
+    // Reduzi a largura (maxWidth) para 850px e ajustei a margem para ficar bem centrado
+    container: { maxWidth: '850px', margin: '40px auto 60px auto', display: 'flex', flexDirection: 'column', gap: '25px', animation: 'fadeIn 0.4s ease' },
+
+    // ESTILO DO CARTÃO DO CURSO
     headerBadges: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' },
     badge: { padding: '6px 12px', backgroundColor: `${theme.primary}20`, color: theme.primary, borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' },
     subBadge: { color: theme.textSub, fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' },
-    contentCard: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}` },
-    title: { fontSize: '32px', fontWeight: 'bold', color: theme.textMain, margin: '0 0 30px 0', lineHeight: '1.2' },
+    contentCard: { backgroundColor: theme.cardBg, borderRadius: '20px', padding: '50px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}` },
+    title: { fontSize: '32px', fontWeight: '900', color: theme.textMain, margin: '0 0 30px 0', lineHeight: '1.2' },
     text: { fontSize: '16px', color: theme.textSub, lineHeight: '1.8' },
+    
     footer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '50px', paddingTop: '25px', borderTop: `1px solid ${theme.inputBorder}60` },
     backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s' },
     nextBtn: { backgroundColor: theme.primary, color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: `0 4px 12px ${theme.primary}50`, transition: 'transform 0.2s' }
@@ -30,39 +34,65 @@ export default function Licao({ setView, theme, curso }) {
     );
   }
 
-  // Descodificar o texto da Base de Dados de volta para uma Lista
+  // Descodificar o texto da Base de Dados
   let conteudosDasLicoes = [];
   try {
     conteudosDasLicoes = JSON.parse(curso.conteudo_licao);
     if (!Array.isArray(conteudosDasLicoes)) conteudosDasLicoes = [curso.conteudo_licao];
   } catch (error) {
-    // Se por acaso houver um erro a ler o JSON, assume que o texto é todo uma única lição
     conteudosDasLicoes = [curso.conteudo_licao];
   }
 
   const totalLicoes = conteudosDasLicoes.length;
-  const licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || "O professor ainda não adicionou conteúdo a esta lição.";
+  let licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || "O professor ainda não adicionou conteúdo a esta lição.";
+
+  licaoAtualHTML = licaoAtualHTML
+    .replace(/background-color:\s*[^;"]+;?/gi, '') 
+    .replace(/color:\s*[^;"]+;?/gi, '')           
+    .replace(/background:\s*[^;"]+;?/gi, '');      
 
   const handleNext = () => {
     if (currentLicaoIndex < totalLicoes - 1) {
-      setCurrentLicaoIndex(currentLicaoIndex + 1); // Avança para a próxima lição
-      window.scrollTo(0, 0); // Sobe a página para o topo
+      setCurrentLicaoIndex(currentLicaoIndex + 1);
+      window.scrollTo(0, 0); 
     } else {
-      setView('quizzes'); // Vai para os testes no fim do curso
+      setView('quizzes');
     }
   };
 
   const handlePrev = () => {
     if (currentLicaoIndex > 0) {
-      setCurrentLicaoIndex(currentLicaoIndex - 1); // Volta para a lição anterior
+      setCurrentLicaoIndex(currentLicaoIndex - 1);
       window.scrollTo(0, 0);
     } else {
-      setView('cursos'); // Volta ao catálogo
+      setView('cursos'); 
     }
   };
 
   return (
     <div style={styles.container}>
+      
+      {/* ESTILOS GLOBAIS DA LIÇÃO PARA ACEITAREM O TEMA */}
+      <style>
+        {`
+          .licao-html-dinamico * {
+            color: ${theme.textMain} !important;
+          }
+          /* Dá o aspeto "Dica de Segurança" aos blocos sem usar as cores bloqueadas */
+          .licao-html-dinamico blockquote, .licao-html-dinamico div[style*="padding"] {
+            background-color: ${theme.inputBg} !important;
+            border-left: 4px solid ${theme.primary} !important;
+            padding: 15px 20px !important;
+            border-radius: 8px !important;
+            margin: 20px 0 !important;
+          }
+          .licao-html-dinamico h1, .licao-html-dinamico h2, .licao-html-dinamico h3 {
+            color: ${theme.textMain} !important;
+            margin-top: 30px;
+          }
+        `}
+      </style>
+
       <div style={styles.contentCard}>
         
         <div style={styles.headerBadges}>
@@ -75,6 +105,7 @@ export default function Licao({ setView, theme, curso }) {
         </h1>
         
         <div 
+          className="licao-html-dinamico"
           style={styles.text} 
           dangerouslySetInnerHTML={{ __html: licaoAtualHTML }} 
         />
@@ -86,7 +117,7 @@ export default function Licao({ setView, theme, curso }) {
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
           >
-            {currentLicaoIndex === 0 ? "Voltar ao Catálogo" : "Lição Anterior"}
+            {currentLicaoIndex === 0 ? "Abandonar Lição" : "Lição Anterior"}
           </button>
           
           <button 

@@ -1,13 +1,11 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 
-export default function Quizzes({ theme }) {
+export default function Quizzes({ theme, setView, user }) {
   // Estado de Dados da API
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Estado do Jogo (O teu código original)
+ 
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -25,7 +23,6 @@ export default function Quizzes({ theme }) {
       if (response.ok) {
         const data = await response.json();
         
-        // MAGIA AQUI: Agrupar as perguntas que vêm da BD por "Título do Quiz"
         const groupedQuizzes = {};
         
         data.forEach(row => {
@@ -38,12 +35,10 @@ export default function Quizzes({ theme }) {
             };
           }
           
-          // Limpar opções vazias (caso o prof não tenha preenchido C e D)
           const opcoes = [row.opcao_a, row.opcao_b];
           if (row.opcao_c && row.opcao_c.trim() !== '') opcoes.push(row.opcao_c);
           if (row.opcao_d && row.opcao_d.trim() !== '') opcoes.push(row.opcao_d);
 
-          // Converter a letra da BD ('A', 'B', 'C', 'D') num número (0, 1, 2, 3) para bater certo com a tua lógica
           const mapResposta = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
 
           groupedQuizzes[row.titulo].perguntas.push({
@@ -53,18 +48,13 @@ export default function Quizzes({ theme }) {
           });
         });
 
-        // Converte o objeto de volta para um Array
-        setCursosFormatados(Object.values(groupedQuizzes));
+        setQuizzes(Object.values(groupedQuizzes));
       }
     } catch (error) {
       console.error("Erro ao carregar quizzes:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const setCursosFormatados = (dados) => {
-    setQuizzes(dados);
   };
 
   const handleStartQuiz = (quiz) => {
@@ -79,9 +69,12 @@ export default function Quizzes({ theme }) {
     setSelectedOption(null);
   };
 
-  const handleAnswer = () => {
+  const handleAnswer = async () => {
+    let novaPontuacao = score;
+
     if (selectedOption === activeQuiz.perguntas[currentQuestion].respostaCerta) {
-      setScore(score + 1);
+      novaPontuacao = score + 1;
+      setScore(novaPontuacao);
     }
     
     if (currentQuestion + 1 < activeQuiz.perguntas.length) {
@@ -89,103 +82,208 @@ export default function Quizzes({ theme }) {
       setSelectedOption(null);
     } else {
       setShowResults(true);
+
+      if (user?.id) {
+        const totalPerguntas = activeQuiz.perguntas.length;
+        const percentagem = (novaPontuacao / totalPerguntas) * 100;
+        
+        // Calcular XP Rigoroso
+        let xpGanho = 10; // Consolação
+        if (percentagem === 100) xpGanho = 100;
+        else if (percentagem >= 80) xpGanho = 75;
+        else if (percentagem >= 50) xpGanho = 50;
+
+        try {
+          await apiFetch('/quizzes/salvar-resultado', {
+             method: 'POST', headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ 
+               utilizadorId: user.id, 
+               quizTitulo: activeQuiz.titulo, 
+               acertos: novaPontuacao, 
+               totalPerguntas: totalPerguntas 
+             })
+          });
+
+          await apiFetch('/xp/adicionar', {
+             method: 'POST', headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ utilizadorId: user.id, quantidade: xpGanho })
+          });
+
+          await apiFetch('/conquistas/atribuir', {
+             method: 'POST', headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Primeiro Sangue' })
+          });
+
+          if (percentagem >= 50) {
+            await apiFetch('/conquistas/atribuir', {
+               method: 'POST', headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Escudo Ativo' })
+            });
+
+            if (percentagem === 100) {
+                await apiFetch('/conquistas/atribuir', {
+                   method: 'POST', headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Hacker Perfeito' })
+                });
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao atribuir troféus/XP:", error);
+        }
+      }
     }
   };
 
   const styles = {
-    container: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.cardBg, padding: '24px', borderRadius: '16px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}` },
-    pageTitle: { color: theme.textMain, fontSize: '24px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' },
+    container: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
+    
+    centeredWrapper: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '75vh', width: '100%' },
+    
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.cardBg, padding: '30px', borderRadius: '16px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}50` },
+    pageTitle: { color: theme.textMain, fontSize: '26px', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' },
     
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' },
-    card: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '30px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, display: 'flex', flexDirection: 'column', transition: 'transform 0.2s', cursor: activeQuiz ? 'default' : 'pointer' },
+    card: { backgroundColor: theme.cardBg, borderRadius: '16px', overflow: 'hidden', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40`, display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: activeQuiz ? 'default' : 'pointer', height: '100%' },
     
-    title: { fontSize: '20px', fontWeight: 'bold', color: theme.textMain, margin: '0 0 10px 0' },
-    desc: { fontSize: '14px', color: theme.primary, margin: '0 0 20px 0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' },
-    badge: { padding: '6px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', alignSelf: 'flex-start', marginBottom: '15px', backgroundColor: `${theme.warning}20`, color: theme.warning },
-    button: { width: '100%', backgroundColor: theme.warning, color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', marginTop: 'auto', transition: 'all 0.2s', boxShadow: `0 4px 10px ${theme.warning}40` },
+    imagePlaceholder: { 
+      height: '140px', 
+      background: `linear-gradient(135deg, #8b5cf6 0%, ${theme.warning} 100%)`, 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      color: 'rgba(255,255,255,0.8)', 
+      position: 'relative'
+    },
+    badgeNivelAbsoluto: { position: 'absolute', top: '15px', right: '15px', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', color: theme.warning, padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', border: `1px solid ${theme.warning}50` },
     
-    // Estilos da área de perguntas
+    cardBody: { padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 },
+    title: { fontSize: '18px', fontWeight: 'bold', color: theme.textMain, margin: '0 0 12px 0', lineHeight: '1.4' },
+    
+    metaRow: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '16px', flexWrap: 'wrap' },
+    metaItem: { fontSize: '12px', color: theme.textSub, display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600', backgroundColor: theme.inputBg, padding: '4px 8px', borderRadius: '6px' },
+    
+    button: { width: '100%', padding: '14px', backgroundColor: theme.warning, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.warning}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: 'auto' },
+    
+    quizActiveCard: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '800px', margin: '0 auto', width: '100%' },
+    
+    resultCard: { backgroundColor: theme.cardBg, borderRadius: '24px', padding: '60px 40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', animation: 'fadeInUp 0.5s ease' },
+
     optionBtn: (isSelected) => ({
       width: '100%', padding: '18px 20px', textAlign: 'left', borderRadius: '10px', cursor: 'pointer', marginBottom: '12px', fontSize: '15px', transition: 'all 0.2s ease', fontWeight: isSelected ? 'bold' : 'normal',
-      backgroundColor: isSelected ? `${theme.primary}20` : theme.inputBg,
+      backgroundColor: isSelected ? `${theme.primary}15` : theme.inputBg,
       border: `2px solid ${isSelected ? theme.primary : theme.inputBorder}`,
-      color: theme.textMain
+      color: theme.textMain, display: 'flex', gap: '15px', alignItems: 'center'
     }),
-    progressText: { color: theme.textSub, fontSize: '14px', fontWeight: 'bold', display: 'block' }
+    
+    progressContainer: { width: '100%', height: '8px', backgroundColor: theme.inputBg, borderRadius: '4px', overflow: 'hidden', marginTop: '10px' },
+    progressBar: (percent) => ({ width: `${percent}%`, height: '100%', backgroundColor: theme.primary, transition: 'width 0.3s ease' })
   };
 
-  // ==========================================
-  // VISTA 3: RESULTADOS DO QUIZ
-  // ==========================================
+  // VISTA 3: RESULTADOS DO QUIZ 
   if (showResults) {
     const passed = score >= activeQuiz.perguntas.length / 2;
     return (
-      <div style={styles.container}>
-        <div style={{...styles.card, alignItems: 'center', textAlign: 'center', padding: '60px 40px', maxWidth: '600px', margin: '0 auto', width: '100%'}}>
-          <div style={{width: '90px', height: '90px', borderRadius: '50%', backgroundColor: passed ? `${theme.success}20` : `${theme.danger}20`, color: passed ? theme.success : theme.danger, display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '25px'}}>
+      <div style={styles.centeredWrapper}>
+        <div style={styles.resultCard}>
+          
+          <div style={{width: '110px', height: '110px', borderRadius: '50%', backgroundColor: passed ? `${theme.success}20` : `${theme.danger}20`, color: passed ? theme.success : theme.danger, display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px'}}>
             {passed ? 
-              <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg> : 
-              <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg> : 
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             }
           </div>
-          <h2 style={{color: theme.textMain, margin: '0 0 10px 0', fontSize: '28px'}}>Quiz Terminado!</h2>
-          <p style={{color: theme.textSub, fontSize: '18px', margin: '0 0 20px 0'}}>Acertaste em <strong style={{color: theme.primary}}>{score}</strong> de {activeQuiz.perguntas.length} perguntas.</p>
           
-          {passed ? 
-            <p style={{color: theme.success, fontWeight: 'bold', fontSize: '16px', padding: '15px', backgroundColor: `${theme.success}10`, borderRadius: '10px', width: '100%'}}>Parabéns! Módulo aprovado. +100 XP 🏆</p> : 
-            <p style={{color: theme.danger, fontWeight: 'bold', fontSize: '16px', padding: '15px', backgroundColor: `${theme.danger}10`, borderRadius: '10px', width: '100%'}}>Não atingiste a nota mínima. Volta a estudar o conteúdo e tenta novamente! 📚</p>
-          }
+          <h2 style={{color: theme.textMain, margin: '0 0 10px 0', fontSize: '32px', fontWeight: '900'}}>
+            Quiz Terminado!
+          </h2>
           
-          <button style={{...styles.button, width: 'auto', padding: '14px 40px', marginTop: '30px', backgroundColor: theme.inputBg, color: theme.textMain, boxShadow: 'none', border: `2px solid ${theme.inputBorder}`}} onClick={() => setActiveQuiz(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
-            Voltar ao Catálogo de Quizzes
+          <p style={{color: theme.textSub, fontSize: '18px', margin: '0 0 30px 0'}}>
+            Respondeste corretamente a <strong style={{color: theme.primary, fontSize: '24px'}}>{score}</strong> de {activeQuiz.perguntas.length} questões.
+          </p>
+          
+          <div style={{
+              width: '100%', 
+              padding: '25px', 
+              backgroundColor: passed ? `${theme.success}10` : `${theme.danger}10`, 
+              border: `1px solid ${passed ? theme.success : theme.danger}30`, 
+              borderRadius: '16px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              gap: '10px',
+              marginBottom: '40px'
+          }}>
+            <span style={{fontSize: '32px'}}>{passed ? '🏆' : '📚'}</span>
+            <span style={{color: passed ? theme.success : theme.danger, fontWeight: '800', fontSize: '18px'}}>
+              {passed ? 'Parabéns! Foste aprovado neste módulo.' : 'Não atingiste a pontuação mínima necessária.'}
+            </span>
+            <span style={{fontSize: '14px', color: theme.textSub, fontWeight: '500'}}>
+              {passed ? 'O teu progresso foi guardado na tua vitrina.' : 'Garantiste 10 XP de consolação. Revê o material e tenta novamente.'}
+            </span>
+          </div>
+          
+          <button 
+             style={{...styles.button, width: 'auto', padding: '16px 50px', backgroundColor: theme.primary, boxShadow: `0 8px 20px ${theme.primary}40`, fontSize: '16px'}} 
+             onClick={() => setView('dashboard')}
+             onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)' }}
+             onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+          >
+            Voltar ao Dashboard
           </button>
         </div>
       </div>
     );
   }
 
-  // ==========================================
   // VISTA 2: A RESPONDER AO QUIZ
-  // ==========================================
   if (activeQuiz) {
     const currentQData = activeQuiz.perguntas[currentQuestion];
+    const progressPercent = ((currentQuestion + 1) / activeQuiz.perguntas.length) * 100;
+
     return (
       <div style={styles.container}>
-        <div style={{...styles.card, maxWidth: '800px', margin: '0 auto', width: '100%'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', paddingBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}`}}>
-            <span style={styles.progressText}>
-               <span style={{color: theme.primary, fontSize: '18px'}}>{currentQuestion + 1}</span> / {activeQuiz.perguntas.length}
-            </span>
-            <span style={{color: theme.danger, cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px'}} onClick={() => { if(window.confirm('Queres mesmo sair? O teu progresso será perdido.')) setActiveQuiz(null) }}>Abandonar Quiz</span>
+        <div style={styles.quizActiveCard}>
+          
+          <div style={{marginBottom: '30px', paddingBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}`}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+              <span style={{color: theme.textSub, fontSize: '14px', fontWeight: 'bold'}}>
+                 Questão <span style={{color: theme.primary, fontSize: '18px'}}>{currentQuestion + 1}</span> de {activeQuiz.perguntas.length}
+              </span>
+              <span style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px', transition: 'background 0.2s'}} onClick={() => { if(window.confirm('Queres mesmo sair? O teu progresso será perdido.')) setActiveQuiz(null) }}>Abandonar</span>
+            </div>
+            <div style={styles.progressContainer}>
+              <div style={styles.progressBar(progressPercent)}></div>
+            </div>
           </div>
           
-          <h2 style={{color: theme.textMain, fontSize: '22px', marginBottom: '30px', lineHeight: '1.5'}}>
+          <h2 style={{color: theme.textMain, fontSize: '22px', marginBottom: '35px', lineHeight: '1.5', fontWeight: 'bold'}}>
             {currentQData.pergunta}
           </h2>
 
-          <div style={{marginBottom: '30px'}}>
+          <div style={{marginBottom: '40px'}}>
             {currentQData.opcoes.map((opcao, index) => (
               <button 
                 key={index} 
                 style={styles.optionBtn(selectedOption === index)}
                 onClick={() => setSelectedOption(index)}
+                onMouseEnter={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = theme.primary }}
+                onMouseLeave={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = theme.inputBorder }}
               >
-                <span style={{ display: 'inline-block', width: '30px', fontWeight: 'bold', color: selectedOption === index ? theme.primary : theme.textSub }}>
-                  {String.fromCharCode(65 + index)}.
+                <span style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '28px', height: '28px', borderRadius: '6px', backgroundColor: selectedOption === index ? theme.primary : theme.inputBorder, color: selectedOption === index ? 'white' : theme.textSub, fontWeight: 'bold', fontSize: '13px' }}>
+                  {String.fromCharCode(65 + index)}
                 </span>
                 {opcao}
               </button>
             ))}
           </div>
 
-          <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+          <div style={{display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.inputBorder}`, paddingTop: '25px'}}>
             <button 
-              style={{...styles.button, width: 'auto', padding: '14px 40px', backgroundColor: theme.primary, opacity: selectedOption === null ? 0.5 : 1, cursor: selectedOption === null ? 'not-allowed' : 'pointer', boxShadow: selectedOption === null ? 'none' : `0 4px 12px ${theme.primary}50`}} 
+              style={{...styles.button, width: 'auto', padding: '14px 40px', backgroundColor: theme.primary, opacity: selectedOption === null ? 0.5 : 1, cursor: selectedOption === null ? 'not-allowed' : 'pointer', boxShadow: selectedOption === null ? 'none' : `0 4px 12px ${theme.primary}40`}} 
               disabled={selectedOption === null}
               onClick={handleAnswer}
             >
-              {currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar e Ver Nota' : 'Próxima Pergunta'}
+              {currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar Avaliação' : 'Confirmar e Avançar'}
             </button>
           </div>
         </div>
@@ -193,58 +291,73 @@ export default function Quizzes({ theme }) {
     );
   }
 
-  // ==========================================
-  // VISTA 1: LISTA DE QUIZZES (CARREGADOS DA BD)
-  // ==========================================
+
+  // VISTA 1: LISTA DE QUIZZES 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
           <h1 style={styles.pageTitle}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Quizzes e Avaliações
+            <div style={{ backgroundColor: `${theme.warning}20`, padding: '10px', borderRadius: '12px', display: 'flex', color: theme.warning }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+            Quizzes
           </h1>
-          <p style={{color: theme.textSub, margin: '8px 0 0 0', fontSize: '14px'}}>Testa os teus conhecimentos nos módulos em que estás inscrito.</p>
+          <p style={{color: theme.textSub, margin: '10px 0 0 0', fontSize: '14px', fontWeight: '500'}}>Testa os teus conhecimentos e ganha troféus para o teu perfil.</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{textAlign: 'center', padding: '60px', color: theme.textSub}}>
-           A carregar avaliações da base de dados...
+        <div style={{textAlign: 'center', padding: '60px', color: theme.textSub, fontWeight: 'bold'}}>
+           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginBottom: '15px', animation: 'spin 2s linear infinite'}}><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+           <br/>A sincronizar as avaliações...
         </div>
       ) : quizzes.length === 0 ? (
-        <div style={{textAlign: 'center', padding: '60px', backgroundColor: theme.cardBg, borderRadius: '16px', border: `2px dashed ${theme.inputBorder}`}}>
-          <div style={{ backgroundColor: theme.inputBg, width: '64px', height: '64px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 15px auto' }}>
-             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={theme.textSub} strokeWidth="1.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <div style={{textAlign: 'center', padding: '80px 20px', backgroundColor: theme.cardBg, borderRadius: '16px', border: `2px dashed ${theme.inputBorder}`}}>
+          <div style={{ backgroundColor: theme.inputBg, width: '70px', height: '70px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 15px auto', color: theme.textSub }}>
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           </div>
-          <h3 style={{color: theme.textMain, margin: '0 0 8px 0'}}>Nenhuma avaliação disponível</h3>
-          <p style={{color: theme.textSub, fontSize: '14px', margin: 0}}>Os professores ainda não adicionaram quizzes aos cursos.</p>
+          <h3 style={{color: theme.textMain, margin: '0 0 10px 0', fontSize: '18px'}}>Nenhuma avaliação disponível</h3>
+          <p style={{color: theme.textSub, fontSize: '14px', margin: 0}}>Os professores ainda não lançaram desafios na plataforma.</p>
         </div>
       ) : (
         <div style={styles.grid}>
           {quizzes.map((quiz) => (
-            <div key={quiz.id} style={styles.card} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <div style={styles.badge}>Módulo de Avaliação</div>
-              <h4 style={styles.title}>{quiz.titulo}</h4>
+            <div 
+              key={quiz.id} 
+              style={styles.card} 
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.2)`; }} 
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.shadow; }}
+            >
+              <div style={styles.imagePlaceholder}>
+                <span style={styles.badgeNivelAbsoluto}>Módulo Final</span>
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="9 15 11 17 15 11"></polyline></svg>
+              </div>
               
-              <p style={styles.desc}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
-                {quiz.nome_curso || 'Curso Geral'}
-              </p>
-              
-              <p style={{fontSize: '13px', color: theme.textSub, marginTop: 'auto', marginBottom: '20px', padding: '8px 12px', backgroundColor: theme.inputBg, borderRadius: '8px', display: 'inline-block', alignSelf: 'flex-start', fontWeight: 'bold'}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{marginRight: '6px', verticalAlign: '-2px'}}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Contém {quiz.perguntas.length} Perguntas
-              </p>
-              
-              <button 
-                style={styles.button} 
-                onClick={() => handleStartQuiz(quiz)}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
-              >
-                Iniciar Avaliação
-              </button>
+              <div style={styles.cardBody}>
+                <h4 style={styles.title}>{quiz.titulo}</h4>
+                
+                <div style={styles.metaRow}>
+                  <span style={styles.metaItem}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                    {quiz.nome_curso || 'Curso Geral'}
+                  </span>
+                  <span style={styles.metaItem}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    {quiz.perguntas.length} Questões
+                  </span>
+                </div>
+                
+                <button 
+                  style={styles.button} 
+                  onClick={() => handleStartQuiz(quiz)}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d97706'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.warning; e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  Iniciar Quiz
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>

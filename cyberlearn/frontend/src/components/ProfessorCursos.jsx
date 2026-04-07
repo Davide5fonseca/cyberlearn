@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 
@@ -6,14 +5,18 @@ export default function ProfessorCursos({ theme, user }) {
   const [activeTab, setActiveTab] = useState('gerirCursos'); 
   
   const [cursosReais, setCursosReais] = useState([]); 
-  const [quizzesReais, setQuizzesReais] = useState([]); // NOVO: Estado para guardar os quizzes
+  const [quizzesReais, setQuizzesReais] = useState([]); 
   
-  // ESTADOS DO CURSO
+  const [viewingCurso, setViewingCurso] = useState(null);
+  const [viewingQuiz, setViewingQuiz] = useState(null);
+  
+  const [editingCursoId, setEditingCursoId] = useState(null); // NOVO
+  const [editingQuizTitulo, setEditingQuizTitulo] = useState(null); // NOVO
+  
   const [cursoData, setCursoData] = useState({ titulo: '', nivel: 'iniciante', descricao: '' });
   const [numeroLicoes, setNumeroLicoes] = useState(1);
   const [licoes, setLicoes] = useState(['']); 
   
-  // ESTADOS DO QUIZ
   const [quizMeta, setQuizMeta] = useState({ titulo: '', nome_curso: '' });
   const [numeroPerguntas, setNumeroPerguntas] = useState(1);
   const [perguntasQuiz, setPerguntasQuiz] = useState([{ pergunta: '', opcao_a: '', opcao_b: '', opcao_c: '', opcao_d: '', resposta_correta: 'A' }]);
@@ -22,7 +25,7 @@ export default function ProfessorCursos({ theme, user }) {
 
   useEffect(() => {
     buscarCursos();
-    buscarQuizzes(); // NOVO: Busca os quizzes também
+    buscarQuizzes(); 
   }, [activeTab]);
 
   const buscarCursos = async () => {
@@ -33,65 +36,98 @@ export default function ProfessorCursos({ theme, user }) {
         const data = await res.json();
         setCursosReais(data);
       }
-    } catch (err) { 
-      console.error("Erro ao buscar cursos:", err); 
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (err) { console.error(err); } 
+    finally { setLoading(false); }
   };
 
-  // NOVO: Função para ir buscar e agrupar os Quizzes
   const buscarQuizzes = async () => {
     try {
       const res = await apiFetch('/quizzes');
       if (res.ok) {
         const data = await res.json();
-        // Agrupar perguntas pelo Título do Quiz para não repetir na tabela
         const grouped = {};
         data.forEach(q => {
           if (!grouped[q.titulo]) {
-            grouped[q.titulo] = { titulo: q.titulo, nome_curso: q.nome_curso, totalPerguntas: 0 };
+            grouped[q.titulo] = { titulo: q.titulo, nome_curso: q.nome_curso, perguntas: [] };
           }
-          grouped[q.titulo].totalPerguntas++;
+          grouped[q.titulo].perguntas.push(q);
         });
         setQuizzesReais(Object.values(grouped));
       }
-    } catch (err) { console.error("Erro ao buscar quizzes:", err); }
+    } catch (err) { console.error(err); }
   };
 
-  const handleDeleteCurso = async (cursoId) => {
-    if (!window.confirm("Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados!")) return; 
+  const goNovoCurso = () => {
+    setEditingCursoId(null);
+    setCursoData({ titulo: '', nivel: 'iniciante', descricao: '' });
+    setNumeroLicoes(1);
+    setLicoes(['']);
+    setActiveTab('createCourse');
+  };
+
+  const goNovoQuiz = () => {
+    setEditingQuizTitulo(null);
+    setQuizMeta({ titulo: '', nome_curso: '' });
+    setNumeroPerguntas(1);
+    setPerguntasQuiz([{ pergunta: '', opcao_a: '', opcao_b: '', opcao_c: '', opcao_d: '', resposta_correta: 'A' }]);
+    setActiveTab('createQuiz');
+  };
+
+  const handleEditCurso = () => {
+    setCursoData({ titulo: viewingCurso.titulo, nivel: viewingCurso.nivel || 'iniciante', descricao: viewingCurso.descricao || '' });
+    let parsedLicoes = [''];
+    try {
+      const parsed = JSON.parse(viewingCurso.conteudo_licao);
+      if (Array.isArray(parsed)) parsedLicoes = parsed;
+      else parsedLicoes = [viewingCurso.conteudo_licao];
+    } catch (e) { parsedLicoes = [viewingCurso.conteudo_licao]; }
     
+    setLicoes(parsedLicoes);
+    setNumeroLicoes(parsedLicoes.length);
+    setEditingCursoId(viewingCurso.id);
+    setViewingCurso(null);
+    setActiveTab('createCourse');
+  };
+
+  const handleEditQuiz = () => {
+    setQuizMeta({ titulo: viewingQuiz.titulo, nome_curso: viewingQuiz.nome_curso });
+    setPerguntasQuiz(viewingQuiz.perguntas);
+    setNumeroPerguntas(viewingQuiz.perguntas.length);
+    setEditingQuizTitulo(viewingQuiz.titulo);
+    setViewingQuiz(null);
+    setActiveTab('createQuiz');
+  };
+
+  // APAGAR CURSO E QUIZ
+  const handleDeleteCurso = async (e, cursoId) => {
+    e.stopPropagation();
+    if (!window.confirm("Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados!")) return; 
     try {
       const response = await apiFetch(`/cursos/${cursoId}`, { method: 'DELETE' });
-      const data = await response.json();
       if (response.ok) {
-        alert("✅ " + data.mensagem);
+        alert("✅ Curso apagado com sucesso.");
         setCursosReais(cursosReais.filter(curso => curso.id !== cursoId)); 
-        buscarQuizzes(); // Atualiza a lista de quizzes caso algum tenha sido apagado em cascata
-      } else {
-        alert("Erro: " + data.erro);
+        buscarQuizzes(); 
       }
-    } catch (error) {
-      alert("Erro de ligação ao servidor.");
-    }
+    } catch (error) { alert("Erro de ligação."); }
   };
 
-  // NOVO: Função para apagar um quiz inteiro
-  const handleDeleteQuiz = async (titulo) => {
+  const handleDeleteQuiz = async (e, titulo) => {
+    e.stopPropagation();
     if (!window.confirm(`Tens a certeza que queres APAGAR a avaliação "${titulo}"?`)) return; 
     try {
       const response = await apiFetch(`/quizzes/${encodeURIComponent(titulo)}`, { method: 'DELETE' });
-      const data = await response.json();
       if (response.ok) {
-        alert("✅ " + data.mensagem);
+        alert("✅ Quiz apagado com sucesso.");
         setQuizzesReais(quizzesReais.filter(q => q.titulo !== titulo)); 
-      } else alert("Erro: " + data.erro);
-    } catch (error) { alert("Erro de ligação ao servidor."); }
+      }
+    } catch (error) { alert("Erro de ligação."); }
   };
 
-  // HANDLERS DOS CURSOS E QUIZZES
   const handleCursoChange = (e) => setCursoData({ ...cursoData, [e.target.name]: e.target.value });
+  const handleLicaoTextoChange = (index, value) => { const newLicoes = [...licoes]; newLicoes[index] = value; setLicoes(newLicoes); };
+  const handleQuizMetaChange = (e) => setQuizMeta({ ...quizMeta, [e.target.name]: e.target.value });
+  const handlePerguntaChange = (index, field, value) => { const novasPerguntas = [...perguntasQuiz]; novasPerguntas[index][field] = value; setPerguntasQuiz(novasPerguntas); };
   
   const handleNumeroLicoesChange = (e) => {
     const num = parseInt(e.target.value);
@@ -104,43 +140,25 @@ export default function ProfessorCursos({ theme, user }) {
     });
   };
 
-  const handleLicaoTextoChange = (index, value) => {
-    const newLicoes = [...licoes];
-    newLicoes[index] = value;
-    setLicoes(newLicoes);
-  };
-
-  const handleQuizMetaChange = (e) => setQuizMeta({ ...quizMeta, [e.target.name]: e.target.value });
-
   const handleNumeroPerguntasChange = (e) => {
     const num = parseInt(e.target.value);
     setNumeroPerguntas(num);
     setPerguntasQuiz(prev => {
       const novasPerguntas = [...prev];
       if (num > prev.length) {
-        for (let i = prev.length; i < num; i++) {
-          novasPerguntas.push({ pergunta: '', opcao_a: '', opcao_b: '', opcao_c: '', opcao_d: '', resposta_correta: 'A' });
-        }
+        for (let i = prev.length; i < num; i++) novasPerguntas.push({ pergunta: '', opcao_a: '', opcao_b: '', opcao_c: '', opcao_d: '', resposta_correta: 'A' });
       } else novasPerguntas.length = num;
       return novasPerguntas;
     });
   };
 
-  const handlePerguntaChange = (index, field, value) => {
-    const novasPerguntas = [...perguntasQuiz];
-    novasPerguntas[index][field] = value;
-    setPerguntasQuiz(novasPerguntas);
-  };
-
-  // EDITOR HTML
   const insertFormatting = (index, tagStart, tagEnd) => {
     const textarea = document.getElementById(`conteudoLicao_${index}`);
     if (!textarea) return;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = licoes[index];
-    const selectedText = text.substring(start, end);
-    const newText = text.substring(0, start) + tagStart + selectedText + tagEnd + text.substring(end);
+    const newText = text.substring(0, start) + tagStart + text.substring(start, end) + tagEnd + text.substring(end);
     handleLicaoTextoChange(index, newText);
     setTimeout(() => { textarea.focus(); textarea.setSelectionRange(start + tagStart.length, end + tagStart.length); }, 0);
   };
@@ -151,29 +169,30 @@ export default function ProfessorCursos({ theme, user }) {
     handleLicaoTextoChange(index, templateHTML);
   };
 
-  // SUBMITS
+
+  // CRIAR E ATUALIZAR CURSO E QUIZ
   const handleSubmitCurso = async (e) => { 
     e.preventDefault(); 
     try {
       const conteudoFinal = JSON.stringify(licoes);
-      const res = await apiFetch('/cursos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const url = editingCursoId ? `/cursos/${editingCursoId}` : '/cursos';
+      const method = editingCursoId ? 'PUT' : 'POST';
+
+      const res = await apiFetch(url, {
+        method: method, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...cursoData, conteudo_licao: conteudoFinal, professor_id: user.id })
       });
       const data = await res.json();
       if (res.ok) {
         alert("✅ " + data.mensagem);
-        setCursoData({ titulo: '', nivel: 'iniciante', descricao: '' }); 
-        setNumeroLicoes(1);
-        setLicoes(['']);
+        goNovoCurso();
         setActiveTab('gerirCursos'); 
       } else alert("Erro: " + data.erro);
-    } catch (err) { alert("Erro de ligação ao servidor."); }
+    } catch (err) { alert("Erro de ligação."); }
   };
 
   const handleSubmitQuiz = async (e) => { 
     e.preventDefault(); 
-    
     const cursoEncontrado = cursosReais.find(c => c.titulo.toLowerCase().trim() === quizMeta.nome_curso.toLowerCase().trim());
     if (!cursoEncontrado) {
         alert("Erro: O curso que escreveste não foi encontrado. Garante que o nome está igual ao que criaste!");
@@ -181,32 +200,30 @@ export default function ProfessorCursos({ theme, user }) {
     }
 
     try {
+      if (editingQuizTitulo) {
+        await apiFetch(`/quizzes/${encodeURIComponent(editingQuizTitulo)}`, { method: 'DELETE' });
+      }
+
       let perguntasGuardadas = 0;
       for (const p of perguntasQuiz) {
         const dadosParaEnviar = { titulo: quizMeta.titulo, curso_id: cursoEncontrado.id, ...p };
         const res = await apiFetch('/quizzes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dadosParaEnviar) });
-        const data = await res.json();
         if (res.ok) perguntasGuardadas++;
-        else throw new Error(data.erro || "Erro desconhecido ao guardar a pergunta.");
       }
 
-      alert(`✅ Avaliação com ${perguntasGuardadas} pergunta(s) adicionada com sucesso!`);
-      setQuizMeta({ titulo: '', nome_curso: '' });
-      setNumeroPerguntas(1);
-      setPerguntasQuiz([{ pergunta: '', opcao_a: '', opcao_b: '', opcao_c: '', opcao_d: '', resposta_correta: 'A' }]);
+      alert(`✅ Avaliação com ${perguntasGuardadas} pergunta(s) guardada com sucesso!`);
+      goNovoQuiz();
       setActiveTab('gerirCursos');
 
-    } catch (err) { 
-      alert("Erro ao criar quiz: " + err.message); 
-    }
+    } catch (err) { alert("Erro ao guardar quiz."); }
   };
 
   const styles = {
-    container: { width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease' },
+    container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease' },
     tabsContainer: { display: 'inline-flex', gap: '4px', backgroundColor: theme.inputBg, padding: '6px', borderRadius: '10px', boxShadow: `inset 0 2px 4px rgba(0,0,0,0.1)` },
     tabButton: (isActive) => ({ backgroundColor: isActive ? theme.primary : 'transparent', color: isActive ? 'white' : theme.textSub, border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: isActive ? 'bold' : '600', cursor: 'pointer', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: isActive ? `0 4px 8px ${theme.primary}50` : 'none' }),
     card: { backgroundColor: theme.cardBg, borderRadius: '12px', padding: '30px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40` },
-    sectionTitle: { fontSize: '18px', color: theme.textMain, marginBottom: '6px', marginTop: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' },
+    sectionTitle: { fontSize: '18px', color: theme.textMain, margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' },
     table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: theme.textMain, fontSize: '13px' },
     th: { padding: '12px', borderBottom: `2px solid ${theme.inputBorder}`, color: theme.textSub, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' },
     td: { padding: '12px', borderBottom: `1px solid ${theme.inputBorder}60`, verticalAlign: 'middle' },
@@ -216,6 +233,8 @@ export default function ProfessorCursos({ theme, user }) {
     textarea: { width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.inputText, padding: '12px 14px', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', minHeight: '90px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.4' },
     submitButton: { backgroundColor: theme.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'transform 0.1s, opacity 0.2s', boxShadow: `0 4px 10px ${theme.primary}50` },
     deleteButton: { backgroundColor: `${theme.danger}15`, color: theme.danger, border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.2s' },
+    viewButton: { backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textMain, padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'background-color 0.2s' },
+    backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start', transition: 'all 0.2s', marginBottom: '20px' },
     editorToolbar: { display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' },
     editorBtn: { backgroundColor: theme.cardBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, borderRadius: '4px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'all 0.2s' },
     levelBadge: (nivel) => {
@@ -224,29 +243,158 @@ export default function ProfessorCursos({ theme, user }) {
     }
   };
 
+
+  // VISTA DE DETALHES
+
+  if (viewingCurso) {
+    let conteudosLicao = [];
+    try {
+      conteudosLicao = JSON.parse(viewingCurso.conteudo_licao);
+      if (!Array.isArray(conteudosLicao)) conteudosLicao = [viewingCurso.conteudo_licao];
+    } catch (e) {
+      conteudosLicao = [viewingCurso.conteudo_licao];
+    }
+
+    return (
+      <div style={styles.container}>
+        <button style={styles.backBtn} onClick={() => setViewingCurso(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          Voltar aos Conteúdos
+        </button>
+
+        <style>
+          {`
+            .licao-preview * { color: ${theme.textMain} !important; }
+            .licao-preview [style*="background"], .licao-preview blockquote {
+              background-color: ${theme.inputBg} !important; border-left: 4px solid ${theme.primary} !important; padding: 15px 20px !important; border-radius: 8px !important; margin: 15px 0 !important;
+            }
+          `}
+        </style>
+
+        <div style={styles.card}>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}60`, paddingBottom: '20px', flexWrap: 'wrap', gap: '15px'}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+              <div style={{backgroundColor: `${theme.primary}20`, padding: '15px', borderRadius: '12px', color: theme.primary}}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+              </div>
+              <div>
+                <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>{viewingCurso.titulo}</h1>
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                  <span style={styles.levelBadge(viewingCurso.nivel)}>{viewingCurso.nivel}</span>
+                  <span style={{fontSize: '12px', color: theme.textSub, fontWeight: 'bold'}}>{conteudosLicao.length} Lições</span>
+                </div>
+              </div>
+            </div>
+            <button onClick={handleEditCurso} style={{...styles.submitButton, margin: 0}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              Editar Curso
+            </button>
+          </div>
+
+          <p style={{color: theme.textSub, fontSize: '14px', lineHeight: '1.6', marginBottom: '40px'}}>{viewingCurso.descricao}</p>
+
+          {conteudosLicao.map((htmlTexto, idx) => {
+            const htmlLimpo = htmlTexto.replace(/background-color:\s*[^;"]+;?/gi, '').replace(/color:\s*[^;"]+;?/gi, '').replace(/background:\s*[^;"]+;?/gi, '');
+            return (
+              <div key={idx} style={{marginBottom: '30px', padding: '25px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}40`}}>
+                <h3 style={{margin: '0 0 20px 0', color: theme.primary, borderBottom: `2px solid ${theme.primary}30`, paddingBottom: '10px', display: 'inline-block'}}>
+                  Lição {idx + 1}
+                </h3>
+                <div className="licao-preview" style={{fontSize: '14px', lineHeight: '1.8'}} dangerouslySetInnerHTML={{ __html: htmlLimpo }} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VISTA DE DETALHE: VER QUIZ 
+  if (viewingQuiz) {
+    const renderOpcao = (letra, texto, correta) => {
+      if (!texto) return null;
+      const isCorrect = letra === correta;
+      return (
+        <div style={{ padding: '12px 16px', backgroundColor: isCorrect ? `${theme.success}15` : theme.inputBg, border: `2px solid ${isCorrect ? theme.success : theme.inputBorder}40`, borderRadius: '8px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+           <span style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '26px', height: '26px', borderRadius: '6px', backgroundColor: isCorrect ? theme.success : theme.inputBorder, color: isCorrect ? 'white' : theme.textSub, fontWeight: 'bold', fontSize: '12px' }}>
+             {letra}
+           </span>
+           <span style={{ color: theme.textMain, fontSize: '14px', fontWeight: isCorrect ? 'bold' : 'normal' }}>{texto}</span>
+           {isCorrect && <span style={{ marginLeft: 'auto', color: theme.success, fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+             Correta
+           </span>}
+        </div>
+      );
+    };
+
+    return (
+      <div style={styles.container}>
+        <button style={styles.backBtn} onClick={() => setViewingQuiz(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          Voltar aos Conteúdos
+        </button>
+
+        <div style={styles.card}>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px', borderBottom: `1px solid ${theme.inputBorder}60`, paddingBottom: '20px', flexWrap: 'wrap', gap: '15px'}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+              <div style={{backgroundColor: `${theme.warning}20`, padding: '15px', borderRadius: '12px', color: theme.warning}}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              </div>
+              <div>
+                <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>Gabarito: {viewingQuiz.titulo}</h1>
+                <p style={{margin: 0, color: theme.textSub, fontSize: '13px', fontWeight: 'bold'}}>
+                  Associado ao Curso: <span style={{color: theme.primary}}>{viewingQuiz.nome_curso}</span> | {viewingQuiz.perguntas.length} Perguntas
+                </p>
+              </div>
+            </div>
+
+            {/* BOTÃO EDITAR QUIZ */}
+            <button onClick={handleEditQuiz} style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`, margin: 0}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              Editar Quiz
+            </button>
+          </div>
+
+          {viewingQuiz.perguntas.map((q, idx) => (
+            <div key={idx} style={{marginBottom: '30px', padding: '20px', borderRadius: '12px', border: `1px solid ${theme.inputBorder}60`, backgroundColor: theme.cardBg}}>
+              <h3 style={{margin: '0 0 20px 0', color: theme.textMain, fontSize: '16px', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
+                <span style={{color: theme.warning, fontWeight: '900', fontSize: '18px'}}>Q{idx + 1}.</span>
+                {q.pergunta}
+              </h3>
+              
+              <div style={{paddingLeft: '35px'}}>
+                {renderOpcao('A', q.opcao_a, q.resposta_correta)}
+                {renderOpcao('B', q.opcao_b, q.resposta_correta)}
+                {renderOpcao('C', q.opcao_c, q.resposta_correta)}
+                {renderOpcao('D', q.opcao_d, q.resposta_correta)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VISTA PRINCIPAL COM OS TABS
+  // ==========================================
   return (
     <div style={styles.container}>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ backgroundColor: theme.primary, padding: '8px', borderRadius: '8px', color: 'white', boxShadow: `0 4px 10px ${theme.primary}50` }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <h1 style={{ color: theme.textMain, margin: 0, fontSize: '22px' }}>Gestão de Conteúdos</h1>
-      </div>
-
       <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '5px' }}>
         <div style={styles.tabsContainer}>
           <button style={styles.tabButton(activeTab === 'gerirCursos')} onClick={() => setActiveTab('gerirCursos')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 
             Contéudos Publicados
           </button>
-          <button style={styles.tabButton(activeTab === 'createCourse')} onClick={() => setActiveTab('createCourse')}>
+          <button style={styles.tabButton(activeTab === 'createCourse')} onClick={goNovoCurso}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-            Novo Curso
+            {editingCursoId ? "Editar Curso" : "Novo Curso"}
           </button>
-          <button style={styles.tabButton(activeTab === 'createQuiz')} onClick={() => setActiveTab('createQuiz')}>
+          <button style={styles.tabButton(activeTab === 'createQuiz')} onClick={goNovoQuiz}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Novo Quiz
+            {editingQuizTitulo ? "Editar Quiz" : "Novo Quiz"}
           </button>
         </div>
       </div>
@@ -261,7 +409,7 @@ export default function ProfessorCursos({ theme, user }) {
                 <h2 style={styles.sectionTitle}>Os Teus Cursos Publicados</h2>
                 <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>Visão geral dos conteúdos disponibilizados aos alunos.</p>
               </div>
-              <button style={styles.submitButton} onClick={() => setActiveTab('createCourse')}>+ Adicionar Curso</button>
+              <button style={styles.submitButton} onClick={goNovoCurso}>+ Adicionar Curso</button>
             </div>
             
             {loading ? (
@@ -283,11 +431,14 @@ export default function ProfessorCursos({ theme, user }) {
                   </thead>
                   <tbody>
                     {cursosReais.map(curso => (
-                      <tr key={curso.id} style={{transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg }}}>
+                      <tr key={curso.id} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingCurso(curso)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{curso.titulo}</td>
                         <td style={styles.td}><span style={styles.levelBadge(curso.nivel)}>{curso.nivel || 'Iniciante'}</span></td>
                         <td style={{...styles.td, textAlign: 'right'}}>
-                          <button style={{...styles.deleteButton, marginLeft: 'auto'}} onClick={() => handleDeleteCurso(curso.id)}>Apagar</button>
+                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
+                            <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingCurso(curso); }}>Ver Detalhes</button>
+                            <button style={styles.deleteButton} onClick={(e) => handleDeleteCurso(e, curso.id)}>Apagar</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -297,14 +448,14 @@ export default function ProfessorCursos({ theme, user }) {
             )}
           </div>
 
-          {/* TABELA DE QUIZZES (NOVA) */}
+          {/* TABELA DE QUIZZES */}
           <div style={{...styles.card, marginTop: '20px'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
               <div>
                 <h2 style={styles.sectionTitle}>Os teus Quizzes publicados</h2>
                 <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>Gestão de testes associados aos teus cursos.</p>
               </div>
-              <button style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={() => setActiveTab('createQuiz')}>+ Adicionar Quiz</button>
+              <button style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={goNovoQuiz}>+ Adicionar Quiz</button>
             </div>
             
             {loading ? (
@@ -327,12 +478,15 @@ export default function ProfessorCursos({ theme, user }) {
                   </thead>
                   <tbody>
                     {quizzesReais.map((quiz, idx) => (
-                      <tr key={idx} style={{transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg }}}>
+                      <tr key={idx} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingQuiz(quiz)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{quiz.titulo}</td>
                         <td style={styles.td}><span style={{color: theme.primary, fontWeight: '600'}}>{quiz.nome_curso}</span></td>
-                        <td style={styles.td}>{quiz.totalPerguntas} {quiz.totalPerguntas === 1 ? 'Pergunta' : 'Perguntas'}</td>
+                        <td style={styles.td}>{quiz.perguntas.length} {quiz.perguntas.length === 1 ? 'Pergunta' : 'Perguntas'}</td>
                         <td style={{...styles.td, textAlign: 'right'}}>
-                          <button style={{...styles.deleteButton, marginLeft: 'auto'}} onClick={() => handleDeleteQuiz(quiz.titulo)}>Apagar Quiz</button>
+                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
+                            <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingQuiz(quiz); }}>Ver Detalhes</button>
+                            <button style={styles.deleteButton} onClick={(e) => handleDeleteQuiz(e, quiz.titulo)}>Apagar</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -344,10 +498,9 @@ export default function ProfessorCursos({ theme, user }) {
         </>
       )}
 
-      {/* ABA: CRIAR NOVO CURSO */}
       {activeTab === 'createCourse' && (
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>Construir Novo Curso</h2>
+          <h2 style={styles.sectionTitle}>{editingCursoId ? "Editar Curso" : "Construir Novo Curso"}</h2>
           <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>Preenche os detalhes e usa HTML para desenhar lições avançadas.</p>
           
           <form onSubmit={handleSubmitCurso}>
@@ -421,16 +574,15 @@ export default function ProfessorCursos({ theme, user }) {
             ))}
 
             <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '30px'}}>
-              <button type="submit" style={styles.submitButton}>Publicar Curso Completo</button>
+              <button type="submit" style={styles.submitButton}>{editingCursoId ? "Guardar Alterações" : "Guardar Curso"}</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* ABA: CRIAR NOVO QUIZ */}
       {activeTab === 'createQuiz' && (
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>Criar Avaliação</h2>
+          <h2 style={styles.sectionTitle}>{editingQuizTitulo ? "Editar Avaliação" : "Criar Avaliação"}</h2>
           <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>Gera um teste para avaliar os conhecimentos dos alunos.</p>
 
           <form onSubmit={handleSubmitQuiz}>
@@ -456,7 +608,6 @@ export default function ProfessorCursos({ theme, user }) {
               </div>
             </div>
             
-            {/* RENDERIZA CAIXAS DE PERGUNTA DINAMICAMENTE */}
             {perguntasQuiz.map((q, index) => (
               <div key={index} style={{ padding: '20px', borderRadius: '10px', border: `2px dashed ${theme.warning}50`, marginBottom: '20px', backgroundColor: theme.inputBg }}>
                 <h4 style={{color: theme.warning, margin: '0 0 15px 0', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -495,7 +646,7 @@ export default function ProfessorCursos({ theme, user }) {
             ))}
 
             <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}}>Guardar Avaliação Completa na BD</button>
+              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}}>{editingQuizTitulo ? "Guardar Alterações" : "Guardar Quiz"}</button>
             </div>
           </form>
         </div>

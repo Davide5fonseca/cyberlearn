@@ -50,8 +50,8 @@ export default function Profile({
   };
 
   const styles = {
-    // ALTERADO: Container agora ocupa 100% da largura, mantendo a coerência com as outras páginas (maxWidth 1200px)
-    container: { width: '100%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' },
+    // REMOVIDO O maxWidth PARA OCUPAR A LARGURA TODA DA PÁGINA
+    container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' },
     
     headerCard: { backgroundColor: theme.cardBg, padding: '30px', borderRadius: '16px', boxShadow: theme.shadow, display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' },
     avatar: { width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold', boxShadow: `0 8px 20px ${theme.primary}50`, zIndex: 2, overflow: 'hidden', flexShrink: 0 },
@@ -151,7 +151,7 @@ export default function Profile({
           </div>
         </div>
 
-        {/* 3A. PERFIL DO ALUNO */}
+        {/* 3.1. PERFIL DO ALUNO */}
         {isAluno && (
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
@@ -195,7 +195,7 @@ export default function Profile({
           </div>
         )}
 
-        {/* 3B. PERFIL DO PROFESSOR */}
+        {/* 3.2. PERFIL DO PROFESSOR */}
         {isProfessor && (
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
@@ -214,7 +214,7 @@ export default function Profile({
           </div>
         )}
 
-        {/* 3C. ADMIN */}
+        {/* 3.3. ADMIN */}
         {isAdmin && !isReadOnly && (
           <>
             <div style={styles.card}>
