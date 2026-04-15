@@ -15,11 +15,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_DATABASE
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_DATABASE,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+  ssl: { rejectUnauthorized: false } 
 });
 
 // 0. TESTES E FUNÇÕES AUXILIARES
@@ -652,4 +653,3 @@ app.listen(PORT, () => {
     console.log(`Servidor a correr na porta ${PORT}`);
 });
 
-module.exports = app;
