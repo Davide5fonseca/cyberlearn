@@ -92,6 +92,21 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     setShowConfirmPassword(false);
   }, [show2FA, view]);
 
+  // CORRIGIDO: Agora usa setTimeouts mínimos para obrigar o App.jsx a apagar os campos todos sem falhar
+  const handleSwitchView = (newView) => {
+    setView(newView);
+    setOtp(['', '', '', '', '', '']);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+
+    if (handleInputChange) {
+      setTimeout(() => handleInputChange({ target: { name: 'email', value: '' } }), 10);
+      setTimeout(() => handleInputChange({ target: { name: 'password', value: '' } }), 20);
+      setTimeout(() => handleInputChange({ target: { name: 'nome', value: '' } }), 30);
+      setTimeout(() => handleInputChange({ target: { name: 'confirmarPassword', value: '' } }), 40);
+    }
+  };
+
   const handleOtpChange = (element, index) => {
     if (isNaN(element.value)) return false;
     setOtp([...otp.map((d, idx) => (idx === index ? element.value : d))]);
@@ -290,16 +305,15 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>{t('auth.email')}</label>
-                    {/* Placeholder Atualizado */}
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email} onChange={handleInputChange} required />
+                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
                   <div style={styles.inputGroup}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <label style={{...styles.label, margin: 0}}>{t('auth.password')}</label>
-                      <span style={{...styles.link, fontSize: '12px'}} onClick={() => setView('forgot')}>{t('auth.forgot')}</span>
+                      <span style={{...styles.link, fontSize: '12px'}} onClick={() => handleSwitchView('forgot')}>{t('auth.forgot')}</span>
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <input style={styles.passwordInput} type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" value={formData.password} onChange={handleInputChange} required />
+                      <input style={styles.passwordInput} type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" value={formData.password || ''} onChange={handleInputChange} required />
                       <div style={styles.eyeIcon} onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                       </div>
@@ -308,7 +322,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   <button type="submit" style={styles.button}>{t('auth.signIn')}</button>
                 </form>
                 <div style={{ marginTop: '20px', textAlign: 'center', color: theme.textSub, fontSize: '13px' }}>
-                  {t('auth.noAccount')} <span style={styles.link} onClick={() => setView('register')}>{t('auth.signUp')}</span>
+                  {t('auth.noAccount')} <span style={styles.link} onClick={() => handleSwitchView('register')}>{t('auth.signUp')}</span>
                 </div>
               </>
             )}
@@ -321,13 +335,11 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>{t('auth.fullName')}</label>
-                    {/* Placeholder Atualizado */}
                     <input style={styles.input} type="text" name="nome" placeholder="Ex: Tomás Tavares" value={formData.nome || ''} onChange={handleInputChange} required />
                   </div>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>{t('auth.email')}</label>
-                    {/* Placeholder Atualizado */}
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email} onChange={handleInputChange} required />
+                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
                   
                   <div style={styles.inputGroup}>
@@ -338,7 +350,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                         type={showPassword ? "text" : "password"} 
                         name="password" 
                         placeholder="••••••••" 
-                        value={formData.password} 
+                        value={formData.password || ''} 
                         onChange={handleInputChange} 
                         required 
                         pattern="(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}"
@@ -378,7 +390,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   <button type="submit" style={styles.button}>{t('auth.createBtn')}</button>
                 </form>
                 <div style={{ marginTop: '20px', textAlign: 'center', color: theme.textSub, fontSize: '13px' }}>
-                  {t('auth.hasAccount')} <span style={styles.link} onClick={() => setView('login')}>{t('auth.signIn')}</span>
+                  {t('auth.hasAccount')} <span style={styles.link} onClick={() => handleSwitchView('login')}>{t('auth.signIn')}</span>
                 </div>
               </>
             )}
@@ -394,13 +406,12 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>{t('auth.email')}</label>
-                    {/* Placeholder Atualizado */}
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email} onChange={handleInputChange} required />
+                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
                   <button type="submit" style={styles.button}>{t('auth.sendLink')}</button>
                 </form>
                 <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => setView('login')}>
+                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> {t('auth.backLogin')}
                   </span>
                 </div>
@@ -435,7 +446,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                         type={showPassword ? "text" : "password"} 
                         name="password" 
                         placeholder="••••••••" 
-                        value={formData.password} 
+                        value={formData.password || ''} 
                         onChange={handleInputChange} 
                         required 
                         pattern="(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}"
@@ -462,7 +473,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 </form>
                 
                 <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => { setView('login'); setOtp(['', '', '', '', '', '']); }}>
+                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     Cancelar
                   </span>

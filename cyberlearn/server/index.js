@@ -157,9 +157,9 @@ app.post('/login-2fa', async (req, res) => {
             utilizador: { 
                 id: utilizador.id, nome: utilizador.nome, email: utilizador.email, 
                 tipo: utilizador.perfil, data_registo: utilizador.data_registo,
-                avatar: utilizador.avatar_url, biografiaProf: utilizador.biografia_prof,
+                avatar: utilizador.avatar, biografiaProf: utilizador.biografia_prof,
                 metodologia: utilizador.metodologia, nivelExperiencia: utilizador.nivel_experiencia,
-                interesse: utilizador.interesse, biografia: utilizador.biografia,
+                interesse: utilizador.area_interesse, biografia: utilizador.biografia,
                 conquistas: utilizador.conquistas, github: utilizador.github, linkedin: utilizador.linkedin
             } 
         });
@@ -651,3 +651,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor a correr na porta ${PORT}`);
 });
+
+module.exports = app;

@@ -7,14 +7,13 @@ export default function Profile({
   isReadOnly = false, viewedUser = null 
 }) {
   
-  // Referência para o input de ficheiro (escondido)
   const fileInputRef = useRef(null);
 
-  // Se for modo de leitura (Admin a ver Professor), usamos os dados do viewedUser. Caso contrário, usamos os do user logado.
   const activeUser = isReadOnly ? viewedUser : user;
   
   // A foto a mostrar no cabeçalho central: se for readOnly usa a foto da BD do professor, senão usa a que está no estado do App.jsx
-  const currentAvatar = isReadOnly ? activeUser?.avatar_url : (avatarImg || activeUser?.avatar_url);
+  const dbAvatar = activeUser?.avatar || activeUser?.avatar_url;
+  const currentAvatar = isReadOnly ? dbAvatar : (avatarImg || dbAvatar);
 
   let dataRegistoFormatada = 'Desconhecida';
   if (activeUser?.data_registo) {

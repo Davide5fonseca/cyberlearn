@@ -2,12 +2,10 @@ import { useState } from 'react';
 
 const translations = {
   pt: {
-    // ALTERAÇÕES FEITAS AQUI (Para o Administrador):
     'sidebar.adminPlatform': 'Dashboard', 
     'sidebar.adminUsers': 'Professores',
     'sidebar.profile': 'Perfil',
     
-    // Restantes traduções (Professores e Alunos):
     'sidebar.profAnalytics': 'Dashboard', 
     'sidebar.profStudents': 'Turmas',
     'sidebar.profStudio': 'Cursos',
