@@ -1,4 +1,4 @@
-export const API_URL = "https://cyberlearn-server.vercel.app";
+export const API_URL = "https://cyberlearn-nine.vercel.app";
 
 export async function apiFetch(path, options = {}) {
   const url = `${API_URL}${path}`;
