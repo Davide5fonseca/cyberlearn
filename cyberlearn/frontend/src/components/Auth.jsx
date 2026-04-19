@@ -37,48 +37,12 @@ const translations = {
     'auth.verifyBtn': 'Verificar Acesso',
     'auth.brandTitle': 'Domina a\nCibersegurança',
     'auth.brandSub': 'Aprende, pratica e protege. Junta-te à elite da segurança digital.'
-  },
-  en: {
-    'auth.welcome': 'Welcome',
-    'auth.subtitleLogin': 'Enter your credentials to access the platform.',
-    'auth.email': 'Email Address',
-    'auth.password': 'Password',
-    'auth.passwordHint': 'Minimum 8 characters, 1 uppercase, and 1 special character.',
-    'auth.forgot': 'Forgot password?',
-    'auth.signIn': 'Sign In',
-    'auth.noAccount': 'Don\'t have an account?',
-    'auth.signUp': 'Sign up here',
-    'auth.createAccount': 'Create Account',
-    'auth.subtitleRegister': 'Join our cybersecurity platform.',
-    'auth.fullName': 'Full Name',
-    'auth.confirmPassword': 'Confirm Password',
-    'auth.role': 'Account Type',
-    'auth.student': 'Student',
-    'auth.instructor': 'Instructor',
-    'auth.admin': 'Administrator',
-    'auth.createBtn': 'Create Account',
-    'auth.hasAccount': 'Already have an account?',
-    'auth.resetTitle': 'Recover Password',
-    'auth.resetSub': 'Enter your email to receive a code.',
-    'auth.sendLink': 'Send Code',
-    'auth.backLogin': 'Back to Login',
-    'auth.back': 'Back',
-    'auth.newPassTitle': 'New Password',
-    'auth.newPassSub': 'Enter the code you received via email and your new password.',
-    'auth.newPass': 'New Password',
-    'auth.confirmNewPass': 'Confirm New Password',
-    'auth.resetBtn': 'Update Password',
-    'auth.twoFaTitle': '2FA Security',
-    'auth.twoFaSub': 'Enter your Google Authenticator code.',
-    'auth.code': '6-Digit Code',
-    'auth.verifyBtn': 'Verify Access',
-    'auth.brandTitle': 'Master\nCybersecurity',
-    'auth.brandSub': 'Learn, practice, and protect. Join the digital security elite.'
   }
 };
 
 export default function Auth({ view, setView, formData, handleInputChange, handleSubmit, theme, isDarkMode, setIsDarkMode, show2FA, setShow2FA }) {
-  const [lang, setLang] = useState('pt');
+  // Idioma fixo em PT
+  const lang = 'pt';
   const t = (key) => translations[lang][key] || key;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -92,7 +56,6 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     setShowConfirmPassword(false);
   }, [show2FA, view]);
 
-  // CORRIGIDO: Agora usa setTimeouts mínimos para obrigar o App.jsx a apagar os campos todos sem falhar
   const handleSwitchView = (newView) => {
     setView(newView);
     setOtp(['', '', '', '', '', '']);
@@ -218,26 +181,27 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
     },
     headerActions: {
       position: 'absolute',
-      top: '16px', 
-      right: '24px',
+      top: '24px', 
+      right: '32px',
       display: 'flex',
-      gap: '8px',
       alignItems: 'center',
       zIndex: 10
     },
-    headerBtn: {
+    // Novo estilo circular para o botão do tema
+    themeToggleBtn: {
       cursor: 'pointer',
-      color: theme.textSub,
-      padding: '6px 10px',
-      borderRadius: '8px',
+      color: theme.textMain,
+      width: '44px',
+      height: '44px',
+      borderRadius: '50%',
       backgroundColor: theme.inputBg,
       border: `1px solid ${theme.inputBorder}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '12px',
-      fontWeight: '600',
-      outline: 'none'
+      outline: 'none',
+      transition: 'all 0.2s ease',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
     },
     link: {
       color: theme.primary,
@@ -250,21 +214,19 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
 
   const renderHeaderActions = () => (
     <div style={styles.headerActions}>
-      <select 
-        style={{...styles.headerBtn, appearance: 'none', paddingRight: '22px', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center'}}
-        value={lang} 
-        onChange={(e) => setLang(e.target.value)}
+      <button 
+        type="button"
+        style={styles.themeToggleBtn} 
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.backgroundColor = theme.cardBg; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.backgroundColor = theme.inputBg; }}
+        title={isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
       >
-        <option value="pt">PT</option>
-        <option value="en">EN</option>
-      </select>
-      
-      <div style={{...styles.headerBtn, padding: '6px'}} onClick={() => setIsDarkMode(!isDarkMode)}>
         {isDarkMode ? 
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> : 
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> : 
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
         }
-      </div>
+      </button>
     </div>
   );
 
@@ -289,10 +251,20 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
         <div className="auth-left-panel">
           {renderHeaderActions()}
           
-          <div style={styles.formContainer}>
+<div style={styles.formContainer}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
-                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              <div style={{ 
+                width: '32px', 
+                height: '32px', 
+                borderRadius: '8px', 
+                backgroundColor: '#ffffff00', /* Fundo branco */
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                flexShrink: 0,
+                overflow: 'hidden' /* Garante que a imagem respeita os cantos arredondados */
+              }}>
+                 <img src="/security.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <span style={{ fontSize: '18px', fontWeight: '800', color: theme.textMain, letterSpacing: '-0.5px' }}>CyberLearn</span>
             </div>

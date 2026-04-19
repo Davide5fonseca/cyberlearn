@@ -5,6 +5,9 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
   const [cursos, setCursos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Mantido o estado da pesquisa caso precises de o ligar a um componente externo no futuro
+  const [searchTerm, setSearchTerm] = useState('');
+
   useEffect(() => {
     buscarCursos();
   }, []);
@@ -41,13 +44,17 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
     return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'; // Iniciante
   };
 
+  const cursosFiltrados = cursos.filter(curso => 
+    curso.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    curso.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const styles = {
-    container: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
+    // Largura total, sem limite de ecrã e margens de topo reduzidas
+    container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
     
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.cardBg, padding: '30px', borderRadius: '16px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}50` },
-    title: { color: theme.textMain, fontSize: '26px', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' },
-    
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' },
+    // Grelha ajustável automaticamente
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' },
     
     card: { backgroundColor: theme.cardBg, borderRadius: '16px', overflow: 'hidden', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40`, display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', height: '100%' },
     
@@ -79,17 +86,8 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>
-            <div style={{ backgroundColor: `${theme.primary}20`, padding: '10px', borderRadius: '12px', display: 'flex', color: theme.primary }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-            </div>
-            Catálogo de Cursos
-          </h1>
-          <p style={{color: theme.textSub, margin: '10px 0 0 0', fontSize: '14px', fontWeight: '500'}}>Explora os módulos de aprendizagem criados pelos teus professores.</p>
-        </div>
-      </div>
+      
+      {/* O HEADER FOI REMOVIDO DAQUI */}
 
       {loading ? (
         <div style={{textAlign: 'center', padding: '60px', color: theme.textSub, fontWeight: 'bold'}}>
@@ -104,9 +102,14 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
           <h3 style={{color: theme.textMain, margin: '0 0 10px 0', fontSize: '18px'}}>Nenhum curso disponível</h3>
           <p style={{color: theme.textSub, fontSize: '14px', margin: 0}}>Os professores ainda não publicaram nenhum conteúdo.</p>
         </div>
+      ) : cursosFiltrados.length === 0 ? (
+        <div style={{textAlign: 'center', padding: '60px 20px', backgroundColor: theme.cardBg, borderRadius: '16px', border: `1px solid ${theme.inputBorder}`}}>
+          <h3 style={{color: theme.textMain, margin: '0 0 8px 0', fontSize: '18px'}}>Nenhum resultado</h3>
+          <p style={{color: theme.textSub, fontSize: '14px', margin: 0}}>Não existem cursos que correspondam à pesquisa.</p>
+        </div>
       ) : (
         <div style={styles.grid}>
-          {cursos.map(curso => {
+          {cursosFiltrados.map(curso => {
             const numLicoes = contarLicoes(curso.conteudo_licao);
             
             return (

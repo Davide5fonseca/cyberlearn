@@ -15,12 +15,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  ssl: { rejectUnauthorized: false } 
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_DATABASE
 });
 
 // 0. TESTES E FUNÇÕES AUXILIARES
@@ -64,7 +63,7 @@ transporter.verify(function(error, success) {
     if (error) {
         console.error("❌ Erro de ligação ao Email (Verifica o .env e a Palavra-passe de App):", error.message);
     } else {
-        console.log("✅ Servidor de Email pronto para enviar mensagens!");
+        console.log("✅ Servidor de Email pronto para mensagens!");
     }
 });
 
@@ -276,13 +275,14 @@ app.post('/atualizar-perfil', async (req, res) => {
     }
 });
 
-// 3. GESTÃO DE CURSOS
+// 3. GESTÃO DE CURSOS (ATUALIZADO PARA MOSTRAR APENAS APROVADOS)
 app.get('/cursos', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.*, u.nome as nome_professor 
             FROM cursos c 
             LEFT JOIN utilizadores u ON c.professor_id = u.id 
+            WHERE c.aprovado = true
             ORDER BY c.id DESC
         `);
         res.status(200).json(result.rows);
@@ -299,7 +299,7 @@ app.post('/cursos', async (req, res) => {
             'INSERT INTO cursos (titulo, nivel, descricao, conteudo_licao, professor_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [titulo, nivel, descricao, conteudo_licao, professor_id]
         );
-        res.status(201).json({ mensagem: 'Curso publicado com sucesso na plataforma!', curso: result.rows[0] });
+        res.status(201).json({ mensagem: 'Curso publicado e a aguardar aprovação!', curso: result.rows[0] });
     } catch (err) {
         console.error("Erro ao criar curso:", err.message);
         res.status(500).json({ erro: 'Erro interno ao criar o curso.' });
@@ -333,13 +333,14 @@ app.delete('/cursos/:id', async (req, res) => {
     }
 });
 
-// 4. GESTÃO DE QUIZZES E RESULTADOS
+// 4. GESTÃO DE QUIZZES E RESULTADOS (ATUALIZADO PARA MOSTRAR APENAS APROVADOS)
 app.get('/quizzes', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT q.*, c.titulo as nome_curso 
+            SELECT q.*, c.titulo as nome_curso, c.nivel as nivel_curso 
             FROM quizzes q 
             JOIN cursos c ON q.curso_id = c.id 
+            WHERE q.aprovado = true
             ORDER BY q.id DESC
         `);
         res.status(200).json(result.rows);
@@ -355,7 +356,7 @@ app.post('/quizzes', async (req, res) => {
             'INSERT INTO quizzes (titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
             [titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta]
         );
-        res.status(201).json({ mensagem: 'Avaliação adicionada ao curso com sucesso!' });
+        res.status(201).json({ mensagem: 'Avaliação adicionada e a aguardar aprovação!' });
     } catch (err) {
         console.error("Erro ao criar quiz:", err.message);
         res.status(500).json({ erro: 'Erro ao guardar a avaliação na base de dados.' });
@@ -438,6 +439,22 @@ app.post('/xp/adicionar', async (req, res) => {
     }
 });
 
+app.get('/classificacao', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT id, nome, avatar, xp_total 
+            FROM utilizadores 
+            WHERE LOWER(TRIM(perfil)) = 'aluno' 
+            ORDER BY xp_total DESC NULLS LAST
+            LIMIT 10
+        `);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        console.error("Erro ao carregar a tabela de classificação:", err.message);
+        res.status(500).json({ erro: 'Erro ao carregar a classificação.' });
+    }
+});
+
 // 6. DASHBOARDS (ESTATÍSTICAS)
 app.get('/estatisticas/aluno/:id', async (req, res) => {
     const { id } = req.params;
@@ -451,7 +468,7 @@ app.get('/estatisticas/aluno/:id', async (req, res) => {
         const logsRes = await pool.query('SELECT COUNT(DISTINCT DATE(data_hora_acesso)) FROM logs_acesso WHERE utilizador_id = $1', [id]);
         const diasSeguidos = parseInt(logsRes.rows[0].count); 
 
-        const cursosRes = await pool.query('SELECT * FROM cursos ORDER BY data_criacao DESC LIMIT 4');
+        const cursosRes = await pool.query('SELECT * FROM cursos WHERE aprovado = true ORDER BY data_criacao DESC LIMIT 4');
         const cursos = cursosRes.rows;
 
         const cursoDestaque = cursos.length > 0 ? {
@@ -489,6 +506,30 @@ app.get('/admin-estatisticas', async (req, res) => {
     } catch (err) {
         console.error("Erro nas estatísticas:", err);
         res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
+    }
+});
+
+app.get('/estatisticas/aluno/:id/atividades', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const quizzesRes = await pool.query(`
+            SELECT quiz_titulo as titulo, to_char(data_realizacao, 'YYYY-MM-DD') as data, 'Quiz' as tipo 
+            FROM tentativas_quizzes 
+            WHERE utilizador_id = $1
+        `, [id]);
+
+        const conquistasRes = await pool.query(`
+            SELECT c.nome as titulo, to_char(uc.data_obtencao, 'YYYY-MM-DD') as data, 'Módulo/Troféu' as tipo
+            FROM utilizador_conquistas uc
+            JOIN conquistas_catalogo c ON uc.conquista_id = c.id
+            WHERE uc.utilizador_id = $1
+        `, [id]);
+
+        const atividades = [...quizzesRes.rows, ...conquistasRes.rows];
+        res.status(200).json(atividades);
+    } catch (err) {
+        console.error("Erro ao carregar atividades do calendário:", err);
+        res.status(500).json({ erro: 'Erro ao carregar calendário.' });
     }
 });
 
@@ -558,7 +599,6 @@ app.get('/acessos-professores', async (req, res) => {
     }
 });
 
-// Professor visualiza turma
 app.get('/professor/alunos', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -647,9 +687,135 @@ app.delete('/professores/:id', async (req, res) => {
     }
 });
 
-// ARRANQUE DO SERVIDOR
+// 9. CENTRO DE NOTIFICAÇÕES (RF12)
+app.get('/notificacoes/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const userRes = await pool.query('SELECT perfil FROM utilizadores WHERE id = $1', [id]);
+        if (userRes.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+        
+        const perfil = userRes.rows[0].perfil.toLowerCase().trim();
+        let notificacoes = [];
+
+        // Notificações de Cursos (só mostra os aprovados)
+        const cursosRes = await pool.query(`
+            SELECT id, titulo, to_char(data_criacao, 'DD/MM/YYYY') as data
+            FROM cursos
+            WHERE aprovado = true
+            ORDER BY data_criacao DESC
+            LIMIT 3
+        `);
+        const notificacoesCursos = cursosRes.rows.map(c => ({
+            id: `curso_${c.id}`,
+            icone: '📚',
+            cor: '#3b82f6',
+            titulo: 'Novo Curso Disponível',
+            mensagem: `O curso "${c.titulo}" foi publicado recentemente.`,
+            data: c.data
+        }));
+        notificacoes = [...notificacoesCursos];
+
+        // Notificações de Troféus (Apenas para Alunos)
+        if (perfil === 'aluno') {
+            const trofeusRes = await pool.query(`
+                SELECT c.nome, c.icone, to_char(uc.data_obtencao, 'DD/MM/YYYY') as data
+                FROM utilizador_conquistas uc
+                JOIN conquistas_catalogo c ON uc.conquista_id = c.id
+                WHERE uc.utilizador_id = $1
+                ORDER BY uc.data_obtencao DESC
+                LIMIT 3
+            `, [id]);
+            
+            const notificacoesTrofeus = trofeusRes.rows.map(t => ({
+                id: `trofeu_${t.nome}`,
+                icone: t.icone || '🏆',
+                cor: '#f59e0b',
+                titulo: 'Nova Medalha!',
+                mensagem: `Desbloqueaste o troféu: ${t.nome}`,
+                data: t.data
+            }));
+            notificacoes = [...notificacoes, ...notificacoesTrofeus];
+        }
+
+        res.status(200).json(notificacoes);
+    } catch (err) {
+        console.error("Erro ao carregar notificações:", err.message);
+        res.status(500).json({ erro: 'Erro ao carregar notificações.' });
+    }
+});
+
+// 10. APROVAÇÕES DO ADMIN
+app.get('/admin/pendentes', async (req, res) => {
+    try {
+        const cursosRes = await pool.query(`
+            SELECT c.*, u.nome as nome_professor 
+            FROM cursos c 
+            LEFT JOIN utilizadores u ON c.professor_id = u.id 
+            WHERE c.aprovado = false 
+            ORDER BY c.data_criacao DESC
+        `);
+        
+        // NOVO: Agrupa as perguntas pelo 'titulo' do Quiz!
+        const quizzesRes = await pool.query(`
+            SELECT q.titulo, c.titulo as nome_curso, u.nome as nome_professor, COUNT(q.id) as num_perguntas
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            LEFT JOIN utilizadores u ON c.professor_id = u.id
+            WHERE q.aprovado = false 
+            GROUP BY q.titulo, c.titulo, u.nome
+        `);
+        
+        res.status(200).json({ cursos: cursosRes.rows, quizzes: quizzesRes.rows });
+    } catch (err) {
+        console.error("Erro ao buscar pendentes:", err);
+        res.status(500).json({ erro: 'Erro ao carregar pendentes.' });
+    }
+});
+
+// APROVAR E REJEITAR CURSOS (Mantém-se por ID)
+app.put('/admin/aprovar/curso/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query(`UPDATE cursos SET aprovado = true WHERE id = $1`, [id]);
+        res.status(200).json({ mensagem: `Curso aprovado com sucesso!` });
+    } catch (err) {
+        res.status(500).json({ erro: `Erro ao aprovar curso.` });
+    }
+});
+
+app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query(`DELETE FROM cursos WHERE id = $1`, [id]);
+        res.status(200).json({ mensagem: `Curso rejeitado e apagado.` });
+    } catch (err) {
+        res.status(500).json({ erro: `Erro ao rejeitar curso.` });
+    }
+});
+
+// NOVO: APROVAR E REJEITAR QUIZZES (Agora feito pelo TÍTULO, aprova todas as perguntas de uma vez!)
+app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
+    const { titulo } = req.params;
+    try {
+        await pool.query(`UPDATE quizzes SET aprovado = true WHERE titulo = $1`, [titulo]);
+        res.status(200).json({ mensagem: `Quiz aprovado com sucesso!` });
+    } catch (err) {
+        res.status(500).json({ erro: `Erro ao aprovar quiz.` });
+    }
+});
+
+app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
+    const { titulo } = req.params;
+    try {
+        await pool.query(`DELETE FROM quizzes WHERE titulo = $1`, [titulo]);
+        res.status(200).json({ mensagem: `Quiz rejeitado e apagado.` });
+    } catch (err) {
+        res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor a correr na porta ${PORT}`);
 });
-

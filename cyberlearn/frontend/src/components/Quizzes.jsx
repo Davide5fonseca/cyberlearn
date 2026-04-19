@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 
 export default function Quizzes({ theme, setView, user }) {
-  // Estado de Dados da API
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
- 
+  
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -31,6 +30,7 @@ export default function Quizzes({ theme, setView, user }) {
               id: row.id,
               titulo: row.titulo,
               nome_curso: row.nome_curso,
+              nivel_curso: row.nivel_curso, // <-- NOVO: Recebe o nível do curso
               perguntas: []
             };
           }
@@ -87,8 +87,7 @@ export default function Quizzes({ theme, setView, user }) {
         const totalPerguntas = activeQuiz.perguntas.length;
         const percentagem = (novaPontuacao / totalPerguntas) * 100;
         
-        // Calcular XP Rigoroso
-        let xpGanho = 10; // Consolação
+        let xpGanho = 10; 
         if (percentagem === 100) xpGanho = 100;
         else if (percentagem >= 80) xpGanho = 75;
         else if (percentagem >= 50) xpGanho = 50;
@@ -134,49 +133,67 @@ export default function Quizzes({ theme, setView, user }) {
     }
   };
 
+  // --- LÓGICA DE CORES DINÂMICAS ---
+  const getBaseColor = (nivel) => {
+    const n = String(nivel || 'iniciante').toLowerCase();
+    if (n === 'avancado') return '#ef4444'; // Vermelho
+    if (n === 'intermedio') return '#f59e0b'; // Laranja
+    return '#3b82f6'; // Azul (Iniciante)
+  };
+
+  const getGradient = (nivel) => {
+    const n = String(nivel || 'iniciante').toLowerCase();
+    if (n === 'avancado') return 'linear-gradient(135deg, #ef4444 0%, #991b1b 100%)';
+    if (n === 'intermedio') return 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)';
+    return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+  };
+  // ----------------------------------
+
   const styles = {
-    container: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
-    
+    container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
     centeredWrapper: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '75vh', width: '100%' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' },
     
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.cardBg, padding: '30px', borderRadius: '16px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}50` },
-    pageTitle: { color: theme.textMain, fontSize: '26px', fontWeight: '900', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' },
-    
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' },
     card: { backgroundColor: theme.cardBg, borderRadius: '16px', overflow: 'hidden', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40`, display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: activeQuiz ? 'default' : 'pointer', height: '100%' },
     
-    imagePlaceholder: { 
+    imagePlaceholder: (nivel) => ({ 
       height: '140px', 
-      background: `linear-gradient(135deg, #8b5cf6 0%, ${theme.warning} 100%)`, 
+      background: getGradient(nivel), 
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
       color: 'rgba(255,255,255,0.8)', 
       position: 'relative'
+    }),
+    badgeNivelAbsoluto: (nivel) => {
+      const cor = getBaseColor(nivel);
+      return { position: 'absolute', top: '15px', right: '15px', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', color: cor, padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', border: `1px solid ${cor}50` };
     },
-    badgeNivelAbsoluto: { position: 'absolute', top: '15px', right: '15px', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', color: theme.warning, padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', border: `1px solid ${theme.warning}50` },
     
     cardBody: { padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 },
     title: { fontSize: '18px', fontWeight: 'bold', color: theme.textMain, margin: '0 0 12px 0', lineHeight: '1.4' },
-    
     metaRow: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '16px', flexWrap: 'wrap' },
     metaItem: { fontSize: '12px', color: theme.textSub, display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600', backgroundColor: theme.inputBg, padding: '4px 8px', borderRadius: '6px' },
     
-    button: { width: '100%', padding: '14px', backgroundColor: theme.warning, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.warning}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: 'auto' },
+    // O botão de Iniciar agora assume a cor base do nível
+    button: (nivel) => {
+      const cor = getBaseColor(nivel);
+      return { width: '100%', padding: '14px', backgroundColor: cor, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${cor}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: 'auto' };
+    },
     
     quizActiveCard: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '800px', margin: '0 auto', width: '100%' },
-    
     resultCard: { backgroundColor: theme.cardBg, borderRadius: '24px', padding: '60px 40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', animation: 'fadeInUp 0.5s ease' },
 
-    optionBtn: (isSelected) => ({
+    // As opções assumem a cor base do quiz atual
+    optionBtn: (isSelected, activeColor) => ({
       width: '100%', padding: '18px 20px', textAlign: 'left', borderRadius: '10px', cursor: 'pointer', marginBottom: '12px', fontSize: '15px', transition: 'all 0.2s ease', fontWeight: isSelected ? 'bold' : 'normal',
-      backgroundColor: isSelected ? `${theme.primary}15` : theme.inputBg,
-      border: `2px solid ${isSelected ? theme.primary : theme.inputBorder}`,
+      backgroundColor: isSelected ? `${activeColor}15` : theme.inputBg,
+      border: `2px solid ${isSelected ? activeColor : theme.inputBorder}`,
       color: theme.textMain, display: 'flex', gap: '15px', alignItems: 'center'
     }),
     
     progressContainer: { width: '100%', height: '8px', backgroundColor: theme.inputBg, borderRadius: '4px', overflow: 'hidden', marginTop: '10px' },
-    progressBar: (percent) => ({ width: `${percent}%`, height: '100%', backgroundColor: theme.primary, transition: 'width 0.3s ease' })
+    progressBar: (percent, activeColor) => ({ width: `${percent}%`, height: '100%', backgroundColor: activeColor, transition: 'width 0.3s ease' })
   };
 
   // VISTA 3: RESULTADOS DO QUIZ 
@@ -202,16 +219,9 @@ export default function Quizzes({ theme, setView, user }) {
           </p>
           
           <div style={{
-              width: '100%', 
-              padding: '25px', 
-              backgroundColor: passed ? `${theme.success}10` : `${theme.danger}10`, 
-              border: `1px solid ${passed ? theme.success : theme.danger}30`, 
-              borderRadius: '16px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              gap: '10px',
-              marginBottom: '40px'
+              width: '100%', padding: '25px', backgroundColor: passed ? `${theme.success}10` : `${theme.danger}10`, 
+              border: `1px solid ${passed ? theme.success : theme.danger}30`, borderRadius: '16px', 
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginBottom: '40px'
           }}>
             <span style={{fontSize: '32px'}}>{passed ? '🏆' : '📚'}</span>
             <span style={{color: passed ? theme.success : theme.danger, fontWeight: '800', fontSize: '18px'}}>
@@ -223,10 +233,10 @@ export default function Quizzes({ theme, setView, user }) {
           </div>
           
           <button 
-             style={{...styles.button, width: 'auto', padding: '16px 50px', backgroundColor: theme.primary, boxShadow: `0 8px 20px ${theme.primary}40`, fontSize: '16px'}} 
+             style={{...styles.button('iniciante'), width: 'auto', padding: '16px 50px', backgroundColor: theme.primary, boxShadow: `0 8px 20px ${theme.primary}40`, fontSize: '16px'}} 
              onClick={() => setView('dashboard')}
-             onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)' }}
-             onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+             onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.filter = 'brightness(1.1)'; }}
+             onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; }}
           >
             Voltar ao Dashboard
           </button>
@@ -239,6 +249,7 @@ export default function Quizzes({ theme, setView, user }) {
   if (activeQuiz) {
     const currentQData = activeQuiz.perguntas[currentQuestion];
     const progressPercent = ((currentQuestion + 1) / activeQuiz.perguntas.length) * 100;
+    const activeColor = getBaseColor(activeQuiz.nivel_curso); // Cor temática do quiz a decorrer
 
     return (
       <div style={styles.container}>
@@ -247,12 +258,12 @@ export default function Quizzes({ theme, setView, user }) {
           <div style={{marginBottom: '30px', paddingBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}`}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
               <span style={{color: theme.textSub, fontSize: '14px', fontWeight: 'bold'}}>
-                 Questão <span style={{color: theme.primary, fontSize: '18px'}}>{currentQuestion + 1}</span> de {activeQuiz.perguntas.length}
+                 Questão <span style={{color: activeColor, fontSize: '18px'}}>{currentQuestion + 1}</span> de {activeQuiz.perguntas.length}
               </span>
               <span style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px', transition: 'background 0.2s'}} onClick={() => { if(window.confirm('Queres mesmo sair? O teu progresso será perdido.')) setActiveQuiz(null) }}>Abandonar</span>
             </div>
             <div style={styles.progressContainer}>
-              <div style={styles.progressBar(progressPercent)}></div>
+              <div style={styles.progressBar(progressPercent, activeColor)}></div>
             </div>
           </div>
           
@@ -264,12 +275,12 @@ export default function Quizzes({ theme, setView, user }) {
             {currentQData.opcoes.map((opcao, index) => (
               <button 
                 key={index} 
-                style={styles.optionBtn(selectedOption === index)}
+                style={styles.optionBtn(selectedOption === index, activeColor)}
                 onClick={() => setSelectedOption(index)}
-                onMouseEnter={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = theme.primary }}
+                onMouseEnter={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = activeColor }}
                 onMouseLeave={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = theme.inputBorder }}
               >
-                <span style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '28px', height: '28px', borderRadius: '6px', backgroundColor: selectedOption === index ? theme.primary : theme.inputBorder, color: selectedOption === index ? 'white' : theme.textSub, fontWeight: 'bold', fontSize: '13px' }}>
+                <span style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '28px', height: '28px', borderRadius: '6px', backgroundColor: selectedOption === index ? activeColor : theme.inputBorder, color: selectedOption === index ? 'white' : theme.textSub, fontWeight: 'bold', fontSize: '13px' }}>
                   {String.fromCharCode(65 + index)}
                 </span>
                 {opcao}
@@ -279,9 +290,11 @@ export default function Quizzes({ theme, setView, user }) {
 
           <div style={{display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.inputBorder}`, paddingTop: '25px'}}>
             <button 
-              style={{...styles.button, width: 'auto', padding: '14px 40px', backgroundColor: theme.primary, opacity: selectedOption === null ? 0.5 : 1, cursor: selectedOption === null ? 'not-allowed' : 'pointer', boxShadow: selectedOption === null ? 'none' : `0 4px 12px ${theme.primary}40`}} 
+              style={{...styles.button(activeQuiz.nivel_curso), width: 'auto', padding: '14px 40px', opacity: selectedOption === null ? 0.5 : 1, cursor: selectedOption === null ? 'not-allowed' : 'pointer', boxShadow: selectedOption === null ? 'none' : `0 4px 12px ${activeColor}40`}} 
               disabled={selectedOption === null}
               onClick={handleAnswer}
+              onMouseEnter={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.filter = 'brightness(1.1)'; } }}
+              onMouseLeave={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; } }}
             >
               {currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar Avaliação' : 'Confirmar e Avançar'}
             </button>
@@ -291,22 +304,9 @@ export default function Quizzes({ theme, setView, user }) {
     );
   }
 
-
-  // VISTA 1: LISTA DE QUIZZES 
+  // VISTA 1: LISTA DE QUIZZES
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.pageTitle}>
-            <div style={{ backgroundColor: `${theme.warning}20`, padding: '10px', borderRadius: '12px', display: 'flex', color: theme.warning }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            </div>
-            Quizzes
-          </h1>
-          <p style={{color: theme.textSub, margin: '10px 0 0 0', fontSize: '14px', fontWeight: '500'}}>Testa os teus conhecimentos e ganha troféus para o teu perfil.</p>
-        </div>
-      </div>
-
       {loading ? (
         <div style={{textAlign: 'center', padding: '60px', color: theme.textSub, fontWeight: 'bold'}}>
            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginBottom: '15px', animation: 'spin 2s linear infinite'}}><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
@@ -329,8 +329,8 @@ export default function Quizzes({ theme, setView, user }) {
               onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.2)`; }} 
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.shadow; }}
             >
-              <div style={styles.imagePlaceholder}>
-                <span style={styles.badgeNivelAbsoluto}>Módulo Final</span>
+              <div style={styles.imagePlaceholder(quiz.nivel_curso)}>
+                <span style={styles.badgeNivelAbsoluto(quiz.nivel_curso)}>Módulo Final</span>
                 <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="9 15 11 17 15 11"></polyline></svg>
               </div>
               
@@ -349,10 +349,10 @@ export default function Quizzes({ theme, setView, user }) {
                 </div>
                 
                 <button 
-                  style={styles.button} 
+                  style={styles.button(quiz.nivel_curso)} 
                   onClick={() => handleStartQuiz(quiz)}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d97706'; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.warning; e.currentTarget.style.transform = 'scale(1)'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.filter = 'brightness(1.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; }}
                 >
                   Iniciar Quiz
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>

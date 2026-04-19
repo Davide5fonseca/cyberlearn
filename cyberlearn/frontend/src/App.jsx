@@ -11,6 +11,7 @@ import ProfessorAlunos from './components/ProfessorAlunos';
 import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';     
 import AdminProfessores from './components/AdminProfessores'; 
+import AdminAprovacoes from './components/AdminAprovacoes'; // <-- IMPORT ADICIONADO
 import { apiFetch } from './api';
 
 function App() {
@@ -129,7 +130,8 @@ function App() {
     return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} show2FA={show2FA} setShow2FA={setShow2FA} />;
   }
 
-  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
+  // <-- ADICIONADO 'admin_aprovacoes' AO ARRAY ABAIXO -->
+  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'admin_aprovacoes', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
     return (
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', width: '100%', backgroundColor: 'transparent', overflow: 'hidden' }}>
         
@@ -154,6 +156,7 @@ function App() {
                    view === 'professor_cursos' ? `O Teu Cofre de Cursos ` :
                    view === 'admin_dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` :
                    view === 'admin_professores' ? `Gestão de Professores ` : 
+                   view === 'admin_aprovacoes' ? `Aprovações de Conteúdos ` : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Catálogo de Cursos ' : 
                    view === 'quizzes' ? 'Quizzes' : 'O Teu Perfil '}
                 </h1>
@@ -164,6 +167,7 @@ function App() {
                    view === 'professor_cursos' ? 'Cria, gere e apaga conteúdos educativos.' : 
                    view === 'admin_dashboard' ? 'Aqui está a atividade dos professores.' : 
                    view === 'admin_professores' ? 'Consulta perfis e remove professores do sistema.' : 
+                   view === 'admin_aprovacoes' ? 'Aprova ou rejeita os cursos e quizzes pendentes.' : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
                    view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
@@ -215,6 +219,7 @@ function App() {
           {view === 'professor_cursos' && <ProfessorCursos theme={theme} user={user} />}
           {view === 'admin_dashboard' && <AdminDashboard theme={theme} user={user} />}
           {view === 'admin_professores' && <AdminProfessores theme={theme} />}
+          {view === 'admin_aprovacoes' && <AdminAprovacoes theme={theme} />} 
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} avatarImg={avatarImg} setAvatarImg={setAvatarImg} />}
         </div>
       </div>
