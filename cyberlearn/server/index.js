@@ -812,14 +812,6 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
 });
 
 
-// 1. Dizemos ao Express qual é a pasta onde o Vite gerou o build de produção ('dist' na pasta frontend)
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-// 2. Rota Curinga ('*'): Se o pedido não bater certo com NENHUMA rota da tua API, devolve a página do React
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor a correr na porta ${PORT}`);
