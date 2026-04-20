@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const path = require('path'); 
 
 console.log("A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
 
@@ -276,7 +277,7 @@ app.post('/atualizar-perfil', async (req, res) => {
     }
 });
 
-// 3. GESTÃO DE CURSOS (ATUALIZADO PARA MOSTRAR APENAS APROVADOS)
+// 3. GESTÃO DE CURSOS
 app.get('/cursos', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -334,7 +335,7 @@ app.delete('/cursos/:id', async (req, res) => {
     }
 });
 
-// 4. GESTÃO DE QUIZZES E RESULTADOS (ATUALIZADO PARA MOSTRAR APENAS APROVADOS)
+// 4. GESTÃO DE QUIZZES E RESULTADOS
 app.get('/quizzes', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -688,7 +689,7 @@ app.delete('/professores/:id', async (req, res) => {
     }
 });
 
-// 9. CENTRO DE NOTIFICAÇÕES (RF12)
+// 9. CENTRO DE NOTIFICAÇÕES
 app.get('/notificacoes/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -698,7 +699,6 @@ app.get('/notificacoes/:id', async (req, res) => {
         const perfil = userRes.rows[0].perfil.toLowerCase().trim();
         let notificacoes = [];
 
-        // Notificações de Cursos (só mostra os aprovados)
         const cursosRes = await pool.query(`
             SELECT id, titulo, to_char(data_criacao, 'DD/MM/YYYY') as data
             FROM cursos
@@ -716,7 +716,6 @@ app.get('/notificacoes/:id', async (req, res) => {
         }));
         notificacoes = [...notificacoesCursos];
 
-        // Notificações de Troféus (Apenas para Alunos)
         if (perfil === 'aluno') {
             const trofeusRes = await pool.query(`
                 SELECT c.nome, c.icone, to_char(uc.data_obtencao, 'DD/MM/YYYY') as data
@@ -756,7 +755,6 @@ app.get('/admin/pendentes', async (req, res) => {
             ORDER BY c.data_criacao DESC
         `);
         
-        // NOVO: Agrupa as perguntas pelo 'titulo' do Quiz!
         const quizzesRes = await pool.query(`
             SELECT q.titulo, c.titulo as nome_curso, u.nome as nome_professor, COUNT(q.id) as num_perguntas
             FROM quizzes q 
@@ -773,7 +771,6 @@ app.get('/admin/pendentes', async (req, res) => {
     }
 });
 
-// APROVAR E REJEITAR CURSOS (Mantém-se por ID)
 app.put('/admin/aprovar/curso/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -794,7 +791,6 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
     }
 });
 
-// NOVO: APROVAR E REJEITAR QUIZZES (Agora feito pelo TÍTULO, aprova todas as perguntas de uma vez!)
 app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
     const { titulo } = req.params;
     try {
@@ -815,6 +811,14 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
     }
 });
 
+
+// 1. Dizemos ao Express qual é a pasta onde o Vite gerou o build de produção ('dist' na pasta frontend)
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// 2. Rota Curinga ('*'): Se o pedido não bater certo com NENHUMA rota da tua API, devolve a página do React
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
