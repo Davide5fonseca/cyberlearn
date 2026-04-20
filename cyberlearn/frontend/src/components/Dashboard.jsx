@@ -114,8 +114,8 @@ export default function Dashboard({ theme, user, setView }) {
     trofeuCard: { backgroundColor: theme.inputBg, borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', border: `1px solid ${colorWarning}40` },
   };
 
-  // Previne o ecrã preto se os dados ainda não estiverem carregados
-  if (loading || !dashboardData || !dashboardData.stats) {
+  // Previne o ecrã vermelho/preto se os dados ainda não estiverem carregados
+  if (loading || !dashboardData) {
     return <div style={{textAlign: 'center', padding: '60px', color: theme.textSub}}>A preparar a tua Dashboard...</div>;
   }
 
@@ -131,7 +131,7 @@ export default function Dashboard({ theme, user, setView }) {
           <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorSuccess}15`, color: colorSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
           </div>
-          <h3 style={styles.statNumber}>{stats.modulosConcluidos || 0}</h3>
+          <h3 style={styles.statNumber}>{stats?.modulosConcluidos || 0}</h3>
           <p style={styles.statLabel}>Módulos Lidos</p>
         </div>
         
@@ -139,7 +139,7 @@ export default function Dashboard({ theme, user, setView }) {
           <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorPrimary}15`, color: colorPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
           </div>
-          <h3 style={styles.statNumber}>{stats.taxaAcerto || 0}%</h3>
+          <h3 style={styles.statNumber}>{stats?.taxaAcerto || 0}%</h3>
           <p style={styles.statLabel}>Precisão Global</p>
         </div>
 
@@ -147,7 +147,7 @@ export default function Dashboard({ theme, user, setView }) {
           <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${rank.cor}15`, color: rank.cor, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
           </div>
-          <h3 style={styles.statNumber}>{stats.pontuacaoTotal || 0}</h3>
+          <h3 style={styles.statNumber}>{stats?.pontuacaoTotal || 0}</h3>
           <p style={styles.statLabel}>Pontos XP</p>
         </div>
 
@@ -155,7 +155,7 @@ export default function Dashboard({ theme, user, setView }) {
           <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorWarning}15`, color: colorWarning, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.5 19c-1.5-2-3.5-3-5.5-3-2 0-4 1-5.5 3"></path><path d="M12 16a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"></path></svg>
           </div>
-          <h3 style={styles.statNumber}>{stats.diasSeguidos || 0}</h3>
+          <h3 style={styles.statNumber}>{stats?.diasSeguidos || 0}</h3>
           <p style={styles.statLabel}>Dias Seguidos 🔥</p>
         </div>
       </div>
