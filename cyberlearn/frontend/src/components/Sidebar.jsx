@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api';
 
 const translations = {
@@ -15,6 +15,7 @@ const translations = {
     'sidebar.dashboard': 'Dashboard',
     'sidebar.courses': 'Cursos',
     'sidebar.quizzes': 'Quizzes',
+    'sidebar.labs': 'Labs',
     'sidebar.logout': 'Sair da Conta'
   }
 };
@@ -27,10 +28,14 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
   const isProfessor = user?.tipo === 'professor';
   const isAdmin = user?.tipo === 'admin';
 
-  // ESTADOS DO CENTRO DE NOTIFICAÇÕES (RF12)
+  // ESTADOS DO CENTRO DE NOTIFICAÇÕES
   const [notificacoes, setNotificacoes] = useState([]);
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
-  const [lidas, setLidas] = useState([]); 
+  const [lidas, setLidas] = useState([]);
+
+  // Refs para detetar clique fora do painel
+  const notifPainelRef = useRef(null);
+  const notifBotaoRef = useRef(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -41,6 +46,22 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
       }
     }
   }, [user]);
+
+  // Fechar painel ao clicar fora (click-outside)
+  useEffect(() => {
+    if (!mostrarNotificacoes) return;
+    const handleClickFora = (e) => {
+      // Se o clique foi fora do painel E fora do botão sino, fecha
+      if (
+        notifPainelRef.current && !notifPainelRef.current.contains(e.target) &&
+        notifBotaoRef.current && !notifBotaoRef.current.contains(e.target)
+      ) {
+        setMostrarNotificacoes(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, [mostrarNotificacoes]);
 
   const buscarNotificacoes = async () => {
     try {
@@ -54,49 +75,149 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
     }
   };
 
-  const lerNotificacao = (id) => {
+  const lerNotificacao = (notificacao) => {
+    // Marcar como lida
+    const novasLidas = [...lidas, notificacao.id];
+    setLidas(novasLidas);
+    localStorage.setItem(`notificacoes_lidas_${user.id}`, JSON.stringify(novasLidas));
+
+    // Fechar o painel de notificações
+    setMostrarNotificacoes(false);
+
+    // Navegar para o destino da notificação
+    if (notificacao.acao) {
+      setView(notificacao.acao);
+    }
+  };
+
+  const marcarTodasLidas = () => {
+    const todasIds = notificacoes.map(n => n.id);
+    setLidas(todasIds);
+    localStorage.setItem(`notificacoes_lidas_${user.id}`, JSON.stringify(todasIds));
+  };
+
+  const notificacoesAtivas = notificacoes.filter(n => !lidas.includes(n.id));
+
+  // Apaga a notificação sem navegar (só fecha/dismiss)
+  const dispensarNotificacao = (e, id) => {
+    e.stopPropagation(); // impede que o clique no X dispare o click do card
     const novasLidas = [...lidas, id];
     setLidas(novasLidas);
     localStorage.setItem(`notificacoes_lidas_${user.id}`, JSON.stringify(novasLidas));
   };
 
-  const notificacoesAtivas = notificacoes.filter(n => !lidas.includes(n.id));
-
-  // UI DO MENU DE NOTIFICAÇÕES (AGORA MAIS ALTO E ESPAÇOSO)
+  // UI DO PAINEL DE NOTIFICAÇÕES
   const renderNotificacoes = () => (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* CABEÇALHO */}
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${theme.inputBorder}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 'bold', color: theme.textMain, fontSize: '15px' }}>Centro de Notificações</span>
-        {notificacoesAtivas.length > 0 && <span style={{ fontSize: '11px', backgroundColor: theme.primary || '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold' }}>{notificacoesAtivas.length} novas</span>}
+        <span style={{ fontWeight: 'bold', color: theme.textMain, fontSize: '15px' }}>Notificações</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {notificacoesAtivas.length > 0 && (
+            <>
+              <span style={{ fontSize: '11px', backgroundColor: theme.primary || '#3b82f6', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold' }}>
+                {notificacoesAtivas.length} novas
+              </span>
+              <button
+                onClick={marcarTodasLidas}
+                title="Apagar todas"
+                style={{
+                  background: 'none', border: `1px solid ${theme.inputBorder}`, color: theme.textSub,
+                  fontSize: '11px', cursor: 'pointer', fontWeight: '600',
+                  padding: '3px 8px', borderRadius: '6px'
+                }}
+              >
+                Limpar tudo
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      {/* ALTURA MÁXIMA AUMENTADA PARA 450px */}
+
+      {/* LISTA */}
       <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
         {notificacoesAtivas.length === 0 ? (
-          <div style={{ padding: '30px 20px', textAlign: 'center', color: theme.textSub, fontSize: '14px' }}>Sem novos avisos no momento.</div>
+          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+            <p style={{ color: theme.textSub, fontSize: '14px', margin: 0 }}>Estás em dia! Sem novos avisos.</p>
+          </div>
         ) : (
           notificacoesAtivas.map((n) => (
-            <div 
-              key={n.id} 
-              onClick={() => lerNotificacao(n.id)} 
-              style={{ display: 'flex', gap: '16px', padding: '16px 20px', borderBottom: `1px solid ${theme.inputBorder}50`, cursor: 'pointer', transition: 'background-color 0.2s' }} 
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBg} 
+            <div
+              key={n.id}
+              onClick={() => lerNotificacao(n)}
+              style={{
+                display: 'flex', gap: '14px', padding: '14px 20px',
+                borderBottom: `1px solid ${theme.inputBorder}30`,
+                cursor: n.acao ? 'pointer' : 'default',
+                transition: 'background-color 0.15s',
+                position: 'relative',
+                alignItems: 'flex-start'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              title="Clica para marcar como lida e ocultar"
             >
-              <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: `${n.cor}15`, color: n.cor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
+              {/* Ícone */}
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
+                backgroundColor: `${n.cor}18`, color: n.cor,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '19px', border: `1px solid ${n.cor}25`, marginTop: '2px'
+              }}>
                 {n.icone}
               </div>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: theme.textMain, fontWeight: '700' }}>{n.titulo}</h4>
-                <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: theme.textSub, lineHeight: '1.5' }}>{n.mensagem}</p>
-                <span style={{ fontSize: '11px', color: theme.textSub, fontWeight: 'bold', backgroundColor: theme.inputBg, padding: '3px 8px', borderRadius: '6px' }}>{n.data}</span>
+
+              {/* Conteúdo */}
+              <div style={{ flex: 1, minWidth: 0, paddingRight: '28px' }}>
+                <h4 style={{ margin: '0 0 3px 0', fontSize: '13px', color: theme.textMain, fontWeight: '700' }}>{n.titulo}</h4>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: theme.textSub, lineHeight: '1.5' }}>{n.mensagem}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '10px', color: theme.textSub, fontWeight: '600',
+                    backgroundColor: `${theme.inputBorder}40`, padding: '2px 7px', borderRadius: '5px'
+                  }}>{n.data}</span>
+                  {n.acao && (
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: n.cor }}>
+                      {n.labelAcao || 'Ver →'}
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* BOTÃO X — apaga sem navegar */}
+              <button
+                onClick={(e) => dispensarNotificacao(e, n.id)}
+                title="Dispensar notificação"
+                style={{
+                  position: 'absolute', top: '12px', right: '14px',
+                  width: '22px', height: '22px', borderRadius: '50%',
+                  backgroundColor: 'transparent',
+                  border: `1px solid ${theme.inputBorder}`,
+                  color: theme.textSub,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontSize: '13px', lineHeight: 1,
+                  padding: 0, transition: 'all 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${theme.danger}15`;
+                  e.currentTarget.style.borderColor = theme.danger;
+                  e.currentTarget.style.color = theme.danger;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = theme.inputBorder;
+                  e.currentTarget.style.color = theme.textSub;
+                }}
+              >
+                ×
+              </button>
             </div>
           ))
         )}
       </div>
     </div>
   );
+
 
 
   // ==========================
@@ -107,11 +228,14 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
       <>
         {/* JANELA FLUTUANTE DE NOTIFICAÇÕES (MOBILE) */}
         {mostrarNotificacoes && (
-          <div style={{
+          <div
+            ref={notifPainelRef}
+            style={{
               position: 'fixed', bottom: '80px', left: '10px', right: '10px',
               backgroundColor: theme.cardBg, borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
               border: `1px solid ${theme.inputBorder}`, zIndex: 1001, overflow: 'hidden'
-          }}>
+            }}
+          >
              {renderNotificacoes()}
           </div>
         )}
@@ -270,6 +394,9 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             <div className="table-row" style={styles.menuItem(view === 'quizzes')} onClick={() => setView('quizzes')} onMouseEnter={(e) => view !== 'quizzes' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'quizzes' && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> {t('sidebar.quizzes')}
             </div>
+            <div className="table-row" style={styles.menuItem(view === 'labs' || view === 'phishing' || view === 'ctf')} onClick={() => setView('labs')} onMouseEnter={(e) => !['labs','phishing','ctf'].includes(view) && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => !['labs','phishing','ctf'].includes(view) && (e.currentTarget.style.backgroundColor = 'transparent')}>
+              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11m0 0H5a2 2 0 0 0-2 2v2m6-2h10m-6 0v2m0-2a2 2 0 0 0 2 2m0 0h2a2 2 0 0 0 2-2m0 0V9a2 2 0 0 0-2-2m0 0h-2"></path></svg> {t('sidebar.labs')}
+            </div>
           </>
         )}
 
@@ -283,18 +410,22 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
         
         {/* JANELA FLUTUANTE DE NOTIFICAÇÕES (DESKTOP) */}
         {mostrarNotificacoes && (
-          <div style={{
-              position: 'absolute', bottom: 'calc(100% + 10px)', left: '0', 
-              width: '360px', /* LARGURA AUMENTADA PARA 360px */
+          <div
+            ref={notifPainelRef}
+            style={{
+              position: 'absolute', bottom: 'calc(100% + 10px)', left: '0',
+              width: '360px',
               backgroundColor: theme.cardBg, borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
               border: `1px solid ${theme.inputBorder}`, zIndex: 100, overflow: 'hidden'
-          }}>
+            }}
+          >
              {renderNotificacoes()}
           </div>
         )}
 
         {/* BOTÃO SINO DE NOTIFICAÇÕES */}
-        <div 
+        <div
+          ref={notifBotaoRef}
           onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)}
           style={{
              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
@@ -357,9 +488,16 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             <p style={{ margin: 0, color: theme.textMain, fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.nome || 'Utilizador'}
             </p>
-            <p style={{ margin: '2px 0 0 0', color: theme.textSub, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {user?.email || 'email@exemplo.com'}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+              <p style={{ margin: 0, color: theme.textSub, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                {user?.email || 'email@exemplo.com'}
+              </p>
+              {user?.streakCount > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#f97316', backgroundColor: '#f9731615', padding: '2px 6px', borderRadius: '6px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  🔥 {user.streakCount}
+                </span>
+              )}
+            </div>
           </div>
 
           <div 

@@ -712,7 +712,10 @@ app.get('/notificacoes/:id', async (req, res) => {
             cor: '#3b82f6',
             titulo: 'Novo Curso Disponível',
             mensagem: `O curso "${c.titulo}" foi publicado recentemente.`,
-            data: c.data
+            data: c.data,
+            acao: 'cursos',          // → navega para a lista de cursos
+            cursoId: c.id,           // → ID do curso para seleção futura
+            labelAcao: 'Ver Curso →'
         }));
         notificacoes = [...notificacoesCursos];
 
@@ -730,14 +733,66 @@ app.get('/notificacoes/:id', async (req, res) => {
                 id: `trofeu_${t.nome}`,
                 icone: t.icone || '🏆',
                 cor: '#f59e0b',
-                titulo: 'Nova Medalha!',
+                titulo: 'Nova Medalha Desbloqueada!',
                 mensagem: `Desbloqueaste o troféu: ${t.nome}`,
-                data: t.data
+                data: t.data,
+                acao: 'profile',      // → navega para o perfil (secção conquistas)
+                labelAcao: 'Ver Perfil →'
             }));
             notificacoes = [...notificacoes, ...notificacoesTrofeus];
+
+            // Notificações de comentários recentes nas lições
+            const comentariosRes = await pool.query(`
+                SELECT cl.curso_id, c.titulo as nome_curso, cl.nome_utilizador, 
+                       to_char(cl.data_criacao, 'DD/MM/YYYY') as data
+                FROM comentarios_licao cl
+                JOIN cursos c ON cl.curso_id = c.id
+                WHERE cl.utilizador_id != $1
+                ORDER BY cl.data_criacao DESC
+                LIMIT 2
+            `, [id]);
+            const notificacoesComentarios = comentariosRes.rows.map((c, i) => ({
+                id: `comentario_${c.curso_id}_${i}`,
+                icone: '💬',
+                cor: '#10b981',
+                titulo: 'Novo Comentário na Lição',
+                mensagem: `${c.nome_utilizador} comentou em "${c.nome_curso}".`,
+                data: c.data,
+                acao: 'cursos',       // → navega para os cursos
+                cursoId: c.curso_id,
+                labelAcao: 'Ver Lição →'
+            }));
+            notificacoes = [...notificacoes, ...notificacoesComentarios];
+
+            // Notificação de CTF disponível (labs)
+            try {
+                const ctfRes = await pool.query('SELECT COUNT(*) FROM ctf_desafios WHERE ativo = TRUE');
+                const totalCtf = parseInt(ctfRes.rows[0].count);
+                if (totalCtf > 0) {
+                    const resolvidosRes = await pool.query(
+                        'SELECT COUNT(*) FROM ctf_tentativas WHERE utilizador_id = $1', [id]
+                    );
+                    const resolvidos = parseInt(resolvidosRes.rows[0].count);
+                    if (resolvidos < totalCtf) {
+                        notificacoes.push({
+                            id: 'ctf_disponivel',
+                            icone: '💻',
+                            cor: '#8b5cf6',
+                            titulo: 'Desafio CTF Disponível',
+                            mensagem: `Tens ${totalCtf - resolvidos} desafio(s) CTF por resolver no Terminal. +XP disponível!`,
+                            data: 'Hoje',
+                            acao: 'labs',
+                            labelAcao: 'Ir para Labs →'
+                        });
+                    }
+                }
+            } catch (ctfErr) {
+                // CTF table pode não existir ainda, ignorar silenciosamente
+            }
         }
 
-        res.status(200).json(notificacoes);
+        // Ordenar por data mais recente e limitar a 8 notificações
+        res.status(200).json(notificacoes.slice(0, 8));
     } catch (err) {
         console.error("Erro ao carregar notificações:", err.message);
         res.status(500).json({ erro: 'Erro ao carregar notificações.' });
