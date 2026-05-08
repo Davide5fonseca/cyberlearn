@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import jsPDF from 'jspdf';
 
 export default function Profile({ 
   user, profileData, handleProfileChange, handleSaveProfile, 
@@ -8,6 +9,8 @@ export default function Profile({
 }) {
   
   const fileInputRef = useRef(null);
+  const [gerandoCertificado, setGerandoCertificado] = useState(false);
+  const [msgCertificado, setMsgCertificado] = useState('');
 
   const activeUser = isReadOnly ? viewedUser : user;
   
@@ -69,49 +72,14 @@ export default function Profile({
     button: { padding: '14px 28px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.primary}40`, alignSelf: 'flex-end', marginTop: '10px' },
     permBadge: { padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textMain },
     
-    uploadZone: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '30px 20px',
-      border: `2px dashed ${theme.inputBorder}`,
-      borderRadius: '12px',
-      backgroundColor: 'transparent',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      textAlign: 'center',
-      gap: '12px'
+    uploadOverlay: {
+      position: 'absolute', inset: 0, borderRadius: '50%',
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      opacity: 0, transition: 'opacity 0.2s ease', cursor: 'pointer'
     }
   };
 
-  const DropzoneFotografia = () => (
-    <div style={{...styles.inputGroup, marginBottom: '20px'}}>
-      <label style={styles.label}>Fotografia de Perfil</label>
-      <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} ref={fileInputRef} style={{ display: 'none' }} />
-      <div 
-        style={styles.uploadZone}
-        onClick={() => fileInputRef.current?.click()}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${theme.primary}08`; e.currentTarget.style.borderColor = theme.primary; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = theme.inputBorder; }}
-      >
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={theme.textSub} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 12 3 7 8"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-        <div>
-          <p style={{ margin: '0 0 4px 0', color: theme.textMain, fontWeight: 'bold', fontSize: '15px' }}>Clica para escolher uma fotografia</p>
-          <p style={{ margin: 0, color: theme.textSub, fontSize: '12px' }}>Formatos suportados: JPG, PNG. Tamanho máximo: 2MB.</p>
-        </div>
-      </div>
-      {currentAvatar && (
-        <button type="button" onClick={handleRemoveImage} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: theme.danger, fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', padding: '4px 0', marginTop: '4px', textDecoration: 'underline' }}>
-          Remover fotografia atual
-        </button>
-      )}
-    </div>
-  );
 
   return (
     <div style={styles.container}>
@@ -121,13 +89,36 @@ export default function Profile({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           Membro desde {dataRegistoFormatada}
         </div>
-        <div style={styles.avatar}>
+
+        {/* AVATAR COM UPLOAD AO CLICAR (apenas se não for modo leitura) */}
+        <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} ref={fileInputRef} style={{ display: 'none' }} />
+        <div
+          style={{ ...styles.avatar, position: 'relative', cursor: isReadOnly ? 'default' : 'pointer' }}
+          onClick={() => { if (!isReadOnly) fileInputRef.current?.click(); }}
+          title={isReadOnly ? '' : 'Clica para alterar a fotografia'}
+          onMouseEnter={(e) => { if (!isReadOnly) e.currentTarget.querySelector('.avatar-overlay').style.opacity = '1'; }}
+          onMouseLeave={(e) => { if (!isReadOnly) e.currentTarget.querySelector('.avatar-overlay').style.opacity = '0'; }}
+        >
           {currentAvatar ? <img src={currentAvatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (activeUser ? activeUser.nome.charAt(0).toUpperCase() : 'U')}
+          {!isReadOnly && (
+            <div className="avatar-overlay" style={styles.uploadOverlay}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+          )}
         </div>
+
         <div>
           <h2 style={styles.name}>{activeUser ? activeUser.nome : 'Utilizador'}</h2>
           <p style={styles.email}>{activeUser ? activeUser.email : 'email@exemplo.com'}</p>
           <span style={styles.roleBadge}>{activeUser ? (activeUser.perfil || activeUser.tipo) : 'Conta'}</span>
+          {!isReadOnly && currentAvatar && (
+            <button type="button" onClick={handleRemoveImage} style={{ display: 'block', marginTop: '8px', background: 'none', border: 'none', color: theme.danger, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+              Remover fotografia
+            </button>
+          )}
         </div>
       </div>
 
@@ -155,11 +146,9 @@ export default function Profile({
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Perfil Académico
+              Perfil Académico e Estudantil
             </h3>
 
-            {/* Fotografia para Aluno */}
-            {!isReadOnly && <DropzoneFotografia />}
 
             <div style={styles.grid}>
               <div style={styles.inputGroup}>
@@ -172,7 +161,20 @@ export default function Profile({
               </div>
               <div style={styles.inputGroup}>
                 <label style={styles.label}>Área de Maior Interesse</label>
-                <input style={styles.input} type="text" name="interesse" placeholder="Ex: Pentesting, Forense, Defesa..." value={isReadOnly ? activeUser?.interesse : profileData.interesse || ''} onChange={handleProfileChange} readOnly={isReadOnly} />
+                <select style={styles.select} name="interesse" value={isReadOnly ? activeUser?.interesse : profileData.interesse || ''} onChange={handleProfileChange} disabled={isReadOnly}>
+                  <option value="">Seleciona uma área...</option>
+                  <option value="Pentesting">Pentesting / Testes de Intrusão</option>
+                  <option value="Forense Digital">Forense Digital</option>
+                  <option value="Defesa e Blue Team">Defesa e Blue Team</option>
+                  <option value="Engenharia Social">Engenharia Social / Phishing</option>
+                  <option value="Segurança de Redes">Segurança de Redes</option>
+                  <option value="Desenvolvimento Seguro">Desenvolvimento Seguro (DevSecOps)</option>
+                  <option value="Criptografia">Criptografia</option>
+                  <option value="CTF / Competições">CTF / Competições</option>
+                  <option value="Cloud Security">Cloud Security</option>
+                  <option value="Malware Analysis">Análise de Malware</option>
+                  <option value="Outro">Outro</option>
+                </select>
               </div>
             </div>
 
@@ -194,6 +196,168 @@ export default function Profile({
           </div>
         )}
 
+        {/* STREAK E CERTIFICADO — ALUNO NAO EM MODO LEITURA */}
+        {isAluno && !isReadOnly && (
+          <>
+            {/* CARD DE OFENSIVA (STREAK) */}
+            <div style={styles.card}>
+              <h3 style={styles.sectionTitle}>
+                <span style={{ fontSize: '22px' }}>🔥</span>
+                Ofensiva de Login
+              </h3>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '24px',
+                padding: '20px', backgroundColor: theme.inputBg, borderRadius: '12px',
+                border: `1px solid ${theme.inputBorder}`
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '52px', lineHeight: 1, filter: (user?.streakCount || 0) > 0 ? 'none' : 'grayscale(1) opacity(0.4)' }}>
+                    🔥
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 4px 0', color: theme.textSub, fontSize: '13px', fontWeight: '600' }}>OFENSIVA ATUAL</p>
+                  <h2 style={{ margin: '0 0 6px 0', color: theme.textMain, fontSize: '36px', fontWeight: '900' }}>
+                    {user?.streakCount || 0} <span style={{ fontSize: '18px', color: theme.textSub, fontWeight: '600' }}>dias consecutivos</span>
+                  </h2>
+                  <p style={{ margin: 0, color: theme.textSub, fontSize: '13px' }}>
+                    {(user?.streakCount || 0) === 0
+                      ? 'Faz login amanha para iniciar a tua ofensiva!'
+                      : (user?.streakCount || 0) >= 7
+                      ? '🏆 Semana completa! Continua assim!'
+                      : `Continua a fazer login todos os dias para aumentar a tua ofensiva!`
+                    }
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[1, 2, 3, 4, 5, 6, 7].map(dia => (
+                    <div key={dia} style={{
+                      width: '32px', height: '32px', borderRadius: '8px',
+                      backgroundColor: dia <= (user?.streakCount || 0) ? '#f97316' : theme.inputBg,
+                      border: `2px solid ${dia <= (user?.streakCount || 0) ? '#f97316' : theme.inputBorder}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '14px'
+                    }}>
+                      {dia <= (user?.streakCount || 0) ? '🔥' : ''}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* CARD DE CERTIFICADO */}
+            <div style={styles.card}>
+              <h3 style={styles.sectionTitle}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"></path></svg>
+                Certificados de Conclusao
+              </h3>
+              <p style={{ color: theme.textSub, fontSize: '14px', margin: '0 0 16px 0' }}>
+                Gera um certificado PDF personalizado para documentar a tua aprendizagem no CyberLearn.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={gerandoCertificado}
+                  onClick={async () => {
+                    setGerandoCertificado(true);
+                    setMsgCertificado('');
+                    try {
+                      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                      const w = doc.internal.pageSize.getWidth();
+                      const h = doc.internal.pageSize.getHeight();
+
+                      // Fundo
+                      doc.setFillColor(6, 11, 20);
+                      doc.rect(0, 0, w, h, 'F');
+
+                      // Borda decorativa
+                      doc.setDrawColor(59, 130, 246);
+                      doc.setLineWidth(1.5);
+                      doc.rect(10, 10, w - 20, h - 20);
+                      doc.setDrawColor(59, 130, 246);
+                      doc.setLineWidth(0.5);
+                      doc.rect(13, 13, w - 26, h - 26);
+
+                      // Titulo
+                      doc.setFontSize(36);
+                      doc.setTextColor(255, 255, 255);
+                      doc.setFont('helvetica', 'bold');
+                      doc.text('CyberLearn', w / 2, 40, { align: 'center' });
+
+                      doc.setFontSize(14);
+                      doc.setTextColor(59, 130, 246);
+                      doc.setFont('helvetica', 'normal');
+                      doc.text('PLATAFORMA DE CIBERSEGURANCA', w / 2, 50, { align: 'center' });
+
+                      // Linha divisora
+                      doc.setDrawColor(59, 130, 246);
+                      doc.setLineWidth(0.5);
+                      doc.line(40, 56, w - 40, 56);
+
+                      // Corpo
+                      doc.setFontSize(13);
+                      doc.setTextColor(180, 180, 180);
+                      doc.text('Certifica-se que', w / 2, 72, { align: 'center' });
+
+                      doc.setFontSize(28);
+                      doc.setTextColor(255, 255, 255);
+                      doc.setFont('helvetica', 'bold');
+                      doc.text(user?.nome || 'Aluno', w / 2, 88, { align: 'center' });
+
+                      doc.setFontSize(13);
+                      doc.setTextColor(180, 180, 180);
+                      doc.setFont('helvetica', 'normal');
+                      doc.text('concluiu com sucesso o modulo de', w / 2, 100, { align: 'center' });
+
+                      doc.setFontSize(20);
+                      doc.setTextColor(59, 130, 246);
+                      doc.setFont('helvetica', 'bold');
+                      doc.text('Ciberseguranca - CyberLearn Academy', w / 2, 114, { align: 'center' });
+
+                      // Data
+                      doc.setFontSize(12);
+                      doc.setTextColor(150, 150, 150);
+                      doc.setFont('helvetica', 'normal');
+                      doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}`, w / 2, 130, { align: 'center' });
+
+                      // Linha de assinatura
+                      doc.setDrawColor(100, 100, 100);
+                      doc.setLineWidth(0.3);
+                      doc.line(w / 2 - 50, 155, w / 2 + 50, 155);
+                      doc.setFontSize(11);
+                      doc.setTextColor(130, 130, 130);
+                      doc.text('Diretor da Plataforma CyberLearn', w / 2, 161, { align: 'center' });
+
+                      doc.save(`CyberLearn_Certificado_${(user?.nome || 'Aluno').replace(/ /g, '_')}.pdf`);
+                      setMsgCertificado('Certificado gerado com sucesso!');
+                    } catch (err) {
+                      console.error('Erro ao gerar certificado:', err);
+                      setMsgCertificado('Erro ao gerar o certificado.');
+                    } finally {
+                      setGerandoCertificado(false);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: gerandoCertificado ? theme.inputBg : theme.warning,
+                    color: gerandoCertificado ? theme.textSub : '#fff',
+                    border: 'none', padding: '12px 24px', borderRadius: '10px',
+                    fontWeight: '700', fontSize: '14px', cursor: gerandoCertificado ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s'
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"></path></svg>
+                  {gerandoCertificado ? 'A gerar...' : 'Gerar Certificado PDF'}
+                </button>
+              </div>
+              {msgCertificado && (
+                <p style={{ margin: '12px 0 0 0', color: msgCertificado.includes('Erro') ? theme.danger : theme.success, fontSize: '13px', fontWeight: '600' }}>
+                  {msgCertificado}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
         {/* 3.2. PERFIL DO PROFESSOR */}
         {isProfessor && (
           <div style={styles.card}>
@@ -201,7 +365,9 @@ export default function Profile({
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               Apresentação do Professor
             </h3>
-            {!isReadOnly && <DropzoneFotografia />}
+            {!isReadOnly && (
+              <div style={{ marginBottom: '20px' }}></div>
+            )}
             <div style={{...styles.inputGroup, marginBottom: '20px'}}>
               <label style={styles.label}>Biografia / Apresentação</label>
               <textarea style={styles.textarea} name="biografiaProf" placeholder="Partilha a tua jornada..." value={isReadOnly ? activeUser?.biografiaProf : profileData.biografiaProf || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
@@ -216,13 +382,6 @@ export default function Profile({
         {/* 3.3. ADMIN */}
         {isAdmin && !isReadOnly && (
           <>
-            <div style={styles.card}>
-              <h3 style={styles.sectionTitle}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                Fotografia de Perfil
-              </h3>
-              <DropzoneFotografia />
-            </div>
             <div style={styles.card}>
               <h3 style={styles.sectionTitle}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.danger} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
