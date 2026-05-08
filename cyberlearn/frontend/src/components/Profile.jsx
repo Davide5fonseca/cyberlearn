@@ -1,16 +1,13 @@
 /* eslint-disable react/prop-types */
-import { useRef, useState } from 'react';
-import jsPDF from 'jspdf';
+import { useRef } from 'react';
 
 export default function Profile({ 
   user, profileData, handleProfileChange, handleSaveProfile, 
   is2FAEnabled, setIs2FAEnabled, theme, avatarImg, setAvatarImg, 
   isReadOnly = false, viewedUser = null 
 }) {
-  
   const fileInputRef = useRef(null);
-  const [gerandoCertificado, setGerandoCertificado] = useState(false);
-  const [msgCertificado, setMsgCertificado] = useState('');
+
 
   const activeUser = isReadOnly ? viewedUser : user;
   
@@ -196,167 +193,7 @@ export default function Profile({
           </div>
         )}
 
-        {/* STREAK E CERTIFICADO — ALUNO NAO EM MODO LEITURA */}
-        {isAluno && !isReadOnly && (
-          <>
-            {/* CARD DE OFENSIVA (STREAK) */}
-            <div style={styles.card}>
-              <h3 style={styles.sectionTitle}>
-                <span style={{ fontSize: '22px' }}>🔥</span>
-                Ofensiva de Login
-              </h3>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '24px',
-                padding: '20px', backgroundColor: theme.inputBg, borderRadius: '12px',
-                border: `1px solid ${theme.inputBorder}`
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '52px', lineHeight: 1, filter: (user?.streakCount || 0) > 0 ? 'none' : 'grayscale(1) opacity(0.4)' }}>
-                    🔥
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: '0 0 4px 0', color: theme.textSub, fontSize: '13px', fontWeight: '600' }}>OFENSIVA ATUAL</p>
-                  <h2 style={{ margin: '0 0 6px 0', color: theme.textMain, fontSize: '36px', fontWeight: '900' }}>
-                    {user?.streakCount || 0} <span style={{ fontSize: '18px', color: theme.textSub, fontWeight: '600' }}>dias consecutivos</span>
-                  </h2>
-                  <p style={{ margin: 0, color: theme.textSub, fontSize: '13px' }}>
-                    {(user?.streakCount || 0) === 0
-                      ? 'Faz login amanha para iniciar a tua ofensiva!'
-                      : (user?.streakCount || 0) >= 7
-                      ? '🏆 Semana completa! Continua assim!'
-                      : `Continua a fazer login todos os dias para aumentar a tua ofensiva!`
-                    }
-                  </p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {[1, 2, 3, 4, 5, 6, 7].map(dia => (
-                    <div key={dia} style={{
-                      width: '32px', height: '32px', borderRadius: '8px',
-                      backgroundColor: dia <= (user?.streakCount || 0) ? '#f97316' : theme.inputBg,
-                      border: `2px solid ${dia <= (user?.streakCount || 0) ? '#f97316' : theme.inputBorder}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '14px'
-                    }}>
-                      {dia <= (user?.streakCount || 0) ? '🔥' : ''}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
 
-            {/* CARD DE CERTIFICADO */}
-            <div style={styles.card}>
-              <h3 style={styles.sectionTitle}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"></path></svg>
-                Certificados de Conclusao
-              </h3>
-              <p style={{ color: theme.textSub, fontSize: '14px', margin: '0 0 16px 0' }}>
-                Gera um certificado PDF personalizado para documentar a tua aprendizagem no CyberLearn.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  disabled={gerandoCertificado}
-                  onClick={async () => {
-                    setGerandoCertificado(true);
-                    setMsgCertificado('');
-                    try {
-                      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                      const w = doc.internal.pageSize.getWidth();
-                      const h = doc.internal.pageSize.getHeight();
-
-                      // Fundo
-                      doc.setFillColor(6, 11, 20);
-                      doc.rect(0, 0, w, h, 'F');
-
-                      // Borda decorativa
-                      doc.setDrawColor(59, 130, 246);
-                      doc.setLineWidth(1.5);
-                      doc.rect(10, 10, w - 20, h - 20);
-                      doc.setDrawColor(59, 130, 246);
-                      doc.setLineWidth(0.5);
-                      doc.rect(13, 13, w - 26, h - 26);
-
-                      // Titulo
-                      doc.setFontSize(36);
-                      doc.setTextColor(255, 255, 255);
-                      doc.setFont('helvetica', 'bold');
-                      doc.text('CyberLearn', w / 2, 40, { align: 'center' });
-
-                      doc.setFontSize(14);
-                      doc.setTextColor(59, 130, 246);
-                      doc.setFont('helvetica', 'normal');
-                      doc.text('PLATAFORMA DE CIBERSEGURANCA', w / 2, 50, { align: 'center' });
-
-                      // Linha divisora
-                      doc.setDrawColor(59, 130, 246);
-                      doc.setLineWidth(0.5);
-                      doc.line(40, 56, w - 40, 56);
-
-                      // Corpo
-                      doc.setFontSize(13);
-                      doc.setTextColor(180, 180, 180);
-                      doc.text('Certifica-se que', w / 2, 72, { align: 'center' });
-
-                      doc.setFontSize(28);
-                      doc.setTextColor(255, 255, 255);
-                      doc.setFont('helvetica', 'bold');
-                      doc.text(user?.nome || 'Aluno', w / 2, 88, { align: 'center' });
-
-                      doc.setFontSize(13);
-                      doc.setTextColor(180, 180, 180);
-                      doc.setFont('helvetica', 'normal');
-                      doc.text('concluiu com sucesso o modulo de', w / 2, 100, { align: 'center' });
-
-                      doc.setFontSize(20);
-                      doc.setTextColor(59, 130, 246);
-                      doc.setFont('helvetica', 'bold');
-                      doc.text('Ciberseguranca - CyberLearn Academy', w / 2, 114, { align: 'center' });
-
-                      // Data
-                      doc.setFontSize(12);
-                      doc.setTextColor(150, 150, 150);
-                      doc.setFont('helvetica', 'normal');
-                      doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}`, w / 2, 130, { align: 'center' });
-
-                      // Linha de assinatura
-                      doc.setDrawColor(100, 100, 100);
-                      doc.setLineWidth(0.3);
-                      doc.line(w / 2 - 50, 155, w / 2 + 50, 155);
-                      doc.setFontSize(11);
-                      doc.setTextColor(130, 130, 130);
-                      doc.text('Diretor da Plataforma CyberLearn', w / 2, 161, { align: 'center' });
-
-                      doc.save(`CyberLearn_Certificado_${(user?.nome || 'Aluno').replace(/ /g, '_')}.pdf`);
-                      setMsgCertificado('Certificado gerado com sucesso!');
-                    } catch (err) {
-                      console.error('Erro ao gerar certificado:', err);
-                      setMsgCertificado('Erro ao gerar o certificado.');
-                    } finally {
-                      setGerandoCertificado(false);
-                    }
-                  }}
-                  style={{
-                    backgroundColor: gerandoCertificado ? theme.inputBg : theme.warning,
-                    color: gerandoCertificado ? theme.textSub : '#fff',
-                    border: 'none', padding: '12px 24px', borderRadius: '10px',
-                    fontWeight: '700', fontSize: '14px', cursor: gerandoCertificado ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s'
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"></path></svg>
-                  {gerandoCertificado ? 'A gerar...' : 'Gerar Certificado PDF'}
-                </button>
-              </div>
-              {msgCertificado && (
-                <p style={{ margin: '12px 0 0 0', color: msgCertificado.includes('Erro') ? theme.danger : theme.success, fontSize: '13px', fontWeight: '600' }}>
-                  {msgCertificado}
-                </p>
-              )}
-            </div>
-          </>
-        )}
 
         {/* 3.2. PERFIL DO PROFESSOR */}
         {isProfessor && (
@@ -394,6 +231,31 @@ export default function Profile({
               </div>
             </div>
           </>
+        )}
+
+        {/* MUDAR PALAVRA-PASSE — TODOS OS PERFIS (NÃO READ-ONLY) */}
+        {!isReadOnly && (
+          <div style={styles.card}>
+            <h3 style={styles.sectionTitle}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              Segurança — Alterar Palavra-passe
+            </h3>
+            <p style={{ color: theme.textSub, fontSize: '13px', margin: '0 0 20px 0' }}>Para alterar a palavra-passe, preenche os campos abaixo. Deixa em branco se não queres alterar.</p>
+            <div style={styles.grid}>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Palavra-passe Atual</label>
+                <input style={styles.input} type="password" name="senhaAtual" placeholder="Palavra-passe atual" value={profileData.senhaAtual || ''} onChange={handleProfileChange} autoComplete="current-password" />
+              </div>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Nova Palavra-passe</label>
+                <input style={styles.input} type="password" name="novaSenha" placeholder="Nova palavra-passe" value={profileData.novaSenha || ''} onChange={handleProfileChange} autoComplete="new-password" />
+              </div>
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Confirmar Nova Palavra-passe</label>
+                <input style={styles.input} type="password" name="confirmarNovaSenha" placeholder="Repete a nova palavra-passe" value={profileData.confirmarNovaSenha || ''} onChange={handleProfileChange} autoComplete="new-password" />
+              </div>
+            </div>
+          </div>
         )}
 
         {!isReadOnly && <button type="submit" style={styles.button}>Guardar Alterações do Perfil</button>}
