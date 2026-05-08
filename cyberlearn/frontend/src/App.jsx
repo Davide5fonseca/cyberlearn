@@ -12,14 +12,6 @@ import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';     
 import AdminProfessores from './components/AdminProfessores'; 
 import AdminAprovacoes from './components/AdminAprovacoes';
-import Labs from './components/Labs';
-import Leaderboard from './components/Leaderboard';
-import Turmas from './components/Turmas';
-import AdminMetricas from './components/AdminMetricas';
-import AdminLogs from './components/AdminLogs';
-import AdminComentarios from './components/AdminComentarios';
-import AdminCategorias from './components/AdminCategorias';
-import DesafioDiario from './components/DesafioDiario';
 import { apiFetch } from './api';
 
 function App() {
