@@ -11,17 +11,38 @@ import ProfessorAlunos from './components/ProfessorAlunos';
 import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';     
 import AdminProfessores from './components/AdminProfessores'; 
-import AdminAprovacoes from './components/AdminAprovacoes'; // <-- IMPORT ADICIONADO
+import AdminAprovacoes from './components/AdminAprovacoes';
+import Labs from './components/Labs';
+import Leaderboard from './components/Leaderboard';
+import Turmas from './components/Turmas';
+import AdminMetricas from './components/AdminMetricas';
+import AdminLogs from './components/AdminLogs';
+import AdminComentarios from './components/AdminComentarios';
+import AdminCategorias from './components/AdminCategorias';
+import DesafioDiario from './components/DesafioDiario';
 import { apiFetch } from './api';
 
 function App() {
-  const [view, setView] = useState('login'); 
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(() => {
+    try { const saved = localStorage.getItem('cyberlearn_user'); return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
+  const [view, setView] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cyberlearn_user');
+      if (!saved) return 'login';
+      const u = JSON.parse(saved);
+      if (u.tipo === 'admin') return 'admin_dashboard';
+      if (u.tipo === 'professor') return 'professor_dashboard';
+      return 'dashboard';
+    } catch { return 'login'; }
+  });
   
   const [activeCourse, setActiveCourse] = useState(null);
   const [formData, setFormData] = useState({ nome: '', email: '', password: '', confirmarPassword: '', tipo: 'aluno' });
   const [tempUserId, setTempUserId] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try { const saved = localStorage.getItem('cyberlearn_darkMode'); return saved !== null ? JSON.parse(saved) : true; } catch { return true; }
+  });
   
   const [isMobile, setIsMobile] = useState(window.innerWidth < 850);
 
@@ -49,11 +70,14 @@ function App() {
     }
   }, [user]);
 
-  useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#060b14' : '#f0f2f5'; document.body.style.transition = 'background-color 0.3s ease'; }, [isDarkMode]);
+  useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#060b14' : '#f0f2f5'; document.body.style.transition = 'background-color 0.3s ease'; try { localStorage.setItem('cyberlearn_darkMode', JSON.stringify(isDarkMode)); } catch {} }, [isDarkMode]);
+
+  // Persistir sessão do utilizador
+  useEffect(() => { try { if (user) { localStorage.setItem('cyberlearn_user', JSON.stringify(user)); } else { localStorage.removeItem('cyberlearn_user'); } } catch {} }, [user]);
   
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); };
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); try { localStorage.removeItem('cyberlearn_user'); } catch {} };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,7 +89,12 @@ function App() {
         const response = await apiFetch('/login-2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ utilizadorId: tempUserId, token: tokenFinal }) });
         const data = await response.json();
         if (response.ok) {
-          setUser(data.utilizador); setAvatarImg(data.utilizador.avatar || null); setShow2FA(false); setFormData({ ...formData, password: '' }); 
+          const userData = { ...data.utilizador, streakCount: data.utilizador.streakCount || 0 };
+          setUser(userData);
+          try { localStorage.setItem('cyberlearn_user', JSON.stringify(userData)); } catch {}
+          setAvatarImg(data.utilizador.avatar || null);
+          setShow2FA(false);
+          setFormData({ ...formData, password: '' }); 
           if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
           else if (data.utilizador.tipo === 'professor') setView('professor_dashboard');
           else setView('dashboard');
@@ -105,7 +134,21 @@ function App() {
       const data = await response.json();
       if (response.ok) {
         if (view === 'register') { alert('Conta criada com sucesso!'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); } 
-        else if (view === 'login') { if (data.requires2FA) { setTempUserId(data.utilizadorId); setShow2FA(true); } }
+        else if (view === 'login') {
+          if (data.requires2FA) {
+            setTempUserId(data.utilizadorId);
+            setShow2FA(true);
+          } else {
+            // Login direto (sem 2FA)
+            const userData = { ...data.utilizador, streakCount: data.utilizador.streakCount || 0 };
+            setUser(userData);
+            setAvatarImg(data.utilizador.avatar || null);
+            setFormData({ ...formData, password: '' });
+            if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
+            else if (data.utilizador.tipo === 'professor') setView('professor_dashboard');
+            else setView('dashboard');
+          }
+        }
       } else { alert(`Erro: ${data.erro}`); }
     } catch (error) { alert("Erro de ligação ao servidor."); }
   };
@@ -131,7 +174,7 @@ function App() {
   }
 
   // <-- ADICIONADO 'admin_aprovacoes' AO ARRAY ABAIXO -->
-  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'admin_aprovacoes', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
+  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'admin_aprovacoes', 'profile', 'cursos', 'licao', 'quizzes', 'labs', 'leaderboard', 'turmas', 'admin_metricas', 'admin_logs', 'admin_comentarios', 'admin_categorias', 'desafio_diario'].includes(view)) {
     return (
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', width: '100%', backgroundColor: 'transparent', overflow: 'hidden' }}>
         
@@ -158,7 +201,15 @@ function App() {
                    view === 'admin_professores' ? `Gestão de Professores ` : 
                    view === 'admin_aprovacoes' ? `Aprovações de Conteúdos ` : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Catálogo de Cursos ' : 
-                   view === 'quizzes' ? 'Quizzes' : 'O Teu Perfil '}
+                   view === 'quizzes' ? 'Quizzes' : 
+                   view === 'labs' ? 'Laboratórios Práticos 🔬' : 
+                   view === 'leaderboard' ? 'Tabela de Classificação 🏆' : 
+                   view === 'turmas' ? 'Gestão de Turmas 👥' : 
+                   view === 'admin_metricas' ? 'Métricas Globais 📈' : 
+                   view === 'admin_logs' ? 'Logs de Segurança 🛡️' : 
+                   view === 'admin_comentarios' ? 'Moderação de Comentários 💬' : 
+                   view === 'admin_categorias' ? 'Categorias de Cursos 🏷️' : 
+                   view === 'desafio_diario' ? 'Desafio Diário 🎯' : 'O Teu Perfil '}
                 </h1>
                 <p style={{color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px'}}>
                   {view === 'dashboard' ? 'Bem-vindo ao teu centro de treino.' : 
@@ -169,7 +220,15 @@ function App() {
                    view === 'admin_professores' ? 'Consulta perfis e remove professores do sistema.' : 
                    view === 'admin_aprovacoes' ? 'Aprova ou rejeita os cursos e quizzes pendentes.' : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
-                   view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
+                   view === 'quizzes' ? 'Testa os teus conhecimentos.' : 
+                   view === 'labs' ? 'Desafios práticos para treinar as tuas competências.' : 
+                   view === 'leaderboard' ? 'Vê os melhores alunos da plataforma.' :
+                   view === 'turmas' ? 'Cria grupos e convida os teus alunos.' :
+                   view === 'admin_metricas' ? 'Estatísticas e banner global da plataforma.' :
+                   view === 'admin_logs' ? 'Monitorização de logins e eventos de segurança.' :
+                   view === 'admin_comentarios' ? 'Apaga comentários indesejados nas lições.' :
+                   view === 'admin_categorias' ? 'Gere as categorias disponíveis para os cursos.' : 
+                   view === 'desafio_diario' ? 'Resolve o desafio de hoje e ganha XP extra!' : 'Gere a tua conta e segurança.'}
                 </p>
               </div>
               
@@ -212,14 +271,22 @@ function App() {
 
           {view === 'dashboard' && <Dashboard theme={theme} user={user} setView={setView} />}
           {view === 'cursos' && <Cursos setView={setView} theme={theme} setActiveCourse={setActiveCourse} />}
-          {view === 'licao' && <Licao setView={setView} theme={theme} curso={activeCourse} />}
+          {view === 'licao' && <Licao setView={setView} theme={theme} curso={activeCourse} user={user} />}
           {view === 'quizzes' && <Quizzes theme={theme} setView={setView} user={user} />}
           {view === 'professor_dashboard' && <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos' && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos' && <ProfessorCursos theme={theme} user={user} />}
-          {view === 'admin_dashboard' && <AdminDashboard theme={theme} user={user} />}
+          {view === 'admin_dashboard' && <AdminDashboard theme={theme} user={user} setView={setView} />}
           {view === 'admin_professores' && <AdminProfessores theme={theme} />}
           {view === 'admin_aprovacoes' && <AdminAprovacoes theme={theme} />} 
+          {view === 'labs' && <Labs theme={theme} user={user} setView={setView} />}
+          {view === 'leaderboard' && <Leaderboard theme={theme} user={user} />}
+          {view === 'turmas' && <Turmas theme={theme} user={user} />}
+          {view === 'admin_metricas' && <AdminMetricas theme={theme} />}
+          {view === 'admin_logs' && <AdminLogs theme={theme} />}
+          {view === 'admin_comentarios' && <AdminComentarios theme={theme} />}
+          {view === 'admin_categorias' && <AdminCategorias theme={theme} />}
+          {view === 'desafio_diario' && <DesafioDiario theme={theme} user={user} setView={setView} />}
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} avatarImg={avatarImg} setAvatarImg={setAvatarImg} />}
         </div>
       </div>

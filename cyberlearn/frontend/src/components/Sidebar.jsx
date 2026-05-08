@@ -223,12 +223,74 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
 
 
 
+  const modalConfirmLogout = mostrarConfirmLogout ? (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backdropFilter: 'blur(4px)'
+    }}>
+      <div style={{
+        backgroundColor: theme.cardBg,
+        border: `1px solid ${theme.inputBorder}`,
+        borderRadius: '20px',
+        padding: '32px 28px',
+        width: '320px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px'
+      }}>
+        <div style={{
+          width: '56px', height: '56px', borderRadius: '50%',
+          backgroundColor: `${theme.danger}15`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={theme.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h3 style={{ margin: '0 0 6px 0', color: theme.textMain, fontSize: '17px', fontWeight: '700' }}>Terminar sessão?</h3>
+          <p style={{ margin: 0, color: theme.textSub, fontSize: '13px', lineHeight: '1.5' }}>Tens a certeza que queres sair da tua conta?</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+          <button
+            onClick={() => setMostrarConfirmLogout(false)}
+            style={{
+              flex: 1, padding: '10px', borderRadius: '10px', cursor: 'pointer',
+              border: `1px solid ${theme.inputBorder}`, backgroundColor: theme.inputBg,
+              color: theme.textMain, fontSize: '14px', fontWeight: '600', transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.iconBg}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => { setMostrarConfirmLogout(false); handleLogout(); }}
+            style={{
+              flex: 1, padding: '10px', borderRadius: '10px', cursor: 'pointer',
+              border: 'none', backgroundColor: theme.danger,
+              color: '#fff', fontSize: '14px', fontWeight: '700', transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+          >
+            Sim, Sair
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   // ==========================
   // BLOCO MOBILE
   // ==========================
   if (isMobile) {
     return (
       <>
+        {modalConfirmLogout}
         {/* JANELA FLUTUANTE DE NOTIFICAÇÕES (MOBILE) */}
         {mostrarNotificacoes && (
           <div
@@ -357,69 +419,9 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
   const getIconSize = () => 18;
 
   return (
-    <div style={styles.sidebar}>
-
-      {/* MODAL DE CONFIRMAÇÃO DE LOGOUT */}
-      {mostrarConfirmLogout && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{
-            backgroundColor: theme.cardBg,
-            border: `1px solid ${theme.inputBorder}`,
-            borderRadius: '20px',
-            padding: '32px 28px',
-            width: '320px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px'
-          }}>
-            <div style={{
-              width: '56px', height: '56px', borderRadius: '50%',
-              backgroundColor: `${theme.danger}15`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={theme.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ margin: '0 0 6px 0', color: theme.textMain, fontSize: '17px', fontWeight: '700' }}>Terminar sessão?</h3>
-              <p style={{ margin: 0, color: theme.textSub, fontSize: '13px', lineHeight: '1.5' }}>Tens a certeza que queres sair da tua conta?</p>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-              <button
-                onClick={() => setMostrarConfirmLogout(false)}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '10px', cursor: 'pointer',
-                  border: `1px solid ${theme.inputBorder}`, backgroundColor: theme.inputBg,
-                  color: theme.textMain, fontSize: '14px', fontWeight: '600', transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.iconBg}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => { setMostrarConfirmLogout(false); handleLogout(); }}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '10px', cursor: 'pointer',
-                  border: 'none', backgroundColor: theme.danger,
-                  color: '#fff', fontSize: '14px', fontWeight: '700', transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-              >
-                Sim, Sair
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    <>
+      {modalConfirmLogout}
+      <div style={styles.sidebar}>
       
       <div style={{display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px'}}>
         <div style={styles.logoContainer}>
@@ -614,7 +616,8 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
         </div>
       </div>
             
-    </div>
+      </div>
+    </>
   );
 }
 

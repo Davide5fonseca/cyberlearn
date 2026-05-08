@@ -155,7 +155,7 @@ export default function Profile({
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Perfil Académico e Estudantil
+              Perfil Académico
             </h3>
 
             {/* Fotografia para Aluno */}
