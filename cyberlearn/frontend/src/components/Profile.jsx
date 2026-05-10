@@ -216,23 +216,6 @@ export default function Profile({
           </div>
         )}
 
-        {/* 3.3. ADMIN */}
-        {isAdmin && !isReadOnly && (
-          <>
-            <div style={styles.card}>
-              <h3 style={styles.sectionTitle}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.danger} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                Privilégios de Acesso
-              </h3>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <span style={styles.permBadge}><span style={{color: theme.success}}>●</span> Gerir Utilizadores</span>
-                <span style={styles.permBadge}><span style={{color: theme.success}}>●</span> Aprovar Cursos</span>
-                <span style={styles.permBadge}><span style={{color: theme.danger}}>●</span> Eliminar Contas</span>
-              </div>
-            </div>
-          </>
-        )}
-
         {/* MUDAR PALAVRA-PASSE — TODOS OS PERFIS (NÃO READ-ONLY) */}
         {!isReadOnly && (
           <div style={styles.card}>
