@@ -1,5 +1,4 @@
-/* eslint-disable react/prop-types */
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 /* ── Força da palavra-passe ── */
 function getPasswordStrength(pwd) {
@@ -16,19 +15,41 @@ function getPasswordStrength(pwd) {
   return            { score: 4, label: 'Forte',    color: '#00c896' };
 }
 
+// Chave de localStorage por utilizador, para não misturar fotos entre contas
+const avatarKey = (userId) => `cyberlearn_avatar_${userId}`;
+
 export default function Profile({ 
   user, profileData, handleProfileChange, handleSaveProfile, 
   is2FAEnabled, setIs2FAEnabled, theme, avatarImg, setAvatarImg, 
   isReadOnly = false, viewedUser = null 
 }) {
   const fileInputRef = useRef(null);
-  const [showAtual, setShowAtual]           = useState(false);
-  const [showNova, setShowNova]             = useState(false);
-  const [showConfirmar, setShowConfirmar]   = useState(false);
-
+  const [showAtual, setShowAtual]         = useState(false);
+  const [showNova, setShowNova]           = useState(false);
+  const [showConfirmar, setShowConfirmar] = useState(false);
 
   const activeUser = isReadOnly ? viewedUser : user;
-  
+
+  // ── Persistência da foto no localStorage ──────────────────────────
+  // 1. Ao montar: restaura a foto guardada se o estado ainda estiver vazio
+  useEffect(() => {
+    if (isReadOnly || !user?.id) return;
+    const saved = localStorage.getItem(avatarKey(user.id));
+    if (saved && !avatarImg) {
+      setAvatarImg(saved);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // 2. Sempre que avatarImg muda, sincroniza com o localStorage
+  useEffect(() => {
+    if (isReadOnly || !user?.id) return;
+    if (avatarImg) {
+      localStorage.setItem(avatarKey(user.id), avatarImg);
+    }
+  }, [avatarImg, user?.id, isReadOnly]);
+  // ─────────────────────────────────────────────────────────────────
+
   // A foto a mostrar no cabeçalho central: se for readOnly usa a foto da BD do professor, senão usa a que está no estado do App.jsx
   const dbAvatar = activeUser?.avatar || activeUser?.avatar_url;
   const currentAvatar = isReadOnly ? dbAvatar : (avatarImg || dbAvatar);
@@ -42,7 +63,6 @@ export default function Profile({
     }
   }
   
-  // CORREÇÃO AQUI: Limpa espaços e maiúsculas para garantir que não falha!
   const userRole = activeUser?.tipo?.toLowerCase().trim() || activeUser?.perfil?.toLowerCase().trim() || '';
   const isAluno = userRole === 'aluno';
   const isProfessor = userRole === 'professor';
@@ -54,7 +74,11 @@ export default function Profile({
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => { setAvatarImg(reader.result); };
+      reader.onloadend = () => {
+        setAvatarImg(reader.result);
+        // Guarda imediatamente no localStorage
+        if (user?.id) localStorage.setItem(avatarKey(user.id), reader.result);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -63,13 +87,13 @@ export default function Profile({
   const handleRemoveImage = () => {
     if (isReadOnly) return;
     setAvatarImg(null);
+    // Remove também do localStorage para não reaparecer no próximo refresh
+    if (user?.id) localStorage.removeItem(avatarKey(user.id));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const styles = {
-    // REMOVIDO O maxWidth PARA OCUPAR A LARGURA TODA DA PÁGINA
     container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' },
-    
     headerCard: { backgroundColor: theme.cardBg, padding: '30px', borderRadius: '16px', boxShadow: theme.shadow, display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' },
     avatar: { width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold', boxShadow: `0 8px 20px ${theme.primary}50`, zIndex: 2, overflow: 'hidden', flexShrink: 0 },
     name: { color: theme.textMain, fontSize: '24px', fontWeight: 'bold', margin: '0 0 6px 0', zIndex: 2, position: 'relative' },
@@ -86,7 +110,6 @@ export default function Profile({
     select: { padding: '12px 16px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', color: theme.inputText, fontSize: '14px', outline: 'none', width: '100%', cursor: isReadOnly ? 'not-allowed' : 'pointer' },
     button: { padding: '14px 28px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.primary}40`, alignSelf: 'flex-end', marginTop: '10px' },
     permBadge: { padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textMain },
-    
     uploadOverlay: {
       position: 'absolute', inset: 0, borderRadius: '50%',
       backgroundColor: 'rgba(0,0,0,0.45)',
@@ -94,7 +117,6 @@ export default function Profile({
       opacity: 0, transition: 'opacity 0.2s ease', cursor: 'pointer'
     }
   };
-
 
   return (
     <div style={styles.container}>
@@ -164,7 +186,6 @@ export default function Profile({
               Perfil Académico e Estudantil
             </h3>
 
-
             <div style={styles.grid}>
               <div style={styles.inputGroup}>
                 <label style={styles.label}>Nível de Experiência</label>
@@ -200,8 +221,6 @@ export default function Profile({
           </div>
         )}
 
-
-
         {/* 3.2. PERFIL DO PROFESSOR */}
         {isProfessor && (
           <div style={styles.card}>
@@ -228,7 +247,7 @@ export default function Profile({
           const novaSenha      = profileData.novaSenha      || '';
           const confirmarSenha = profileData.confirmarNovaSenha || '';
           const strength       = getPasswordStrength(novaSenha);
-          const passwordsMatch = novaSenha && confirmarSenha && novaSenha === confirmarSenha;
+          const passwordsMatch    = novaSenha && confirmarSenha && novaSenha === confirmarSenha;
           const passwordsMismatch = novaSenha && confirmarSenha && novaSenha !== confirmarSenha;
 
           const eyeBtn = (show, toggle) => (
@@ -344,9 +363,7 @@ export default function Profile({
 
                   {/* Feedback de correspondência */}
                   {(passwordsMatch || passwordsMismatch) && (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px',
-                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                       {passwordsMatch ? (
                         <>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
