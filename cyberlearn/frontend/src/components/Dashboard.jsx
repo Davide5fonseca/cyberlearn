@@ -165,23 +165,6 @@ export default function Dashboard({ theme, user, setView }) {
         
         {/* COLUNA ESQUERDA */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* WIDGET DESAFIO DIÁRIO */}
-          <div style={{...styles.card, background: `linear-gradient(135deg, ${theme.cardBg} 0%, ${colorPrimary}15 100%)`, border: `1px solid ${colorPrimary}50`, position: 'relative', overflow: 'hidden'}}>
-            <div style={{ position: 'absolute', right: '-20px', top: '-20px', fontSize: '100px', opacity: 0.1, transform: 'rotate(15deg)' }}>🎯</div>
-            <h2 style={{...styles.sectionTitle, color: colorPrimary, marginBottom: '8px'}}>Desafio Diário</h2>
-            <p style={{ color: theme.textMain, fontSize: '14px', marginBottom: '16px', lineHeight: '1.5' }}>
-              Testa os teus conhecimentos com uma nova pergunta de cibersegurança todos os dias. Ganha <b style={{color: colorWarning}}>+100 XP</b> por acertar à primeira!
-            </p>
-            <button 
-              onClick={() => setView('desafio_diario')}
-              style={{ backgroundColor: colorPrimary, color: '#fff', border: 'none', padding: '12px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 12px ${colorPrimary}40`, transition: 'transform 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              Jogar Agora <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-            </button>
-          </div>
 
           {/* CALENDÁRIO DE ATIVIDADES */}
           <div style={styles.card}>
