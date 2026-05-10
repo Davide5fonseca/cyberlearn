@@ -197,17 +197,6 @@ export default function Profile({
               <label style={styles.label}>Biografia e Objetivos</label>
               <textarea style={styles.textarea} name="biografia" placeholder="Conta um pouco sobre a tua jornada na cibersegurança..." value={isReadOnly ? activeUser?.biografia : profileData.biografia || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
             </div>
-
-            <div style={styles.grid}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Link do GitHub</label>
-                <input style={styles.input} type="url" name="github" placeholder="https://github.com/teu-perfil" value={isReadOnly ? activeUser?.github : profileData.github || ''} onChange={handleProfileChange} readOnly={isReadOnly} />
-              </div>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Link do LinkedIn</label>
-                <input style={styles.input} type="url" name="linkedin" placeholder="https://linkedin.com/in/teu-perfil" value={isReadOnly ? activeUser?.linkedin : profileData.linkedin || ''} onChange={handleProfileChange} readOnly={isReadOnly} />
-              </div>
-            </div>
           </div>
         )}
 
