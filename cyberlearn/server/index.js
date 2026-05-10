@@ -188,6 +188,7 @@ app.post('/login-2fa', async (req, res) => {
         await gravarLogAcesso(utilizador.id, utilizador.nome);
         await gravarLogSeguranca('login_sucesso', utilizador.email, utilizador.id, ipLogin);
 
+        // ===== LÓGICA DE STREAKS (OFENSIVAS) =====
         let novoStreak = 1;
         try {
             const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD

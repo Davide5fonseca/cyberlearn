@@ -25,7 +25,7 @@ const translations = {
   }
 };
 
-export default function AdminDashboard({ theme, user }) {
+export default function AdminDashboard({ theme, user, setView }) {
   const [lang] = useState('pt');
   const t = (key) => translations[lang][key] || key;
 
@@ -227,6 +227,8 @@ export default function AdminDashboard({ theme, user }) {
           <h3 style={{ margin: 0, color: theme.textMain, fontSize: '28px', fontWeight: '800' }}>{estatisticas.totalAcessos}</h3>
         </div>
       </div>
+
+
 
       <div style={styles.cardContainer}>
         

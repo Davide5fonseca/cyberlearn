@@ -428,10 +428,15 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
 
         {isAdmin ? (
           <>
-            <div className="table-row" style={styles.menuItem(view === 'admin_dashboard')} onClick={() => setView('admin_dashboard')} onMouseEnter={(e) => !view.includes('dashboard') && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => !view.includes('dashboard') && (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <div className="table-row" style={styles.menuItem(view === 'admin_dashboard')} onClick={() => setView('admin_dashboard')} onMouseEnter={(e) => view !== 'admin_dashboard' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_dashboard' && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> {t('sidebar.adminPlatform')}
             </div>
-
+            <div className="table-row" style={styles.menuItem(view === 'admin_professores')} onClick={() => setView('admin_professores')} onMouseEnter={(e) => view !== 'admin_professores' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_professores' && (e.currentTarget.style.backgroundColor = 'transparent')}>
+              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> {t('sidebar.adminUsers')}
+            </div>
+            <div className="table-row" style={styles.menuItem(view === 'admin_aprovacoes')} onClick={() => setView('admin_aprovacoes')} onMouseEnter={(e) => view !== 'admin_aprovacoes' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_aprovacoes' && (e.currentTarget.style.backgroundColor = 'transparent')}>
+              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {t('sidebar.adminAprovacoes')}
+            </div>
           </>
         ) : isProfessor ? (
           <>

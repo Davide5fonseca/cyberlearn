@@ -166,7 +166,7 @@ function App() {
   }
 
   // <-- ADICIONADO 'admin_aprovacoes' AO ARRAY ABAIXO -->
-  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'admin_aprovacoes', 'profile', 'cursos', 'licao', 'quizzes', 'labs', 'leaderboard', 'turmas', 'admin_metricas', 'admin_logs', 'admin_comentarios', 'admin_categorias', 'desafio_diario'].includes(view)) {
+  if (['dashboard', 'professor_dashboard', 'professor_alunos', 'professor_cursos', 'admin_dashboard', 'admin_professores', 'admin_aprovacoes', 'profile', 'cursos', 'licao', 'quizzes'].includes(view)) {
     return (
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', width: '100%', backgroundColor: 'transparent', overflow: 'hidden' }}>
         
@@ -193,15 +193,7 @@ function App() {
                    view === 'admin_professores' ? `Gestão de Professores ` : 
                    view === 'admin_aprovacoes' ? `Aprovações de Conteúdos ` : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Catálogo de Cursos ' : 
-                   view === 'quizzes' ? 'Quizzes' : 
-                   view === 'labs' ? 'Laboratórios Práticos 🔬' : 
-                   view === 'leaderboard' ? 'Tabela de Classificação 🏆' : 
-                   view === 'turmas' ? 'Gestão de Turmas 👥' : 
-                   view === 'admin_metricas' ? 'Métricas Globais 📈' : 
-                   view === 'admin_logs' ? 'Logs de Segurança 🛡️' : 
-                   view === 'admin_comentarios' ? 'Moderação de Comentários 💬' : 
-                   view === 'admin_categorias' ? 'Categorias de Cursos 🏷️' : 
-                   view === 'desafio_diario' ? 'Desafio Diário 🎯' : 'O Teu Perfil '}
+                   view === 'quizzes' ? 'Quizzes' : 'O Teu Perfil '}
                 </h1>
                 <p style={{color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px'}}>
                   {view === 'dashboard' ? 'Bem-vindo ao teu centro de treino.' : 
@@ -212,15 +204,7 @@ function App() {
                    view === 'admin_professores' ? 'Consulta perfis e remove professores do sistema.' : 
                    view === 'admin_aprovacoes' ? 'Aprova ou rejeita os cursos e quizzes pendentes.' : // <-- ADICIONADO AQUI
                    view === 'cursos' ? 'Explora e inscreve-te em novos módulos.' : 
-                   view === 'quizzes' ? 'Testa os teus conhecimentos.' : 
-                   view === 'labs' ? 'Desafios práticos para treinar as tuas competências.' : 
-                   view === 'leaderboard' ? 'Vê os melhores alunos da plataforma.' :
-                   view === 'turmas' ? 'Cria grupos e convida os teus alunos.' :
-                   view === 'admin_metricas' ? 'Estatísticas e banner global da plataforma.' :
-                   view === 'admin_logs' ? 'Monitorização de logins e eventos de segurança.' :
-                   view === 'admin_comentarios' ? 'Apaga comentários indesejados nas lições.' :
-                   view === 'admin_categorias' ? 'Gere as categorias disponíveis para os cursos.' : 
-                   view === 'desafio_diario' ? 'Resolve o desafio de hoje e ganha XP extra!' : 'Gere a tua conta e segurança.'}
+                   view === 'quizzes' ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
               </div>
               
@@ -271,14 +255,6 @@ function App() {
           {view === 'admin_dashboard' && <AdminDashboard theme={theme} user={user} setView={setView} />}
           {view === 'admin_professores' && <AdminProfessores theme={theme} />}
           {view === 'admin_aprovacoes' && <AdminAprovacoes theme={theme} />} 
-          {view === 'labs' && <Labs theme={theme} user={user} setView={setView} />}
-          {view === 'leaderboard' && <Leaderboard theme={theme} user={user} />}
-          {view === 'turmas' && <Turmas theme={theme} user={user} />}
-          {view === 'admin_metricas' && <AdminMetricas theme={theme} />}
-          {view === 'admin_logs' && <AdminLogs theme={theme} />}
-          {view === 'admin_comentarios' && <AdminComentarios theme={theme} />}
-          {view === 'admin_categorias' && <AdminCategorias theme={theme} />}
-          {view === 'desafio_diario' && <DesafioDiario theme={theme} user={user} setView={setView} />}
           {view === 'profile' && <Profile user={user} profileData={profileData} handleProfileChange={handleProfileChange} handleSaveProfile={handleSaveProfile} is2FAEnabled={is2FAEnabled} setIs2FAEnabled={setIs2FAEnabled} theme={theme} avatarImg={avatarImg} setAvatarImg={setAvatarImg} />}
         </div>
       </div>
