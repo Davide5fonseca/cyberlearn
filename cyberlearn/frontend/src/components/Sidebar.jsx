@@ -3,19 +3,18 @@ import { apiFetch } from '../api';
 
 const translations = {
   pt: {
-    'sidebar.adminPlatform': 'Dashboard', 
+    'sidebar.adminPlatform': 'Dashboard',
     'sidebar.adminUsers': 'Professores',
     'sidebar.adminAprovacoes': 'Aprovações',
     'sidebar.profile': 'Perfil',
-    
-    'sidebar.profAnalytics': 'Dashboard', 
-    'sidebar.profStudents': 'Turmas',
+
+    'sidebar.profAnalytics': 'Dashboard',
+    'sidebar.profStudents': 'Alunos',
     'sidebar.profStudio': 'Cursos',
-    
+
     'sidebar.dashboard': 'Dashboard',
     'sidebar.courses': 'Cursos',
     'sidebar.quizzes': 'Quizzes',
-    'sidebar.labs': 'Labs',
     'sidebar.logout': 'Sair da Conta'
   }
 };
@@ -223,6 +222,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
 
 
 
+  // MODAL DE CONFIRMAÇÃO DE LOGOUT (partilhado entre mobile e desktop)
   const modalConfirmLogout = mostrarConfirmLogout ? (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
@@ -324,18 +324,13 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
           {isAdmin ? (
             <>
               <MobileNavIcon onClick={() => setView('admin_dashboard')} isActive={view === 'admin_dashboard'} icon={<><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></>} theme={theme} label={t('sidebar.adminPlatform')} />
-              <MobileNavIcon onClick={() => setView('admin_metricas')} isActive={view === 'admin_metricas'} icon={<><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></>} theme={theme} label="Métricas" />
               <MobileNavIcon onClick={() => setView('admin_professores')} isActive={view === 'admin_professores'} icon={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></>} theme={theme} label={t('sidebar.adminUsers')} />
               <MobileNavIcon onClick={() => setView('admin_aprovacoes')} isActive={view === 'admin_aprovacoes'} icon={<><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></>} theme={theme} label={t('sidebar.adminAprovacoes')} />
-              <MobileNavIcon onClick={() => setView('admin_logs')} isActive={view === 'admin_logs'} icon={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>} theme={theme} label="Logs" />
-              <MobileNavIcon onClick={() => setView('admin_comentarios')} isActive={view === 'admin_comentarios'} icon={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></>} theme={theme} label="Moderação" />
-              <MobileNavIcon onClick={() => setView('admin_categorias')} isActive={view === 'admin_categorias'} icon={<><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></>} theme={theme} label="Categorias" />
             </>
           ) : isProfessor ? (
             <>
               <MobileNavIcon onClick={() => setView('professor_dashboard')} isActive={view === 'professor_dashboard'} icon={<><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></>} theme={theme} label={t('sidebar.profAnalytics')} />
               <MobileNavIcon onClick={() => setView('professor_alunos')} isActive={view === 'professor_alunos'} icon={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></>} theme={theme} label={t('sidebar.profStudents')} />
-              <MobileNavIcon onClick={() => setView('turmas')} isActive={view === 'turmas'} icon={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></>} theme={theme} label="Turmas" />
               <MobileNavIcon onClick={() => setView('professor_cursos')} isActive={view === 'professor_cursos'} icon={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></>} theme={theme} label={t('sidebar.profStudio')} />
             </>
           ) : (
@@ -343,7 +338,6 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
               <MobileNavIcon onClick={() => setView('dashboard')} isActive={view === 'dashboard'} icon={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></>} theme={theme} label={t('sidebar.dashboard')} />
               <MobileNavIcon onClick={() => setView('cursos')} isActive={view === 'cursos' || view === 'licao'} icon={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></>} theme={theme} label={t('sidebar.courses')} />
               <MobileNavIcon onClick={() => setView('quizzes')} isActive={view === 'quizzes'} icon={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></>} theme={theme} label={t('sidebar.quizzes')} />
-              <MobileNavIcon onClick={() => setView('leaderboard')} isActive={view === 'leaderboard'} icon={<><path d="M2 12l10-10 10 10-10 10z"></path></>} theme={theme} label="Ranking" />
             </>
           )}
 
@@ -437,24 +431,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             <div className="table-row" style={styles.menuItem(view === 'admin_dashboard')} onClick={() => setView('admin_dashboard')} onMouseEnter={(e) => !view.includes('dashboard') && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => !view.includes('dashboard') && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> {t('sidebar.adminPlatform')}
             </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_metricas')} onClick={() => setView('admin_metricas')} onMouseEnter={(e) => view !== 'admin_metricas' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_metricas' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg> Métricas e Banner
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_professores')} onClick={() => setView('admin_professores')} onMouseEnter={(e) => view !== 'admin_professores' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_professores' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> {t('sidebar.adminUsers')}
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_aprovacoes')} onClick={() => setView('admin_aprovacoes')} onMouseEnter={(e) => view !== 'admin_aprovacoes' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_aprovacoes' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {t('sidebar.adminAprovacoes')}
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_logs')} onClick={() => setView('admin_logs')} onMouseEnter={(e) => view !== 'admin_logs' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_logs' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Logs de Segurança
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_comentarios')} onClick={() => setView('admin_comentarios')} onMouseEnter={(e) => view !== 'admin_comentarios' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_comentarios' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Moderação
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'admin_categorias')} onClick={() => setView('admin_categorias')} onMouseEnter={(e) => view !== 'admin_categorias' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'admin_categorias' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Categorias
-            </div>
+
           </>
         ) : isProfessor ? (
           <>
@@ -464,9 +441,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             <div className="table-row" style={styles.menuItem(view === 'professor_alunos')} onClick={() => setView('professor_alunos')} onMouseEnter={(e) => view !== 'professor_alunos' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'professor_alunos' && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> {t('sidebar.profStudents')}
             </div>
-            <div className="table-row" style={styles.menuItem(view === 'turmas')} onClick={() => setView('turmas')} onMouseEnter={(e) => view !== 'turmas' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'turmas' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Turmas
-            </div>
+
             <div className="table-row" style={styles.menuItem(view === 'professor_cursos')} onClick={() => setView('professor_cursos')} onMouseEnter={(e) => view !== 'professor_cursos' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'professor_cursos' && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg> {t('sidebar.profStudio')}
             </div>
@@ -482,12 +457,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             <div className="table-row" style={styles.menuItem(view === 'quizzes')} onClick={() => setView('quizzes')} onMouseEnter={(e) => view !== 'quizzes' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'quizzes' && (e.currentTarget.style.backgroundColor = 'transparent')}>
               <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> {t('sidebar.quizzes')}
             </div>
-            <div className="table-row" style={styles.menuItem(view === 'labs' || view === 'phishing' || view === 'ctf' || view === 'entrevista')} onClick={() => setView('labs')} onMouseEnter={(e) => !['labs','phishing','ctf','entrevista'].includes(view) && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => !['labs','phishing','ctf','entrevista'].includes(view) && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11m0 0H5a2 2 0 0 0-2 2v2m6-2h10m-6 0v2m0-2a2 2 0 0 0 2 2m0 0h2a2 2 0 0 0 2-2m0 0V9a2 2 0 0 0-2-2m0 0h-2"></path></svg> {t('sidebar.labs')}
-            </div>
-            <div className="table-row" style={styles.menuItem(view === 'leaderboard')} onClick={() => setView('leaderboard')} onMouseEnter={(e) => view !== 'leaderboard' && (e.currentTarget.style.backgroundColor = theme.iconBg || `${theme.inputBorder}50`)} onMouseLeave={(e) => view !== 'leaderboard' && (e.currentTarget.style.backgroundColor = 'transparent')}>
-              <svg width={getIconSize()} height={getIconSize()} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12l10-10 10 10-10 10z"></path></svg> Ranking
-            </div>
+
           </>
         )}
 

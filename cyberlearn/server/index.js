@@ -51,6 +51,30 @@ const gravarLogAcesso = async (utilizadorId, nome) => {
     }
 };
 
+const gravarLogSeguranca = async (tipo, email, utilizadorId, ip) => {
+    try {
+        await pool.query(
+            'INSERT INTO logs_seguranca (tipo, email, utilizador_id, ip) VALUES ($1, $2, $3, $4)',
+            [tipo, email || null, utilizadorId || null, ip || null]
+        );
+    } catch (err) {
+        console.error('❌ Erro ao gravar log de segurança:', err.message);
+    }
+};
+
+// Inicialização da tabela de logs de segurança ao arranque do servidor
+pool.query(`
+    CREATE TABLE IF NOT EXISTS logs_seguranca (
+        id SERIAL PRIMARY KEY,
+        tipo VARCHAR(50),
+        email VARCHAR(255),
+        utilizador_id INTEGER,
+        ip VARCHAR(100),
+        data_criacao TIMESTAMP DEFAULT NOW()
+    )
+`).then(() => console.log('✅ Tabela logs_seguranca verificada/criada.'))
+  .catch(err => console.error('❌ Erro ao inicializar tabela logs_seguranca:', err.message));
+
 
 // 1. CONFIGURAÇÃO DE EMAIL (NODEMAILER)
 const transporter = nodemailer.createTransport({
@@ -97,11 +121,17 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
-        if (result.rows.length === 0) return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
-
+        const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null;
+        if (result.rows.length === 0) {
+            await gravarLogSeguranca('login_falha', email, null, ip);
+            return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
+        }
         const utilizador = result.rows[0];
         const passwordValida = await bcrypt.compare(password, utilizador.password_hash);
-        if (!passwordValida) return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
+        if (!passwordValida) {
+            await gravarLogSeguranca('login_falha', email, null, ip);
+            return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
+        }
 
         const codigo2FA = Math.floor(100000 + Math.random() * 900000).toString();
         const expiracao = new Date(Date.now() + 10 * 60000); 
@@ -145,14 +175,46 @@ app.post('/login-2fa', async (req, res) => {
         const utilizador = result.rows[0];
 
         if (!utilizador.codigo_email_2fa || utilizador.codigo_email_2fa !== token) {
+            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null);
             return res.status(401).json({ erro: 'Código incorreto. Tenta novamente.' });
         }
         if (new Date() > new Date(utilizador.codigo_email_expiracao)) {
+            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null);
             return res.status(401).json({ erro: 'Este código já expirou. Volta ao login.' });
         }
 
         await pool.query('UPDATE utilizadores SET codigo_email_2fa = NULL, codigo_email_expiracao = NULL WHERE id = $1', [utilizador.id]);
+        const ipLogin = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null;
         await gravarLogAcesso(utilizador.id, utilizador.nome);
+        await gravarLogSeguranca('login_sucesso', utilizador.email, utilizador.id, ipLogin);
+
+        let novoStreak = 1;
+        try {
+            const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const ontem = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            const lastLogin = utilizador.last_login_date 
+                ? new Date(utilizador.last_login_date).toISOString().split('T')[0] 
+                : null;
+
+            if (lastLogin === hoje) {
+                // Já fez login hoje — mantém o streak
+                novoStreak = utilizador.streak_count || 1;
+            } else if (lastLogin === ontem) {
+                // Login consecutivo! Incrementa streak
+                novoStreak = (utilizador.streak_count || 0) + 1;
+            } else {
+                // Quebrou o streak — reinicia
+                novoStreak = 1;
+            }
+
+            await pool.query(
+                'UPDATE utilizadores SET last_login_date = $1, streak_count = $2 WHERE id = $3',
+                [hoje, novoStreak, utilizador.id]
+            );
+        } catch (streakErr) {
+            console.error("⚠️ Erro ao atualizar streak (não crítico):", streakErr.message);
+        }
+        // ==========================================
 
         res.status(200).json({ 
             mensagem: 'Acesso validado com sucesso!', 
@@ -162,7 +224,8 @@ app.post('/login-2fa', async (req, res) => {
                 avatar: utilizador.avatar, biografiaProf: utilizador.biografia_prof,
                 metodologia: utilizador.metodologia, nivelExperiencia: utilizador.nivel_experiencia,
                 interesse: utilizador.area_interesse, biografia: utilizador.biografia,
-                conquistas: utilizador.conquistas, github: utilizador.github, linkedin: utilizador.linkedin
+                conquistas: utilizador.conquistas, github: utilizador.github, linkedin: utilizador.linkedin,
+                streakCount: novoStreak
             } 
         });
     } catch (err) {
@@ -799,6 +862,7 @@ app.get('/notificacoes/:id', async (req, res) => {
     }
 });
 
+
 // 10. APROVAÇÕES DO ADMIN
 app.get('/admin/pendentes', async (req, res) => {
     try {
@@ -865,7 +929,6 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
         res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
     }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
