@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Profile from './Profile'; 
 import { apiFetch } from '../api';
 
 export default function AdminProfessores({ theme }) {
   const [professores, setProfessores] = useState([]);
-  
   const [professorSelecionado, setProfessorSelecionado] = useState(null);
+  
+  // Novo estado para a barra de pesquisa
+  const [searchTerm, setSearchTerm] = useState('');
 
   const carregarProfessores = () => {
     apiFetch('/professores')
@@ -40,7 +42,19 @@ export default function AdminProfessores({ theme }) {
     }
   };
 
+  // Filtra os professores baseando-se no texto da barra de pesquisa
+  const professoresFiltrados = useMemo(() => {
+    if (!searchTerm) return professores;
+    const lower = searchTerm.toLowerCase();
+    return professores.filter(p => 
+      p.nome.toLowerCase().includes(lower) || 
+      p.email.toLowerCase().includes(lower)
+    );
+  }, [professores, searchTerm]);
+
+  // ==========================================
   // VISTA 1: VER O PERFIL DO PROFESSOR
+  // ==========================================
   if (professorSelecionado) {
     return (
       <div style={{ maxHeight: 'calc(100vh - 130px)', overflowY: 'auto', paddingRight: '10px' }}>
@@ -58,7 +72,7 @@ export default function AdminProfessores({ theme }) {
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Voltar
+            Voltar à Lista
           </button>
         </div>
 
@@ -73,70 +87,118 @@ export default function AdminProfessores({ theme }) {
     );
   }
 
-  // VISTA 2: PÁGINA PROFESSORES 
+  // ==========================================
+  // ESTILOS DA PÁGINA (Baseado no ProfessorAlunos)
+  // ==========================================
+  const styles = {
+    card: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40` },
+    searchInput: { width: '100%', padding: '14px 16px', borderRadius: '10px', border: `1px solid ${theme.inputBorder}`, backgroundColor: theme.inputBg, color: theme.inputText, fontSize: '14px', marginBottom: '24px', outline: 'none', transition: 'border 0.2s', boxSizing: 'border-box' },
+    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: theme.textMain, fontSize: '14px' },
+    th: { padding: '16px 12px', borderBottom: `2px solid ${theme.inputBorder}`, color: theme.textSub, textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.5px', fontWeight: 'bold' },
+    td: { padding: '16px 12px', borderBottom: `1px solid ${theme.inputBorder}60`, verticalAlign: 'middle' },
+    avatar: { width: '42px', height: '42px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '16px', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 },
+    viewButton: { backgroundColor: `${theme.primary}15`, color: theme.primary, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' },
+    deleteButton: { backgroundColor: `${theme.danger}15`, color: theme.danger, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }
+  };
+
+  // ==========================================
+  // VISTA 2: PÁGINA DE TABELA DOS PROFESSORES 
+  // ==========================================
   return (
     <div style={{ maxHeight: 'calc(100vh - 130px)', overflowY: 'auto', paddingRight: '10px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+      
+      <div style={styles.card}>
         
-        {professores.map(prof => (
-          <div key={prof.id} style={{ backgroundColor: theme.cardBg, padding: '20px', borderRadius: '12px', boxShadow: theme.shadow, borderTop: `4px solid ${theme.primary}`, display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Cabeçalho do Cartão: Foto, Nome e Email */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-              <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px', fontWeight: 'bold', overflow: 'hidden' }}>
-                {prof.avatar_url ? (
-                  <img src={prof.avatar_url} alt={`Foto de ${prof.nome}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  prof.nome.charAt(0).toUpperCase()
-                )}
-              </div>
-              <div>
-                <h3 style={{ margin: 0, color: theme.textMain, fontSize: '18px' }}>{prof.nome}</h3>
-                <p style={{ margin: 0, color: theme.textSub, fontSize: '14px' }}>{prof.email}</p>
-              </div>
-            </div>
-            
-            {/* Detalhes de Registo */}
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: theme.inputBg, borderRadius: '8px', flexGrow: 1 }}>
-              <p style={{ margin: '0 0 5px 0', color: theme.textSub, fontSize: '13px' }}><strong>Na plataforma desde:</strong> {prof.data_registo}</p>
-              <p style={{ margin: 0, color: theme.textSub, fontSize: '13px' }}><strong>Nº de Identificação:</strong> #{prof.id}</p>
-            </div>
+        {/* BARRA DE PESQUISA */}
+        <input 
+          type="text" 
+          placeholder="Procurar professor por nome ou email..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={styles.searchInput}
+          onFocus={(e) => e.target.style.borderColor = theme.primary}
+          onBlur={(e) => e.target.style.borderColor = theme.inputBorder}
+        />
 
-            {/* Zona de Ação: Ver e Remover */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              
-              <button 
-                onClick={() => setProfessorSelecionado(prof)}
-                style={{ flex: 1, padding: '10px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', transition: 'opacity 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                Ver Perfil
-              </button>
+        {professores.length === 0 ? (
+           <p style={{ color: theme.textSub, textAlign: 'center', padding: '40px 0', fontSize: '15px' }}>
+             Ainda não tens nenhum professor na tua equipa. Que tal convidar alguém? 🌱
+           </p>
+        ) : professoresFiltrados.length === 0 ? (
+           <p style={{ color: theme.textSub, textAlign: 'center', padding: '40px 0', fontSize: '15px' }}>
+             Nenhum professor encontrado com esse nome ou email. 🔍
+           </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Professor</th>
+                  <th style={styles.th}>Registo</th>
+                  <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {professoresFiltrados.map(prof => (
+                  <tr key={prof.id} style={{ transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBg} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    
+                    {/* COLUNA 1: FOTO, NOME E EMAIL */}
+                    <td style={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={styles.avatar}>
+                          {prof.avatar_url ? (
+                            <img src={prof.avatar_url} alt={`Foto de ${prof.nome}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            prof.nome.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: theme.textMain, fontSize: '14px', marginBottom: '2px' }}>{prof.nome}</div>
+                          <div style={{ color: theme.textSub, fontSize: '12px' }}>{prof.email}</div>
+                        </div>
+                      </div>
+                    </td>
 
-              <button 
-                onClick={() => handleEliminar(prof.id, prof.nome)}
-                style={{ padding: '10px 14px', backgroundColor: theme.danger, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'opacity 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
-                title="Remover Professor"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-              </button>
-            </div>
+                    {/* COLUNA 2: DATA E ID */}
+                    <td style={styles.td}>
+                      <div style={{ color: theme.textMain, fontSize: '13px', fontWeight: '500' }}>{prof.data_registo}</div>
+                      <div style={{ color: theme.textSub, fontSize: '11px', marginTop: '2px' }}>ID: #{prof.id}</div>
+                    </td>
 
+                    {/* COLUNA 3: BOTÕES DE AÇÃO */}
+                    <td style={{...styles.td, textAlign: 'right'}}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        
+                        <button 
+                          onClick={() => setProfessorSelecionado(prof)}
+                          style={styles.viewButton}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.primary}25`}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = `${theme.primary}15`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          Ver Perfil
+                        </button>
+
+                        <button 
+                          onClick={() => handleEliminar(prof.id, prof.nome)}
+                          style={styles.deleteButton}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}25`}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}15`}
+                          title="Remover Professor"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                          Remover
+                        </button>
+
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-        
-        {/* O que mostrar se não houver professores */}
-        {professores.length === 0 && (
-          <p style={{ color: theme.textSub, gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', fontSize: '15px' }}>
-            Ainda não tens nenhum professor na tua equipa. Que tal convidar alguém? 🌱
-          </p>
         )}
       </div>
-
     </div>
   );
 }

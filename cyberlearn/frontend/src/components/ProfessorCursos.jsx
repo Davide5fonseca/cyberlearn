@@ -10,8 +10,8 @@ export default function ProfessorCursos({ theme, user }) {
   const [viewingCurso, setViewingCurso] = useState(null);
   const [viewingQuiz, setViewingQuiz] = useState(null);
   
-  const [editingCursoId, setEditingCursoId] = useState(null); // NOVO
-  const [editingQuizTitulo, setEditingQuizTitulo] = useState(null); // NOVO
+  const [editingCursoId, setEditingCursoId] = useState(null); 
+  const [editingQuizTitulo, setEditingQuizTitulo] = useState(null); 
   
   const [cursoData, setCursoData] = useState({ titulo: '', nivel: 'iniciante', descricao: '' });
   const [numeroLicoes, setNumeroLicoes] = useState(1);
@@ -24,14 +24,18 @@ export default function ProfessorCursos({ theme, user }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    buscarCursos();
-    buscarQuizzes(); 
-  }, [activeTab]);
+    if (user?.id) {
+      buscarCursos();
+      buscarQuizzes(); 
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user?.id]);
 
   const buscarCursos = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/cursos');
+      // Rota Exclusiva do Professor: Traz aprovados e não aprovados
+      const res = await apiFetch(`/professor/cursos/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setCursosReais(data);
@@ -42,13 +46,15 @@ export default function ProfessorCursos({ theme, user }) {
 
   const buscarQuizzes = async () => {
     try {
-      const res = await apiFetch('/quizzes');
+      // Rota Exclusiva do Professor: Traz aprovados e não aprovados
+      const res = await apiFetch(`/professor/quizzes/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         const grouped = {};
         data.forEach(q => {
           if (!grouped[q.titulo]) {
-            grouped[q.titulo] = { titulo: q.titulo, nome_curso: q.nome_curso, perguntas: [] };
+            // Guarda o estado de aprovação
+            grouped[q.titulo] = { titulo: q.titulo, nome_curso: q.nome_curso, aprovado: q.aprovado, perguntas: [] };
           }
           grouped[q.titulo].perguntas.push(q);
         });
@@ -98,7 +104,6 @@ export default function ProfessorCursos({ theme, user }) {
     setActiveTab('createQuiz');
   };
 
-  // APAGAR CURSO E QUIZ
   const handleDeleteCurso = async (e, cursoId) => {
     e.stopPropagation();
     if (!window.confirm("Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados!")) return; 
@@ -170,7 +175,6 @@ export default function ProfessorCursos({ theme, user }) {
   };
 
 
-  // CRIAR E ATUALIZAR CURSO E QUIZ
   const handleSubmitCurso = async (e) => { 
     e.preventDefault(); 
     try {
@@ -240,7 +244,12 @@ export default function ProfessorCursos({ theme, user }) {
     levelBadge: (nivel) => {
       const n = String(nivel || 'iniciante').toLowerCase();
       return { padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: n === 'iniciante' ? `${theme.success}20` : n === 'avancado' ? `${theme.danger}20` : `${theme.warning}20`, color: n === 'iniciante' ? theme.success : n === 'avancado' ? theme.danger : theme.warning };
-    }
+    },
+    statusBadge: (isApproved) => ({
+      padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase',
+      backgroundColor: isApproved ? `${theme.success}20` : `${theme.warning}20`,
+      color: isApproved ? theme.success : theme.warning
+    })
   };
 
 
@@ -281,6 +290,9 @@ export default function ProfessorCursos({ theme, user }) {
                 <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>{viewingCurso.titulo}</h1>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <span style={styles.levelBadge(viewingCurso.nivel)}>{viewingCurso.nivel}</span>
+                  <span style={styles.statusBadge(viewingCurso.aprovado)}>
+                    {viewingCurso.aprovado ? "🟢 Online" : "⏳ Pendente"}
+                  </span>
                   <span style={{fontSize: '12px', color: theme.textSub, fontWeight: 'bold'}}>{conteudosLicao.length} Lições</span>
                 </div>
               </div>
@@ -346,6 +358,9 @@ export default function ProfessorCursos({ theme, user }) {
                 <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>Gabarito: {viewingQuiz.titulo}</h1>
                 <p style={{margin: 0, color: theme.textSub, fontSize: '13px', fontWeight: 'bold'}}>
                   Associado ao Curso: <span style={{color: theme.primary}}>{viewingQuiz.nome_curso}</span> | {viewingQuiz.perguntas.length} Perguntas
+                  <span style={{...styles.statusBadge(viewingQuiz.aprovado), marginLeft: '10px'}}>
+                    {viewingQuiz.aprovado ? "🟢 Online" : "⏳ Pendente"}
+                  </span>
                 </p>
               </div>
             </div>
@@ -426,6 +441,7 @@ export default function ProfessorCursos({ theme, user }) {
                     <tr>
                       <th style={styles.th}>Título do Curso</th>
                       <th style={styles.th}>Dificuldade</th>
+                      <th style={styles.th}>Estado</th>
                       <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
                     </tr>
                   </thead>
@@ -434,6 +450,11 @@ export default function ProfessorCursos({ theme, user }) {
                       <tr key={curso.id} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingCurso(curso)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{curso.titulo}</td>
                         <td style={styles.td}><span style={styles.levelBadge(curso.nivel)}>{curso.nivel || 'Iniciante'}</span></td>
+                        <td style={styles.td}>
+                          <span style={styles.statusBadge(curso.aprovado)}>
+                            {curso.aprovado ? 'Online' : 'Pendente'}
+                          </span>
+                        </td>
                         <td style={{...styles.td, textAlign: 'right'}}>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
                             <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingCurso(curso); }}>Ver Detalhes</button>
@@ -473,6 +494,7 @@ export default function ProfessorCursos({ theme, user }) {
                       <th style={styles.th}>Título do Quiz</th>
                       <th style={styles.th}>Associado ao Curso</th>
                       <th style={styles.th}>Total de Perguntas</th>
+                      <th style={styles.th}>Estado</th>
                       <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
                     </tr>
                   </thead>
@@ -482,6 +504,11 @@ export default function ProfessorCursos({ theme, user }) {
                         <td style={{...styles.td, fontWeight: 'bold'}}>{quiz.titulo}</td>
                         <td style={styles.td}><span style={{color: theme.primary, fontWeight: '600'}}>{quiz.nome_curso}</span></td>
                         <td style={styles.td}>{quiz.perguntas.length} {quiz.perguntas.length === 1 ? 'Pergunta' : 'Perguntas'}</td>
+                        <td style={styles.td}>
+                          <span style={styles.statusBadge(quiz.aprovado)}>
+                            {quiz.aprovado ? 'Online' : 'Pendente'}
+                          </span>
+                        </td>
                         <td style={{...styles.td, textAlign: 'right'}}>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
                             <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingQuiz(quiz); }}>Ver Detalhes</button>

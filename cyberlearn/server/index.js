@@ -4,8 +4,6 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const path = require('path'); 
 
 console.log("A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
 
@@ -24,7 +22,9 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// 0. TESTES E FUNÇÕES AUXILIARES
+// ==========================================
+// 0. INICIALIZAÇÃO DE TABELAS & FUNÇÕES AUX
+// ==========================================
 app.get('/teste-bd', async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW()');
@@ -39,11 +39,7 @@ const gravarLogAcesso = async (utilizadorId, nome) => {
     try {
         await pool.query(`
             INSERT INTO logs_acesso (id, utilizador_id, data_hora_acesso) 
-            VALUES (
-                (SELECT COALESCE(MAX(id), 0) + 1 FROM logs_acesso), 
-                $1, 
-                NOW()
-            )
+            VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM logs_acesso), $1, NOW())
         `, [utilizadorId]);
         console.log(`✅ LOGIN GRAVADO NA BD: O utilizador ${nome} entrou na plataforma!`);
     } catch (erroAcesso) {
@@ -62,7 +58,7 @@ const gravarLogSeguranca = async (tipo, email, utilizadorId, ip) => {
     }
 };
 
-// Inicialização da tabela de logs de segurança ao arranque do servidor
+// Tabelas de Logs e Notificações Persistentes
 pool.query(`
     CREATE TABLE IF NOT EXISTS logs_seguranca (
         id SERIAL PRIMARY KEY,
@@ -72,11 +68,38 @@ pool.query(`
         ip VARCHAR(100),
         data_criacao TIMESTAMP DEFAULT NOW()
     )
-`).then(() => console.log('✅ Tabela logs_seguranca verificada/criada.'))
-  .catch(err => console.error('❌ Erro ao inicializar tabela logs_seguranca:', err.message));
+`).catch(err => console.error('❌ Erro logs_seguranca:', err.message));
 
+pool.query(`
+    CREATE TABLE IF NOT EXISTS notificacoes_sistema (
+        id SERIAL PRIMARY KEY,
+        utilizador_id INTEGER NULL,
+        perfil_alvo VARCHAR(50) NULL,
+        icone VARCHAR(50),
+        cor VARCHAR(50),
+        titulo VARCHAR(255),
+        mensagem TEXT,
+        acao VARCHAR(255),
+        data_criacao TIMESTAMP DEFAULT NOW()
+    )
+`).then(() => console.log('✅ Tabela notificacoes_sistema verificada/criada.'))
+  .catch(err => console.error('❌ Erro notificacoes_sistema:', err.message));
 
+// Função Global para criar notificações na Base de Dados
+const criarNotificacao = async ({ utilizador_id = null, perfil_alvo = null, icone, cor, titulo, mensagem, acao }) => {
+    try {
+        await pool.query(
+            'INSERT INTO notificacoes_sistema (utilizador_id, perfil_alvo, icone, cor, titulo, mensagem, acao) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [utilizador_id, perfil_alvo, icone, cor, titulo, mensagem, acao]
+        );
+    } catch (err) {
+        console.error('Erro ao injetar notificação:', err.message);
+    }
+};
+
+// ==========================================
 // 1. CONFIGURAÇÃO DE EMAIL (NODEMAILER)
+// ==========================================
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -87,14 +110,15 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify(function(error, success) {
     if (error) {
-        console.error("❌ Erro de ligação ao Email (Verifica o .env e a Palavra-passe de App):", error.message);
+        console.error("❌ Erro de ligação ao Email (Verifica o .env):", error.message);
     } else {
         console.log("✅ Servidor de Email pronto para mensagens!");
     }
 });
 
-
+// ==========================================
 // 2. AUTENTICAÇÃO E GESTÃO DE PERFIL
+// ==========================================
 app.post('/registar', async (req, res) => {
     const { nome, email, password, tipo } = req.body;
     try {
@@ -112,7 +136,6 @@ app.post('/registar', async (req, res) => {
 
         res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
     } catch (err) {
-        console.error("Erro ao registar:", err.message);
         res.status(500).json({ erro: 'Erro interno ao criar conta.' });
     }
 });
@@ -161,7 +184,6 @@ app.post('/login', async (req, res) => {
 
         res.status(200).json({ requires2FA: true, utilizadorId: utilizador.id, mensagem: 'Código enviado para o teu email!' });
     } catch (err) {
-        console.error("Erro no login:", err.message);
         res.status(500).json({ erro: 'Erro interno ao fazer login.' });
     }
 });
@@ -188,34 +210,19 @@ app.post('/login-2fa', async (req, res) => {
         await gravarLogAcesso(utilizador.id, utilizador.nome);
         await gravarLogSeguranca('login_sucesso', utilizador.email, utilizador.id, ipLogin);
 
-        // ===== LÓGICA DE STREAKS (OFENSIVAS) =====
+        // STREAKS
         let novoStreak = 1;
         try {
-            const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const hoje = new Date().toISOString().split('T')[0];
             const ontem = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const lastLogin = utilizador.last_login_date 
-                ? new Date(utilizador.last_login_date).toISOString().split('T')[0] 
-                : null;
+            const lastLogin = utilizador.last_login_date ? new Date(utilizador.last_login_date).toISOString().split('T')[0] : null;
 
-            if (lastLogin === hoje) {
-                // Já fez login hoje — mantém o streak
-                novoStreak = utilizador.streak_count || 1;
-            } else if (lastLogin === ontem) {
-                // Login consecutivo! Incrementa streak
-                novoStreak = (utilizador.streak_count || 0) + 1;
-            } else {
-                // Quebrou o streak — reinicia
-                novoStreak = 1;
-            }
+            if (lastLogin === hoje) novoStreak = utilizador.streak_count || 1;
+            else if (lastLogin === ontem) novoStreak = (utilizador.streak_count || 0) + 1;
+            else novoStreak = 1;
 
-            await pool.query(
-                'UPDATE utilizadores SET last_login_date = $1, streak_count = $2 WHERE id = $3',
-                [hoje, novoStreak, utilizador.id]
-            );
-        } catch (streakErr) {
-            console.error("⚠️ Erro ao atualizar streak (não crítico):", streakErr.message);
-        }
-        // ==========================================
+            await pool.query('UPDATE utilizadores SET last_login_date = $1, streak_count = $2 WHERE id = $3', [hoje, novoStreak, utilizador.id]);
+        } catch (streakErr) {}
 
         res.status(200).json({ 
             mensagem: 'Acesso validado com sucesso!', 
@@ -230,7 +237,6 @@ app.post('/login-2fa', async (req, res) => {
             } 
         });
     } catch (err) {
-        console.error("Erro no 2FA:", err.message);
         res.status(500).json({ erro: 'Erro interno ao verificar o código.' });
     }
 });
@@ -266,11 +272,8 @@ app.post('/recuperar-senha', async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions);
-        console.log(`✅ Código de recuperação enviado para: ${email}`);
-
         res.status(200).json({ mensagem: 'Código enviado com sucesso.' });
     } catch (err) {
-        console.error("Erro na recuperação de senha:", err.message);
         res.status(500).json({ erro: 'Erro interno ao processar o pedido.' });
     }
 });
@@ -296,7 +299,6 @@ app.post('/reset-password', async (req, res) => {
 
         res.status(200).json({ mensagem: 'Palavra-passe atualizada com sucesso! Já podes fazer login.' });
     } catch (err) {
-        console.error("Erro ao atualizar senha:", err.message);
         res.status(500).json({ erro: 'Erro interno ao processar o pedido.' });
     }
 });
@@ -336,12 +338,13 @@ app.post('/atualizar-perfil', async (req, res) => {
 
         res.status(200).json({ mensagem: 'Perfil atualizado com sucesso!' });
     } catch (err) {
-        console.error("Erro ao atualizar o perfil:", err);
         res.status(500).json({ erro: 'Erro interno ao processar o pedido.' });
     }
 });
 
+// ==========================================
 // 3. GESTÃO DE CURSOS
+// ==========================================
 app.get('/cursos', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -353,7 +356,6 @@ app.get('/cursos', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error("Erro ao buscar cursos:", err.message);
         res.status(500).json({ erro: 'Erro ao carregar os cursos.' });
     }
 });
@@ -365,9 +367,21 @@ app.post('/cursos', async (req, res) => {
             'INSERT INTO cursos (titulo, nivel, descricao, conteudo_licao, professor_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [titulo, nivel, descricao, conteudo_licao, professor_id]
         );
+
+        // NOTIFICAR O ADMINISTRADOR
+        const profRes = await pool.query('SELECT nome FROM utilizadores WHERE id = $1', [professor_id]);
+        const profNome = profRes.rows[0]?.nome || 'Um professor';
+        
+        await criarNotificacao({
+            perfil_alvo: 'admin',
+            icone: '⏳', cor: '#f59e0b',
+            titulo: 'Curso a Aguardar Aprovação',
+            mensagem: `${profNome} pede autorização para publicar o curso "${titulo}".`,
+            acao: 'admin_aprovacoes'
+        });
+
         res.status(201).json({ mensagem: 'Curso publicado e a aguardar aprovação!', curso: result.rows[0] });
     } catch (err) {
-        console.error("Erro ao criar curso:", err.message);
         res.status(500).json({ erro: 'Erro interno ao criar o curso.' });
     }
 });
@@ -382,7 +396,6 @@ app.put('/cursos/:id', async (req, res) => {
         );
         res.status(200).json({ mensagem: 'Curso atualizado com sucesso!' });
     } catch (err) {
-        console.error("Erro ao atualizar curso:", err);
         res.status(500).json({ erro: 'Erro interno ao atualizar o curso.' });
     }
 });
@@ -394,12 +407,13 @@ app.delete('/cursos/:id', async (req, res) => {
         await pool.query('DELETE FROM cursos WHERE id = $1', [id]);
         res.status(200).json({ mensagem: 'Curso apagado permanentemente!' });
     } catch (err) {
-        console.error("Erro ao apagar curso:", err.message);
         res.status(500).json({ erro: 'Erro interno ao apagar o curso.' });
     }
 });
 
+// ==========================================
 // 4. GESTÃO DE QUIZZES E RESULTADOS
+// ==========================================
 app.get('/quizzes', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -422,9 +436,18 @@ app.post('/quizzes', async (req, res) => {
             'INSERT INTO quizzes (titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
             [titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta]
         );
+
+        // NOTIFICAR O ADMINISTRADOR
+        await criarNotificacao({
+            perfil_alvo: 'admin',
+            icone: '⏳', cor: '#f59e0b',
+            titulo: 'Quiz a Aguardar Aprovação',
+            mensagem: `O questionário do tema "${titulo}" precisa de autorização para ser publicado.`,
+            acao: 'admin_aprovacoes'
+        });
+
         res.status(201).json({ mensagem: 'Avaliação adicionada e a aguardar aprovação!' });
     } catch (err) {
-        console.error("Erro ao criar quiz:", err.message);
         res.status(500).json({ erro: 'Erro ao guardar a avaliação na base de dados.' });
     }
 });
@@ -435,7 +458,6 @@ app.delete('/quizzes/:titulo', async (req, res) => {
         await pool.query('DELETE FROM quizzes WHERE titulo = $1', [titulo]);
         res.status(200).json({ mensagem: 'Avaliação apagada permanentemente!' });
     } catch (err) {
-        console.error("Erro ao apagar quiz:", err.message);
         res.status(500).json({ erro: 'Erro interno ao apagar o quiz.' });
     }
 });
@@ -449,12 +471,13 @@ app.post('/quizzes/salvar-resultado', async (req, res) => {
         );
         res.status(200).json({ mensagem: 'Resultado salvo com sucesso!' });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ erro: 'Erro ao salvar resultado.' });
     }
 });
 
+// ==========================================
 // 5. GAMIFICAÇÃO E XP
+// ==========================================
 app.get('/conquistas/:utilizadorId', async (req, res) => {
     try {
         const { utilizadorId } = req.params;
@@ -467,7 +490,6 @@ app.get('/conquistas/:utilizadorId', async (req, res) => {
         `, [utilizadorId]);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error("Erro ao carregar troféus:", err.message);
         res.status(500).json({ erro: 'Erro ao carregar conquistas.' });
     }
 });
@@ -486,7 +508,6 @@ app.post('/conquistas/atribuir', async (req, res) => {
 
         res.status(200).json({ mensagem: 'Troféu validado com sucesso!' });
     } catch (err) {
-        console.error("Erro ao atribuir troféu:", err.message);
         res.status(500).json({ erro: 'Erro ao atribuir conquista.' });
     }
 });
@@ -500,7 +521,6 @@ app.post('/xp/adicionar', async (req, res) => {
         );
         res.status(200).json({ mensagem: 'XP Adicionado', xp_total: result.rows[0].xp_total });
     } catch (err) {
-        console.error("Erro ao adicionar XP:", err.message);
         res.status(500).json({ erro: 'Erro ao adicionar pontos de experiência.' });
     }
 });
@@ -516,12 +536,13 @@ app.get('/classificacao', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error("Erro ao carregar a tabela de classificação:", err.message);
         res.status(500).json({ erro: 'Erro ao carregar a classificação.' });
     }
 });
 
+// ==========================================
 // 6. DASHBOARDS (ESTATÍSTICAS)
+// ==========================================
 app.get('/estatisticas/aluno/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -552,7 +573,6 @@ app.get('/estatisticas/aluno/:id', async (req, res) => {
             cursoDestaque, cursosAtivos
         });
     } catch (err) {
-        console.error("Erro nas estatísticas do aluno:", err);
         res.status(500).json({ erro: 'Erro ao carregar dados do dashboard.' });
     }
 });
@@ -570,7 +590,6 @@ app.get('/admin-estatisticas', async (req, res) => {
             cargaSistema: 0 
         });
     } catch (err) {
-        console.error("Erro nas estatísticas:", err);
         res.status(500).json({ erro: 'Erro ao carregar estatísticas.' });
     }
 });
@@ -594,12 +613,13 @@ app.get('/estatisticas/aluno/:id/atividades', async (req, res) => {
         const atividades = [...quizzesRes.rows, ...conquistasRes.rows];
         res.status(200).json(atividades);
     } catch (err) {
-        console.error("Erro ao carregar atividades do calendário:", err);
         res.status(500).json({ erro: 'Erro ao carregar calendário.' });
     }
 });
 
+// ==========================================
 // 7. LISTAGEM DE UTILIZADORES E ACESSOS
+// ==========================================
 app.get('/alunos', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -611,7 +631,6 @@ app.get('/alunos', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) { 
-        console.error(err);
         res.status(500).json({ erro: 'Erro interno ao carregar a lista de alunos.' }); 
     }
 });
@@ -627,7 +646,6 @@ app.get('/professores', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) { 
-        console.error(err);
         res.status(500).json({ erro: 'Erro interno ao carregar a lista de professores.' }); 
     }
 });
@@ -644,7 +662,6 @@ app.get('/acessos', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error("Erro ao buscar acessos:", err.message);
         res.status(500).json({ erro: 'Erro interno ao carregar a tabela.' });
     }
 });
@@ -675,7 +692,6 @@ app.get('/professor/alunos', async (req, res) => {
         `);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error("Erro ao carregar lista de alunos:", err);
         res.status(500).json({ erro: 'Erro ao carregar alunos.' });
     }
 });
@@ -713,12 +729,13 @@ app.get('/professor/aluno/:id/detalhes', async (req, res) => {
             quizzes: notasRes.rows
         });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ erro: 'Erro ao carregar perfil.' });
     }
 });
 
+// ==========================================
 // 8. APAGAR UTILIZADORES
+// ==========================================
 app.delete('/utilizadores/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -729,11 +746,35 @@ app.delete('/utilizadores/:id', async (req, res) => {
         await pool.query('DELETE FROM utilizadores WHERE id = $1', [id]);
         res.status(200).json({ mensagem: 'Utilizador eliminado com sucesso.' });
     } catch (err) {
-        console.error("Erro ao eliminar utilizador:", err);
         res.status(500).json({ erro: 'Erro ao eliminar utilizador da base de dados.' });
     }
 });
 
+app.get('/professor/cursos/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('SELECT * FROM cursos WHERE professor_id = $1 ORDER BY id DESC', [id]);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        res.status(500).json({ erro: 'Erro ao carregar cursos do professor.' });
+    }
+});
+
+app.get('/professor/quizzes/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT q.*, c.titulo as nome_curso, c.nivel as nivel_curso 
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            WHERE c.professor_id = $1 
+            ORDER BY q.id DESC
+        `, [id]);
+        res.status(200).json(result.rows);
+    } catch (err) {
+        res.status(500).json({ erro: 'Erro ao carregar quizzes do professor.' });
+    }
+});
 app.delete('/professores/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -748,12 +789,13 @@ app.delete('/professores/:id', async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ erro: 'Professor não encontrado.' });
         res.status(200).json({ mensagem: 'Professor e todos os seus dados eliminados com sucesso!' });
     } catch (err) { 
-        console.error("Erro fatal ao eliminar professor:", err);
         res.status(500).json({ erro: 'Erro interno ao tentar eliminar o professor.' }); 
     }
 });
 
+// ==========================================
 // 9. CENTRO DE NOTIFICAÇÕES
+// ==========================================
 app.get('/notificacoes/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -763,26 +805,29 @@ app.get('/notificacoes/:id', async (req, res) => {
         const perfil = userRes.rows[0].perfil.toLowerCase().trim();
         let notificacoes = [];
 
-        const cursosRes = await pool.query(`
-            SELECT id, titulo, to_char(data_criacao, 'DD/MM/YYYY') as data
-            FROM cursos
-            WHERE aprovado = true
+        // 1. Notificações Persistentes do Sistema (Aprovações, Rejeições, Pedidos Admin, etc)
+        const dbNotifsRes = await pool.query(`
+            SELECT id, icone, cor, titulo, mensagem, to_char(data_criacao, 'DD/MM/YYYY') as data, acao
+            FROM notificacoes_sistema
+            WHERE utilizador_id = $1 OR perfil_alvo = $2
             ORDER BY data_criacao DESC
-            LIMIT 3
-        `);
-        const notificacoesCursos = cursosRes.rows.map(c => ({
-            id: `curso_${c.id}`,
-            icone: '📚',
-            cor: '#3b82f6',
-            titulo: 'Novo Curso Disponível',
-            mensagem: `O curso "${c.titulo}" foi publicado recentemente.`,
-            data: c.data,
-            acao: 'cursos',          // → navega para a lista de cursos
-            cursoId: c.id,           // → ID do curso para seleção futura
-            labelAcao: 'Ver Curso →'
-        }));
-        notificacoes = [...notificacoesCursos];
+            LIMIT 15
+        `, [id, perfil]);
 
+        const notificacoesSistema = dbNotifsRes.rows.map(n => ({
+            id: `sys_${n.id}`,
+            icone: n.icone,
+            cor: n.cor,
+            titulo: n.titulo,
+            mensagem: n.mensagem,
+            data: n.data,
+            acao: n.acao,
+            labelAcao: 'Aceder →'
+        }));
+        
+        notificacoes = [...notificacoesSistema];
+
+        // 2. Notificações Dinâmicas (Específicas de Aluno)
         if (perfil === 'aluno') {
             const trofeusRes = await pool.query(`
                 SELECT c.nome, c.icone, to_char(uc.data_obtencao, 'DD/MM/YYYY') as data
@@ -800,12 +845,11 @@ app.get('/notificacoes/:id', async (req, res) => {
                 titulo: 'Nova Medalha Desbloqueada!',
                 mensagem: `Desbloqueaste o troféu: ${t.nome}`,
                 data: t.data,
-                acao: 'profile',      // → navega para o perfil (secção conquistas)
+                acao: 'profile',
                 labelAcao: 'Ver Perfil →'
             }));
             notificacoes = [...notificacoes, ...notificacoesTrofeus];
 
-            // Notificações de comentários recentes nas lições
             const comentariosRes = await pool.query(`
                 SELECT cl.curso_id, c.titulo as nome_curso, cl.nome_utilizador, 
                        to_char(cl.data_criacao, 'DD/MM/YYYY') as data
@@ -822,13 +866,12 @@ app.get('/notificacoes/:id', async (req, res) => {
                 titulo: 'Novo Comentário na Lição',
                 mensagem: `${c.nome_utilizador} comentou em "${c.nome_curso}".`,
                 data: c.data,
-                acao: 'cursos',       // → navega para os cursos
+                acao: 'cursos',
                 cursoId: c.curso_id,
                 labelAcao: 'Ver Lição →'
             }));
             notificacoes = [...notificacoes, ...notificacoesComentarios];
 
-            // Notificação de CTF disponível (labs)
             try {
                 const ctfRes = await pool.query('SELECT COUNT(*) FROM ctf_desafios WHERE ativo = TRUE');
                 const totalCtf = parseInt(ctfRes.rows[0].count);
@@ -840,23 +883,17 @@ app.get('/notificacoes/:id', async (req, res) => {
                     if (resolvidos < totalCtf) {
                         notificacoes.push({
                             id: 'ctf_disponivel',
-                            icone: '💻',
-                            cor: '#8b5cf6',
+                            icone: '💻', cor: '#8b5cf6',
                             titulo: 'Desafio CTF Disponível',
                             mensagem: `Tens ${totalCtf - resolvidos} desafio(s) CTF por resolver no Terminal. +XP disponível!`,
-                            data: 'Hoje',
-                            acao: 'labs',
-                            labelAcao: 'Ir para Labs →'
+                            data: 'Hoje', acao: 'labs', labelAcao: 'Ir para Labs →'
                         });
                     }
                 }
-            } catch (ctfErr) {
-                // CTF table pode não existir ainda, ignorar silenciosamente
-            }
+            } catch (ctfErr) { }
         }
 
-        // Ordenar por data mais recente e limitar a 8 notificações
-        res.status(200).json(notificacoes.slice(0, 8));
+        res.status(200).json(notificacoes.slice(0, 10));
     } catch (err) {
         console.error("Erro ao carregar notificações:", err.message);
         res.status(500).json({ erro: 'Erro ao carregar notificações.' });
@@ -864,7 +901,9 @@ app.get('/notificacoes/:id', async (req, res) => {
 });
 
 
+// ==========================================
 // 10. APROVAÇÕES DO ADMIN
+// ==========================================
 app.get('/admin/pendentes', async (req, res) => {
     try {
         const cursosRes = await pool.query(`
@@ -886,7 +925,6 @@ app.get('/admin/pendentes', async (req, res) => {
         
         res.status(200).json({ cursos: cursosRes.rows, quizzes: quizzesRes.rows });
     } catch (err) {
-        console.error("Erro ao buscar pendentes:", err);
         res.status(500).json({ erro: 'Erro ao carregar pendentes.' });
     }
 });
@@ -894,8 +932,32 @@ app.get('/admin/pendentes', async (req, res) => {
 app.put('/admin/aprovar/curso/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        await pool.query(`UPDATE cursos SET aprovado = true WHERE id = $1`, [id]);
-        res.status(200).json({ mensagem: `Curso aprovado com sucesso!` });
+        const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
+        
+        if (cursoRes.rows.length > 0) {
+            const { titulo, professor_id } = cursoRes.rows[0];
+            await pool.query(`UPDATE cursos SET aprovado = true WHERE id = $1`, [id]);
+            
+            // Notificar Professor (específico)
+            await criarNotificacao({
+                utilizador_id: professor_id, icone: '✅', cor: '#10b981',
+                titulo: 'Curso Aprovado!',
+                mensagem: `Boas notícias! O teu curso "${titulo}" foi aprovado pelo administrador e já está online.`,
+                acao: 'professor_cursos'
+            });
+
+            // Notificar Alunos (todos)
+            await criarNotificacao({
+                perfil_alvo: 'aluno', icone: '📚', cor: '#3b82f6',
+                titulo: 'Novo Curso Disponível',
+                mensagem: `O curso "${titulo}" acabou de ser publicado na plataforma. Vai dar uma vista de olhos!`,
+                acao: 'cursos'
+            });
+
+            res.status(200).json({ mensagem: `Curso aprovado com sucesso!` });
+        } else {
+            res.status(404).json({ erro: `Curso não encontrado.` });
+        }
     } catch (err) {
         res.status(500).json({ erro: `Erro ao aprovar curso.` });
     }
@@ -904,8 +966,24 @@ app.put('/admin/aprovar/curso/:id', async (req, res) => {
 app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        await pool.query(`DELETE FROM cursos WHERE id = $1`, [id]);
-        res.status(200).json({ mensagem: `Curso rejeitado e apagado.` });
+        const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
+        
+        if (cursoRes.rows.length > 0) {
+            const { titulo, professor_id } = cursoRes.rows[0];
+            await pool.query(`DELETE FROM cursos WHERE id = $1`, [id]);
+            
+            // Notificar Professor (específico)
+            await criarNotificacao({
+                utilizador_id: professor_id, icone: '❌', cor: '#ef4444',
+                titulo: 'Curso Rejeitado',
+                mensagem: `Infelizmente, o administrador não aprovou a publicação do teu curso "${titulo}". Ele foi removido.`,
+                acao: 'professor_cursos'
+            });
+
+            res.status(200).json({ mensagem: `Curso rejeitado e apagado.` });
+        } else {
+            res.status(404).json({ erro: `Curso não encontrado.` });
+        }
     } catch (err) {
         res.status(500).json({ erro: `Erro ao rejeitar curso.` });
     }
@@ -914,8 +992,37 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
 app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
     const { titulo } = req.params;
     try {
-        await pool.query(`UPDATE quizzes SET aprovado = true WHERE titulo = $1`, [titulo]);
-        res.status(200).json({ mensagem: `Quiz aprovado com sucesso!` });
+        const quizRes = await pool.query(`
+            SELECT q.titulo, c.professor_id 
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            WHERE q.titulo = $1 LIMIT 1
+        `, [titulo]);
+
+        if (quizRes.rows.length > 0) {
+            const prof_id = quizRes.rows[0].professor_id;
+            await pool.query(`UPDATE quizzes SET aprovado = true WHERE titulo = $1`, [titulo]);
+            
+            // Notificar Professor
+            await criarNotificacao({
+                utilizador_id: prof_id, icone: '✅', cor: '#10b981',
+                titulo: 'Quiz Aprovado!',
+                mensagem: `O teu questionário para o tema "${titulo}" foi aprovado com sucesso!`,
+                acao: 'professor_cursos'
+            });
+
+            // Notificar Alunos
+            await criarNotificacao({
+                perfil_alvo: 'aluno', icone: '🎯', cor: '#8b5cf6',
+                titulo: 'Novo Quiz Disponível',
+                mensagem: `O teste de avaliação para o módulo "${titulo}" já está disponível.`,
+                acao: 'quizzes'
+            });
+
+            res.status(200).json({ mensagem: `Quiz aprovado com sucesso!` });
+        } else {
+            res.status(404).json({ erro: `Quiz não encontrado.` });
+        }
     } catch (err) {
         res.status(500).json({ erro: `Erro ao aprovar quiz.` });
     }
@@ -924,8 +1031,29 @@ app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
 app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
     const { titulo } = req.params;
     try {
-        await pool.query(`DELETE FROM quizzes WHERE titulo = $1`, [titulo]);
-        res.status(200).json({ mensagem: `Quiz rejeitado e apagado.` });
+        const quizRes = await pool.query(`
+            SELECT q.titulo, c.professor_id 
+            FROM quizzes q 
+            JOIN cursos c ON q.curso_id = c.id 
+            WHERE q.titulo = $1 LIMIT 1
+        `, [titulo]);
+
+        if (quizRes.rows.length > 0) {
+            const prof_id = quizRes.rows[0].professor_id;
+            await pool.query(`DELETE FROM quizzes WHERE titulo = $1`, [titulo]);
+            
+            // Notificar Professor
+            await criarNotificacao({
+                utilizador_id: prof_id, icone: '❌', cor: '#ef4444',
+                titulo: 'Quiz Rejeitado',
+                mensagem: `O teu questionário para o tema "${titulo}" não passou na avaliação do sistema e foi removido.`,
+                acao: 'professor_cursos'
+            });
+
+            res.status(200).json({ mensagem: `Quiz rejeitado e apagado.` });
+        } else {
+            res.status(404).json({ erro: `Quiz não encontrado.` });
+        }
     } catch (err) {
         res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
     }

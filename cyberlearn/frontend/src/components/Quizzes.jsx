@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 
-export default function Quizzes({ theme, setView, user }) {
+export default function Quizzes({ theme, setView, user, targetQuizCourse, setTargetQuizCourse }) {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -13,6 +13,7 @@ export default function Quizzes({ theme, setView, user }) {
 
   useEffect(() => {
     buscarQuizzes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const buscarQuizzes = async () => {
@@ -30,7 +31,7 @@ export default function Quizzes({ theme, setView, user }) {
               id: row.id,
               titulo: row.titulo,
               nome_curso: row.nome_curso,
-              nivel_curso: row.nivel_curso, // <-- NOVO: Recebe o nível do curso
+              nivel_curso: row.nivel_curso,
               perguntas: []
             };
           }
@@ -48,7 +49,32 @@ export default function Quizzes({ theme, setView, user }) {
           });
         });
 
-        setQuizzes(Object.values(groupedQuizzes));
+        const arrayQuizzes = Object.values(groupedQuizzes);
+        setQuizzes(arrayQuizzes);
+
+        // --- LÓGICA DE ABERTURA AUTOMÁTICA ---
+        if (targetQuizCourse) {
+          // Procuramos se existe um quiz cujo nome do curso seja o do curso que o utilizador acabou
+          const quizAlvo = arrayQuizzes.find(q => q.nome_curso === targetQuizCourse);
+          
+          if (quizAlvo) {
+            if (quizAlvo.perguntas.length > 0) {
+              setActiveQuiz(quizAlvo);
+              setCurrentQuestion(0);
+              setScore(0);
+              setShowResults(false);
+              setSelectedOption(null);
+            } else {
+              alert("Este quiz ainda não tem perguntas disponíveis!");
+            }
+          } else {
+            alert(`Ainda não existe um quiz associado ao curso "${targetQuizCourse}".`);
+          }
+          // Limpamos o alvo para não forçar a abertura noutras visitas à página
+          if (setTargetQuizCourse) setTargetQuizCourse(null);
+        }
+        // ---------------------------------------
+
       }
     } catch (error) {
       console.error("Erro ao carregar quizzes:", error);
@@ -133,12 +159,11 @@ export default function Quizzes({ theme, setView, user }) {
     }
   };
 
-  // --- LÓGICA DE CORES DINÂMICAS ---
   const getBaseColor = (nivel) => {
     const n = String(nivel || 'iniciante').toLowerCase();
-    if (n === 'avancado') return '#ef4444'; // Vermelho
-    if (n === 'intermedio') return '#f59e0b'; // Laranja
-    return '#3b82f6'; // Azul (Iniciante)
+    if (n === 'avancado') return '#ef4444'; 
+    if (n === 'intermedio') return '#f59e0b'; 
+    return '#3b82f6'; 
   };
 
   const getGradient = (nivel) => {
@@ -147,7 +172,6 @@ export default function Quizzes({ theme, setView, user }) {
     if (n === 'intermedio') return 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)';
     return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
   };
-  // ----------------------------------
 
   const styles = {
     container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '40px', animation: 'fadeIn 0.4s ease' },
@@ -175,7 +199,6 @@ export default function Quizzes({ theme, setView, user }) {
     metaRow: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '16px', flexWrap: 'wrap' },
     metaItem: { fontSize: '12px', color: theme.textSub, display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600', backgroundColor: theme.inputBg, padding: '4px 8px', borderRadius: '6px' },
     
-    // O botão de Iniciar agora assume a cor base do nível
     button: (nivel) => {
       const cor = getBaseColor(nivel);
       return { width: '100%', padding: '14px', backgroundColor: cor, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${cor}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: 'auto' };
@@ -184,7 +207,6 @@ export default function Quizzes({ theme, setView, user }) {
     quizActiveCard: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '800px', margin: '0 auto', width: '100%' },
     resultCard: { backgroundColor: theme.cardBg, borderRadius: '24px', padding: '60px 40px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', animation: 'fadeInUp 0.5s ease' },
 
-    // As opções assumem a cor base do quiz atual
     optionBtn: (isSelected, activeColor) => ({
       width: '100%', padding: '18px 20px', textAlign: 'left', borderRadius: '10px', cursor: 'pointer', marginBottom: '12px', fontSize: '15px', transition: 'all 0.2s ease', fontWeight: isSelected ? 'bold' : 'normal',
       backgroundColor: isSelected ? `${activeColor}15` : theme.inputBg,
@@ -196,13 +218,11 @@ export default function Quizzes({ theme, setView, user }) {
     progressBar: (percent, activeColor) => ({ width: `${percent}%`, height: '100%', backgroundColor: activeColor, transition: 'width 0.3s ease' })
   };
 
-  // VISTA 3: RESULTADOS DO QUIZ 
   if (showResults) {
     const passed = score >= activeQuiz.perguntas.length / 2;
     return (
       <div style={styles.centeredWrapper}>
         <div style={styles.resultCard}>
-          
           <div style={{width: '110px', height: '110px', borderRadius: '50%', backgroundColor: passed ? `${theme.success}20` : `${theme.danger}20`, color: passed ? theme.success : theme.danger, display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px'}}>
             {passed ? 
               <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg> : 
@@ -245,11 +265,10 @@ export default function Quizzes({ theme, setView, user }) {
     );
   }
 
-  // VISTA 2: A RESPONDER AO QUIZ
   if (activeQuiz) {
     const currentQData = activeQuiz.perguntas[currentQuestion];
     const progressPercent = ((currentQuestion + 1) / activeQuiz.perguntas.length) * 100;
-    const activeColor = getBaseColor(activeQuiz.nivel_curso); // Cor temática do quiz a decorrer
+    const activeColor = getBaseColor(activeQuiz.nivel_curso); 
 
     return (
       <div style={styles.container}>
@@ -304,7 +323,6 @@ export default function Quizzes({ theme, setView, user }) {
     );
   }
 
-  // VISTA 1: LISTA DE QUIZZES
   return (
     <div style={styles.container}>
       {loading ? (

@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 
 /* ── Força da palavra-passe ── */
 function getPasswordStrength(pwd) {
@@ -15,9 +15,6 @@ function getPasswordStrength(pwd) {
   return            { score: 4, label: 'Forte',    color: '#00c896' };
 }
 
-// Chave de localStorage por utilizador, para não misturar fotos entre contas
-const avatarKey = (userId) => `cyberlearn_avatar_${userId}`;
-
 export default function Profile({ 
   user, profileData, handleProfileChange, handleSaveProfile, 
   is2FAEnabled, setIs2FAEnabled, theme, avatarImg, setAvatarImg, 
@@ -29,26 +26,6 @@ export default function Profile({
   const [showConfirmar, setShowConfirmar] = useState(false);
 
   const activeUser = isReadOnly ? viewedUser : user;
-
-  // ── Persistência da foto no localStorage ──────────────────────────
-  // 1. Ao montar: restaura a foto guardada se o estado ainda estiver vazio
-  useEffect(() => {
-    if (isReadOnly || !user?.id) return;
-    const saved = localStorage.getItem(avatarKey(user.id));
-    if (saved && !avatarImg) {
-      setAvatarImg(saved);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  // 2. Sempre que avatarImg muda, sincroniza com o localStorage
-  useEffect(() => {
-    if (isReadOnly || !user?.id) return;
-    if (avatarImg) {
-      localStorage.setItem(avatarKey(user.id), avatarImg);
-    }
-  }, [avatarImg, user?.id, isReadOnly]);
-  // ─────────────────────────────────────────────────────────────────
 
   // A foto a mostrar no cabeçalho central: se for readOnly usa a foto da BD do professor, senão usa a que está no estado do App.jsx
   const dbAvatar = activeUser?.avatar || activeUser?.avatar_url;
@@ -68,7 +45,7 @@ export default function Profile({
   const isProfessor = userRole === 'professor';
   const isAdmin = userRole === 'admin';
 
-  // LÓGICA PARA LER A IMAGEM SELECIONADA (Só funciona se não for modo leitura)
+  // LÓGICA PARA LER A IMAGEM SELECIONADA
   const handleImageUpload = (e) => {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -76,8 +53,6 @@ export default function Profile({
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarImg(reader.result);
-        // Guarda imediatamente no localStorage
-        if (user?.id) localStorage.setItem(avatarKey(user.id), reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -87,8 +62,6 @@ export default function Profile({
   const handleRemoveImage = () => {
     if (isReadOnly) return;
     setAvatarImg(null);
-    // Remove também do localStorage para não reaparecer no próximo refresh
-    if (user?.id) localStorage.removeItem(avatarKey(user.id));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 

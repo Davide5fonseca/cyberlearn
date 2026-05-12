@@ -14,8 +14,6 @@ import AdminProfessores from './components/AdminProfessores';
 import AdminAprovacoes from './components/AdminAprovacoes';
 import { apiFetch } from './api';
 
-// ─── Utilitário: comprime uma imagem base64 antes de enviar ao servidor ────────
-// Reduz tipicamente de vários MB para ~20-50KB, evitando erros 413 Payload Too Large
 const compressImage = (base64, maxWidth = 300, quality = 0.75) =>
   new Promise((resolve) => {
     const img = new Image();
@@ -48,6 +46,7 @@ function App() {
   });
 
   const [activeCourse, setActiveCourse] = useState(null);
+  const [targetQuizCourse, setTargetQuizCourse] = useState(null);
   const [formData, setFormData] = useState({ nome: '', email: '', password: '', confirmarPassword: '', tipo: 'aluno' });
   const [tempUserId, setTempUserId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -62,7 +61,7 @@ function App() {
 
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [avatarImg, setAvatarImg] = useState(null);
+  const [avatarImg, setAvatarImg] = useState(user?.avatar || null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 850);
@@ -85,7 +84,7 @@ function App() {
 
   const handleInputChange   = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); try { localStorage.removeItem('cyberlearn_user'); } catch {} };
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); setTargetQuizCourse(null); try { localStorage.removeItem('cyberlearn_user'); } catch {} };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -166,18 +165,9 @@ function App() {
       return alert("As novas palavras-passe não coincidem!");
 
     try {
-      // ── CORREÇÃO: só envia o avatar quando é uma nova imagem local (base64).
-      // Se for uma URL do servidor (http...) ou null, não a inclui no body,
-      // evitando payloads de vários MB que causam erro 413 / queda da ligação.
       let avatarParaEnviar = undefined;
       if (avatarImg?.startsWith('data:')) {
-        // Comprime para ~300px / JPEG 75% antes de enviar (~20-50KB em vez de vários MB)
         avatarParaEnviar = await compressImage(avatarImg);
-        // Atualiza o localStorage com a versão comprimida para consistência
-        if (user?.id) {
-          localStorage.setItem(`cyberlearn_avatar_${user.id}`, avatarParaEnviar);
-          setAvatarImg(avatarParaEnviar);
-        }
       }
 
       const response = await apiFetch('/atualizar-perfil', {
@@ -188,16 +178,15 @@ function App() {
           nome: profileData.nome,
           senhaAtual: profileData.senhaAtual,
           novaSenha: profileData.novaSenha,
-          // Inclui avatar apenas se for uma nova imagem comprimida
-          ...(avatarParaEnviar !== undefined && { avatar: avatarParaEnviar }),
-          biografiaProf: profileData.biografiaProf,
-          metodologia: profileData.metodologia,
-          nivelExperiencia: profileData.nivelExperiencia,
-          interesse: profileData.interesse,
-          biografia: profileData.biografia,
-          conquistas: profileData.conquistas,
-          github: profileData.github,
-          linkedin: profileData.linkedin,
+          avatar: avatarParaEnviar !== undefined ? avatarParaEnviar : (avatarImg || null),
+          biografiaProf: profileData.biografiaProf || '',
+          metodologia: profileData.metodologia || '',
+          nivelExperiencia: profileData.nivelExperiencia || 'iniciante',
+          interesse: profileData.interesse || '',
+          biografia: profileData.biografia || '',
+          conquistas: profileData.conquistas || '',
+          github: profileData.github || '',
+          linkedin: profileData.linkedin || '',
         }),
       });
 
@@ -207,7 +196,6 @@ function App() {
         setUser({
           ...user,
           nome: profileData.nome,
-          // Se o servidor devolver a URL final da imagem, usa-a; senão mantém o estado atual
           avatar: data.utilizador?.avatar ?? (avatarParaEnviar ?? user.avatar),
           biografiaProf: profileData.biografiaProf,
           metodologia: profileData.metodologia,
@@ -219,7 +207,9 @@ function App() {
           linkedin: profileData.linkedin,
         });
         setProfileData({ ...profileData, senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
-      } else { alert(`Erro: ${data.erro}`); }
+      } else { 
+        alert(`Erro: ${data.erro}`); 
+      }
     } catch (error) {
       console.error('Erro ao guardar perfil:', error);
       alert("Erro de ligação ao servidor.");
@@ -258,11 +248,11 @@ function App() {
                   {view === 'dashboard'          ? 'Bem-vindo ao teu centro de treino.' :
                    view === 'professor_dashboard' ? 'Aqui está a atividade dos alunos.' :
                    view === 'professor_alunos'    ? 'Acompanha o progresso e as notas da tua turma.' :
-                   view === 'professor_cursos'    ? 'Cria, gere e apaga conteúdos educativos.' :
+                   view === 'professor_cursos'    ? 'Cria, edita e apaga conteúdos educativos.' :
                    view === 'admin_dashboard'     ? 'Aqui está a atividade dos professores.' :
                    view === 'admin_professores'   ? 'Consulta perfis e remove professores do sistema.' :
                    view === 'admin_aprovacoes'    ? 'Aprova ou rejeita os cursos e quizzes pendentes.' :
-                   view === 'cursos'              ? 'Explora e inscreve-te em novos módulos.' :
+                   view === 'cursos'              ? 'Explora os novos módulos.' :
                    view === 'quizzes'             ? 'Testa os teus conhecimentos.' : 'Gere a tua conta e segurança.'}
                 </p>
               </div>
@@ -291,8 +281,8 @@ function App() {
 
           {view === 'dashboard'          && <Dashboard theme={theme} user={user} setView={setView} />}
           {view === 'cursos'             && <Cursos setView={setView} theme={theme} setActiveCourse={setActiveCourse} />}
-          {view === 'licao'              && <Licao setView={setView} theme={theme} curso={activeCourse} user={user} />}
-          {view === 'quizzes'            && <Quizzes theme={theme} setView={setView} user={user} />}
+          {view === 'licao'              && <Licao setView={setView} theme={theme} curso={activeCourse} user={user} setTargetQuizCourse={setTargetQuizCourse} />}
+          {view === 'quizzes'            && <Quizzes theme={theme} setView={setView} user={user} targetQuizCourse={targetQuizCourse} setTargetQuizCourse={setTargetQuizCourse} />}
           {view === 'professor_dashboard'&& <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos'   && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos'   && <ProfessorCursos theme={theme} user={user} />}
