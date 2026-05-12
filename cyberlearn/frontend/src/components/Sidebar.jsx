@@ -277,7 +277,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
-            Sim, Sair
+            Sim, sair
           </button>
         </div>
       </div>
@@ -417,7 +417,21 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
       {modalConfirmLogout}
       <div style={styles.sidebar}>
       
-      <div style={{display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px'}}>
+      {/* SEÇÃO DO LOGOTIPO CLICÁVEL */}
+      <div 
+        onClick={() => {
+          if (isAdmin) setView('admin_dashboard');
+          else if (isProfessor) setView('professor_dashboard');
+          else setView('dashboard');
+        }}
+        style={{
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px', 
+          paddingLeft: '8px', 
+          cursor: 'pointer' 
+        }}
+      >
         <div style={styles.logoContainer}>
            <img src="\security.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
@@ -558,11 +572,6 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
               <p style={{ margin: 0, color: theme.textSub, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                 {user?.email || 'email@exemplo.com'}
               </p>
-              {user?.streakCount > 0 && (
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#f97316', backgroundColor: '#f9731615', padding: '2px 6px', borderRadius: '6px', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                  🔥 {user.streakCount}
-                </span>
-              )}
             </div>
           </div>
 

@@ -8,279 +8,437 @@ export default function Dashboard({ theme, user, setView }) {
   const [atividades, setAtividades] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para o Calendário
+  // Calendário
   const hoje = new Date();
   const [mesAtual, setMesAtual] = useState(hoje.getMonth());
   const [anoAtual, setAnoAtual] = useState(hoje.getFullYear());
   const [diaSelecionado, setDiaSelecionado] = useState(null);
 
+  // Leaderboard
+  const [leaderboardExpandido, setLeaderboardExpandido] = useState(false);
+
   useEffect(() => {
-    if (user?.id) {
-      buscarDadosReais();
-    }
+    if (user?.id) buscarDadosReais();
   }, [user]);
 
   const buscarDadosReais = async () => {
     setLoading(true);
     try {
-      const resTrofeus = await apiFetch(`/conquistas/${user.id}`);
+      const [resTrofeus, resStats, resClass, resAtiv] = await Promise.all([
+        apiFetch(`/conquistas/${user.id}`),
+        apiFetch(`/estatisticas/aluno/${user.id}`),
+        apiFetch('/classificacao'),
+        apiFetch(`/estatisticas/aluno/${user.id}/atividades`),
+      ]);
       if (resTrofeus.ok) setTrofeus(await resTrofeus.json());
-
-      const resStats = await apiFetch(`/estatisticas/aluno/${user.id}`);
-      if (resStats.ok) setDashboardData(await resStats.json());
-
-      const resClassificacao = await apiFetch('/classificacao');
-      if (resClassificacao.ok) {
-        const dataClass = await resClassificacao.json();
-        if (Array.isArray(dataClass)) setClassificacao(dataClass);
-      }
-
-      const resAtividades = await apiFetch(`/estatisticas/aluno/${user.id}/atividades`);
-      if (resAtividades.ok) {
-        const dataAtiv = await resAtividades.json();
-        if (Array.isArray(dataAtiv)) setAtividades(dataAtiv);
-      }
-
+      if (resStats.ok)   setDashboardData(await resStats.json());
+      if (resClass.ok)   { const d = await resClass.json(); if (Array.isArray(d)) setClassificacao(d); }
+      if (resAtiv.ok)    { const d = await resAtiv.json();  if (Array.isArray(d)) setAtividades(d); }
     } catch (err) {
-      console.error("Erro a buscar dados do Dashboard", err);
+      console.error('Erro a buscar dados do Dashboard', err);
     } finally {
       setLoading(false);
     }
   };
 
   const getRank = (xp) => {
-    const pontos = xp || 0;
-    if (pontos >= 2500) return { titulo: 'CISO', cor: '#ef4444' }; 
-    if (pontos >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' }; 
-    if (pontos >= 600) return { titulo: 'Analista Júnior', cor: '#3b82f6' }; 
-    if (pontos >= 250) return { titulo: 'Explorador', cor: '#10b981' }; 
-    return { titulo: 'Script Kiddie', cor: theme.textSub || '#888' }; 
+    const p = xp || 0;
+    if (p >= 2500) return { titulo: 'CISO',           cor: '#ef4444' };
+    if (p >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' };
+    if (p >=  600) return { titulo: 'Analista Júnior', cor: '#3b82f6' };
+    if (p >=  250) return { titulo: 'Explorador',     cor: '#10b981' };
+    return               { titulo: 'Script Kiddie',   cor: theme.textSub || '#888' };
   };
 
-  // Lógica do Calendário (Protegida)
-  const diasNoMes = new Date(anoAtual, mesAtual + 1, 0).getDate();
-  const primeiroDia = new Date(anoAtual, mesAtual, 1).getDay(); 
-  const dias = Array.from({ length: diasNoMes }, (_, i) => i + 1);
-  const espacosVazios = Array.from({ length: primeiroDia }, (_, i) => i);
-  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  // ── Calendário ─────────────────────────────────────────────────────
+  const diasNoMes   = new Date(anoAtual, mesAtual + 1, 0).getDate();
+  const primeiroDia = new Date(anoAtual, mesAtual, 1).getDay();
+  const dias         = Array.from({ length: diasNoMes }, (_, i) => i + 1);
+  const espacosVazios = Array.from({ length: primeiroDia });
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DIAS_SEMANA = ['D','S','T','Q','Q','S','S'];
 
-  const mudarMes = (direcao) => {
+  const mudarMes = (dir) => {
     setDiaSelecionado(null);
-    if (direcao === 'ant') {
-      if (mesAtual === 0) { setMesAtual(11); setAnoAtual(anoAtual - 1); } 
-      else setMesAtual(mesAtual - 1);
+    if (dir === -1) {
+      if (mesAtual === 0) { setMesAtual(11); setAnoAtual(y => y - 1); }
+      else setMesAtual(m => m - 1);
     } else {
-      if (mesAtual === 11) { setMesAtual(0); setAnoAtual(anoAtual + 1); } 
-      else setMesAtual(mesAtual + 1);
+      if (mesAtual === 11) { setMesAtual(0); setAnoAtual(y => y + 1); }
+      else setMesAtual(m => m + 1);
     }
   };
 
-  const getAtividadesDoDia = (dia) => {
-    const dataStr = `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-    return atividades.filter(a => a?.data === dataStr);
+  const getAtivsDia = (dia) => {
+    const s = `${anoAtual}-${String(mesAtual + 1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    return atividades.filter(a => a?.data === s);
   };
 
-  // Cores de segurança caso o tema falhe
-  const colorSuccess = theme.success || theme.secondary || '#10b981';
-  const colorWarning = theme.warning || '#f59e0b';
-  const colorPrimary = theme.primary || '#3b82f6';
+  // Contagem de dias com atividade no mês atual
+  const diasAtivos = dias.filter(d => getAtivsDia(d).length > 0).length;
 
-  const styles = {
-    container: { display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px', animation: 'fadeIn 0.5s ease' },
-    mainGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.8fr) minmax(0, 1fr)', gap: '24px', alignItems: 'start' },
-    card: { backgroundColor: theme.cardBg, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}`, display: 'flex', flexDirection: 'column' },
-    sectionTitle: { fontSize: '18px', color: theme.textMain, margin: '0 0 20px 0', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' },
-    statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' },
-    statCard: { display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px', borderRadius: '16px', backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, boxShadow: theme.shadow },
-    statNumber: { fontSize: '28px', fontWeight: '800', color: theme.textMain, margin: 0, lineHeight: '1' },
-    statLabel: { fontSize: '12px', color: theme.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' },
-    calHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-    calBtn: { background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    calGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' },
-    calDayName: { fontSize: '12px', fontWeight: 'bold', color: theme.textSub, paddingBottom: '10px' },
-    calDayBox: (temAtividade, isHoje, isSelecionado) => ({
-      aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
-      backgroundColor: isSelecionado ? colorPrimary : (temAtividade ? `${colorSuccess}20` : theme.inputBg),
-      color: isSelecionado ? '#fff' : (temAtividade ? colorSuccess : theme.textMain),
-      border: isHoje ? `2px solid ${colorPrimary}` : '2px solid transparent',
-      transition: 'all 0.2s ease', position: 'relative'
-    }),
-    calTooltip: { marginTop: '15px', padding: '15px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}`, fontSize: '13px', color: theme.textMain },
-    leaderboardItem: (isCurrentUser, index) => ({ display: 'flex', alignItems: 'center', padding: '12px 16px', backgroundColor: isCurrentUser ? `${colorPrimary}15` : (index % 2 === 0 ? theme.inputBg : 'transparent'), borderRadius: '12px', marginBottom: '8px', border: isCurrentUser ? `1px solid ${colorPrimary}50` : '1px solid transparent' }),
-    leaderboardRank: (rank) => ({ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '13px', backgroundColor: rank === 1 ? '#fbbf24' : rank === 2 ? '#94a3b8' : rank === 3 ? '#b45309' : theme.inputBorder, color: rank <= 3 ? '#fff' : theme.textSub }),
-    trofeusGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' },
-    trofeuCard: { backgroundColor: theme.inputBg, borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', border: `1px solid ${colorWarning}40` },
+  // ── Cores seguras ──────────────────────────────────────────────────
+  const cP = theme.primary  || '#3b82f6';
+  const cS = theme.success  || '#10b981';
+  const cW = theme.warning  || '#f59e0b';
+  const cD = theme.danger   || '#ef4444';
+
+  // ── Medalhas do pódio ──────────────────────────────────────────────
+  const medalha = (pos) => {
+    if (pos === 0) return { bg: 'linear-gradient(135deg,#fbbf24,#f59e0b)', icon: '🥇', label: '1º' };
+    if (pos === 1) return { bg: 'linear-gradient(135deg,#cbd5e1,#94a3b8)', icon: '🥈', label: '2º' };
+    return               { bg: 'linear-gradient(135deg,#d97706,#b45309)', icon: '🥉', label: '3º' };
   };
 
-  // Previne o ecrã vermelho/preto se os dados ainda não estiverem carregados
   if (loading || !dashboardData) {
-    return <div style={{textAlign: 'center', padding: '60px', color: theme.textSub}}>A preparar a tua Dashboard...</div>;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '16px', color: theme.textSub }}>
+        <div style={{ width: '40px', height: '40px', border: `3px solid ${cP}30`, borderTop: `3px solid ${cP}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <span style={{ fontSize: '14px' }}>A preparar a tua Dashboard…</span>
+      </div>
+    );
   }
 
   const { stats } = dashboardData;
   const rank = getRank(stats?.pontuacaoTotal);
-  const primeiroNome = (user?.nome || 'Aluno').split(' ')[0];
+  const top3 = classificacao.slice(0, 3);
 
   return (
-    <div style={styles.container}>
-      {/* 4 ESTATÍSTICAS PRINCIPAIS */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorSuccess}15`, color: colorSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          </div>
-          <h3 style={styles.statNumber}>{stats?.modulosConcluidos || 0}</h3>
-          <p style={styles.statLabel}>Módulos Lidos</p>
-        </div>
-        
-        <div style={styles.statCard}>
-          <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorPrimary}15`, color: colorPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-          </div>
-          <h3 style={styles.statNumber}>{stats?.taxaAcerto || 0}%</h3>
-          <p style={styles.statLabel}>Precisão Global</p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
 
-        <div style={styles.statCard}>
-          <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${rank.cor}15`, color: rank.cor, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-          </div>
-          <h3 style={styles.statNumber}>{stats?.pontuacaoTotal || 0}</h3>
-          <p style={styles.statLabel}>Pontos XP</p>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={{width: '50px', height: '50px', borderRadius: '12px', backgroundColor: `${colorWarning}15`, color: colorWarning, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px'}}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.5 19c-1.5-2-3.5-3-5.5-3-2 0-4 1-5.5 3"></path><path d="M12 16a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"></path></svg>
-          </div>
-          <h3 style={styles.statNumber}>{stats?.diasSeguidos || 0}</h3>
-          <p style={styles.statLabel}>Dias Seguidos 🔥</p>
-        </div>
-      </div>
-
-      {/* GRELHA PRINCIPAL (Esquerda: Calendário | Direita: Leaderboard & Troféus) */}
-      <div style={styles.mainGrid}>
-        
-        {/* COLUNA ESQUERDA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-          {/* CALENDÁRIO DE ATIVIDADES */}
-          <div style={styles.card}>
-            <h2 style={styles.sectionTitle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colorPrimary} strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              Calendário de Progresso
-            </h2>
-            
-            <div style={styles.calHeader}>
-              <button style={styles.calBtn} onClick={() => mudarMes('ant')}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: theme.textMain }}>{nomesMeses[mesAtual]} {anoAtual}</h3>
-              <button style={styles.calBtn} onClick={() => mudarMes('seg')}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
+      {/* ── ESTATÍSTICAS ─────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+        {[
+          {
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            color: cS, value: stats?.modulosConcluidos || 0, label: 'Módulos Lidos',
+          },
+          {
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+            color: rank.cor, value: stats?.pontuacaoTotal || 0, label: 'Pontos XP', sub: rank.titulo,
+          },
+          {
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>,
+            color: cW, value: stats?.diasSeguidos || 0, label: 'Dias Seguidos', sub: '🔥',
+          },
+        ].map((s, i) => (
+          <div key={i} style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '20px', boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', backgroundColor: `${s.color}15`, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {s.icon}
             </div>
-
-            <div style={styles.calGrid}>
-              {nomesDias.map(dia => (
-                <div key={dia} style={styles.calDayName}>{dia}</div>
-              ))}
-              
-              {espacosVazios.map(v => <div key={`vazio-${v}`} />)}
-              
-              {dias.map(dia => {
-                const ativs = getAtividadesDoDia(dia);
-                const isHoje = dia === hoje.getDate() && mesAtual === hoje.getMonth() && anoAtual === hoje.getFullYear();
-                const isSelecionado = diaSelecionado === dia;
-
-                return (
-                  <div 
-                    key={dia} 
-                    style={styles.calDayBox(ativs.length > 0, isHoje, isSelecionado)}
-                    onClick={() => setDiaSelecionado(isSelecionado ? null : dia)}
-                  >
-                    {dia}
-                    {ativs.length > 0 && !isSelecionado && (
-                      <span style={{ position: 'absolute', bottom: '4px', width: '4px', height: '4px', borderRadius: '50%', backgroundColor: colorSuccess }}></span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Tooltip do dia selecionado */}
-            {diaSelecionado && (
-              <div style={styles.calTooltip}>
-                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>{diaSelecionado} de {nomesMeses[mesAtual]}</p>
-                {getAtividadesDoDia(diaSelecionado).length > 0 ? (
-                  <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {getAtividadesDoDia(diaSelecionado).map((a, i) => (
-                      <li key={i}>Completaste um(a) <b>{a.tipo}</b>: {a.titulo}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p style={{ margin: 0, color: theme.textSub }}>Nenhuma atividade registada neste dia.</p>
-                )}
+            <div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: theme.textMain, lineHeight: 1 }}>
+                {s.value}{s.sub === '🔥' ? ' 🔥' : ''}
               </div>
-            )}
-          </div>
-          
-        </div>
-
-        {/* COLUNA DIREITA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* TABELA DE CLASSIFICAÇÃO */}
-          <div style={styles.card}>
-            <h2 style={styles.sectionTitle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colorPrimary} strokeWidth="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              Tabela de Classificação
-            </h2>
-            <div style={{ overflowY: 'auto', maxHeight: '350px', paddingRight: '5px' }}>
-              {classificacao.length === 0 ? (
-                <p style={{textAlign: 'center', color: theme.textSub}}>Ainda não há alunos na tabela.</p>
-              ) : (
-                classificacao.map((aluno, index) => {
-                  const isTu = aluno.id === user?.id;
-                  const inicial = (aluno.nome || 'U').charAt(0).toUpperCase();
-                  
-                  return (
-                    <div key={aluno.id} style={styles.leaderboardItem(isTu, index)}>
-                      <div style={styles.leaderboardRank(index + 1)}>{index + 1}</div>
-                      <div style={{...styles.leaderboardRank(0), marginLeft: '12px', backgroundColor: colorPrimary, color: '#fff', fontSize: '12px', overflow: 'hidden'}}>
-                         {aluno.avatar ? <img src={aluno.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : inicial}
-                      </div>
-                      <span style={{ marginLeft: '12px', fontWeight: '600', color: theme.textMain, flex: 1, fontSize: '14px' }}>
-                        {aluno.nome} {isTu && <span style={{ color: colorPrimary, fontSize: '12px' }}>(Tu)</span>}
-                      </span>
-                      <span style={{ fontWeight: '800', color: theme.textMain, fontSize: '13px' }}>{aluno.xp_total || 0} XP</span>
-                    </div>
-                  );
-                })
+              <div style={{ fontSize: '12px', color: theme.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>{s.label}</div>
+              {s.sub && s.sub !== '🔥' && (
+                <div style={{ fontSize: '12px', color: s.color, fontWeight: '700', marginTop: '2px' }}>{s.sub}</div>
               )}
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* VITRINA DE TROFÉUS */}
-          <div style={styles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{...styles.sectionTitle, margin: 0}}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colorWarning} strokeWidth="2.5"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-                Troféus
-              </h2>
+      {/* ── GRELHA PRINCIPAL ─────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '24px', alignItems: 'start' }}>
+
+        {/* COLUNA ESQUERDA — Calendário */}
+        <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
+
+          {/* Header do calendário */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={cP} strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Calendário de Progresso</span>
             </div>
-            
-            {trofeus.length === 0 ? (
-              <p style={{textAlign: 'center', color: theme.textSub, fontSize: '13px'}}>Ainda não conquistaste nenhum troféu. Completa um quiz!</p>
+            {/* Badge com dias ativos no mês */}
+            {diasAtivos > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: '700', backgroundColor: `${cS}18`, color: cS, padding: '4px 10px', borderRadius: '20px' }}>
+                {diasAtivos} dia{diasAtivos !== 1 ? 's' : ''} ativo{diasAtivos !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {/* Navegação mês */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <button
+              onClick={() => mudarMes(-1)}
+              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>{MESES[mesAtual]} {anoAtual}</span>
+            <button
+              onClick={() => mudarMes(1)}
+              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          {/* Grelha dias da semana */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
+            {DIAS_SEMANA.map((d, i) => (
+              <div key={i} style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: theme.textSub, padding: '4px 0', letterSpacing: '0.03em' }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grelha dias */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+            {espacosVazios.map((_, i) => <div key={`v${i}`} />)}
+            {dias.map(dia => {
+              const ativs   = getAtivsDia(dia);
+              const isHoje  = dia === hoje.getDate() && mesAtual === hoje.getMonth() && anoAtual === hoje.getFullYear();
+              const isSel   = diaSelecionado === dia;
+              const temAtiv = ativs.length > 0;
+
+              return (
+                <button
+                  key={dia}
+                  onClick={() => setDiaSelecionado(isSel ? null : dia)}
+                  style={{
+                    aspectRatio: '1', border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    fontSize: '13px', fontWeight: isSel || isHoje ? '700' : '500',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '2px', position: 'relative', outline: 'none', transition: 'all 0.15s ease',
+                    backgroundColor: isSel ? cP : temAtiv ? `${cS}22` : theme.inputBg,
+                    color: isSel ? '#fff' : temAtiv ? cS : theme.textMain,
+                    boxShadow: isHoje && !isSel ? `0 0 0 2px ${cP}` : 'none',
+                  }}
+                >
+                  {dia}
+                  {temAtiv && !isSel && (
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: cS, flexShrink: 0 }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legenda */}
+          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${theme.inputBorder}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: theme.textSub }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: `${cS}22`, border: `1px solid ${cS}` }} />
+              Dia com atividade
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: theme.textSub }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', border: `2px solid ${cP}` }} />
+              Hoje
+            </div>
+          </div>
+
+          {/* Painel do dia selecionado */}
+          {diaSelecionado && (() => {
+            const ativs = getAtivsDia(diaSelecionado);
+            return (
+              <div style={{ marginTop: '14px', padding: '16px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: ativs.length ? '12px' : 0 }}>
+                  <span style={{ fontWeight: '700', fontSize: '13px', color: theme.textMain }}>
+                    {diaSelecionado} de {MESES[mesAtual]}
+                  </span>
+                  {ativs.length > 0 && (
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: cS, backgroundColor: `${cS}15`, padding: '3px 8px', borderRadius: '10px' }}>
+                      {ativs.length} atividade{ativs.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                {ativs.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {ativs.map((a, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', backgroundColor: theme.cardBg, borderRadius: '10px', border: `1px solid ${theme.inputBorder}` }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: cS, flexShrink: 0 }} />
+                        <div style={{ fontSize: '13px', color: theme.textMain }}>
+                          <span style={{ fontWeight: '600', color: cP, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{a.tipo}</span>
+                          <div>{a.titulo}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '13px', color: theme.textSub }}>Nenhuma atividade neste dia.</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* COLUNA DIREITA */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* ── LEADERBOARD ──────────────────────────────────────── */}
+          <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cP} strokeWidth="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Classificação</span>
+              </div>
+              <span style={{ fontSize: '11px', color: theme.textSub, fontWeight: '600' }}>{classificacao.length} alunos</span>
+            </div>
+
+            {classificacao.length === 0 ? (
+              <p style={{ textAlign: 'center', color: theme.textSub, fontSize: '13px', margin: 0 }}>Ainda sem dados.</p>
             ) : (
-              <div style={styles.trofeusGrid}>
+              <>
+                {/* ── Pódio Top 3 ── */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+                  {/* 2º lugar — menor */}
+                  {top3[1] && (() => {
+                    const m = medalha(1);
+                    const isTu = top3[1].id === user?.id;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                        <div style={{ fontSize: '20px' }}>🥈</div>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '800', fontSize: '14px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                          {top3[1].avatar ? <img src={top3[1].avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (top3[1].nome || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: theme.textMain, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isTu ? 'Tu' : (top3[1].nome || '').split(' ')[0]}
+                          </div>
+                          <div style={{ fontSize: '11px', color: theme.textSub, fontWeight: '600' }}>{top3[1].xp_total || 0} XP</div>
+                        </div>
+                        <div style={{ width: '100%', height: '48px', background: `${m.bg}`, borderRadius: '8px 8px 0 0', opacity: 0.3 }} />
+                      </div>
+                    );
+                  })()}
+
+                  {/* 1º lugar — maior */}
+                  {top3[0] && (() => {
+                    const m = medalha(0);
+                    const isTu = top3[0].id === user?.id;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                        <div style={{ fontSize: '24px' }}>🥇</div>
+                        <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '800', fontSize: '16px', overflow: 'hidden', boxShadow: '0 6px 18px rgba(251,191,36,0.4)' }}>
+                          {top3[0].avatar ? <img src={top3[0].avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (top3[0].nome || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '800', color: theme.textMain, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isTu ? 'Tu' : (top3[0].nome || '').split(' ')[0]}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#f59e0b', fontWeight: '700' }}>{top3[0].xp_total || 0} XP</div>
+                        </div>
+                        <div style={{ width: '100%', height: '64px', background: m.bg, borderRadius: '8px 8px 0 0', opacity: 0.3 }} />
+                      </div>
+                    );
+                  })()}
+
+                  {/* 3º lugar — menor */}
+                  {top3[2] && (() => {
+                    const m = medalha(2);
+                    const isTu = top3[2].id === user?.id;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                        <div style={{ fontSize: '20px' }}>🥉</div>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '800', fontSize: '14px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                          {top3[2].avatar ? <img src={top3[2].avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (top3[2].nome || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: theme.textMain, maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isTu ? 'Tu' : (top3[2].nome || '').split(' ')[0]}
+                          </div>
+                          <div style={{ fontSize: '11px', color: theme.textSub, fontWeight: '600' }}>{top3[2].xp_total || 0} XP</div>
+                        </div>
+                        <div style={{ width: '100%', height: '36px', background: m.bg, borderRadius: '8px 8px 0 0', opacity: 0.3 }} />
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Posição do utilizador se não estiver no top 3 */}
+                {(() => {
+                  const minhaPos = classificacao.findIndex(a => a.id === user?.id);
+                  if (minhaPos >= 3) {
+                    const eu = classificacao[minhaPos];
+                    return (
+                      <div style={{ padding: '10px 14px', backgroundColor: `${cP}12`, border: `1px solid ${cP}35`, borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '800', color: cP, minWidth: '28px' }}>#{minhaPos + 1}</span>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme.textMain, flex: 1 }}>Tu</span>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: cP }}>{eu?.xp_total || 0} XP</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Botão ver tabela completa */}
+                <button
+                  onClick={() => setLeaderboardExpandido(v => !v)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', cursor: 'pointer', color: theme.textSub, fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+                >
+                  {leaderboardExpandido ? (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                      Ocultar tabela completa
+                    </>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                      Ver todos os {classificacao.length} alunos
+                    </>
+                  )}
+                </button>
+
+                {/* Tabela completa expansível */}
+                {leaderboardExpandido && (
+                  <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {classificacao.map((aluno, i) => {
+                      const isTu = aluno.id === user?.id;
+                      const posColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : theme.textSub;
+                      return (
+                        <div
+                          key={aluno.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '9px 12px', borderRadius: '10px',
+                            backgroundColor: isTu ? `${cP}12` : i % 2 === 0 ? theme.inputBg : 'transparent',
+                            border: isTu ? `1px solid ${cP}35` : '1px solid transparent',
+                          }}
+                        >
+                          <span style={{ fontSize: '12px', fontWeight: '800', color: posColor, minWidth: '24px', textAlign: 'center' }}>
+                            {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i + 1}`}
+                          </span>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: cP, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: '700', flexShrink: 0 }}>
+                            {aluno.avatar ? <img src={aluno.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (aluno.nome || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <span style={{ flex: 1, fontSize: '13px', fontWeight: isTu ? '700' : '500', color: theme.textMain, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {aluno.nome} {isTu && <span style={{ color: cP, fontSize: '11px' }}>(Tu)</span>}
+                          </span>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: isTu ? cP : theme.textSub }}>{aluno.xp_total || 0} XP</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── TROFÉUS ──────────────────────────────────────────── */}
+          <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cW} strokeWidth="2.5"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Troféus</span>
+              {trofeus.length > 0 && (
+                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: cW, backgroundColor: `${cW}18`, padding: '3px 8px', borderRadius: '10px' }}>
+                  {trofeus.length}
+                </span>
+              )}
+            </div>
+
+            {trofeus.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: theme.textSub }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏆</div>
+                <p style={{ margin: 0, fontSize: '13px' }}>Completa um quiz para ganhar o teu primeiro troféu!</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                 {trofeus.slice(0, 4).map((t, i) => (
-                  <div key={i} style={styles.trofeuCard}>
-                    <span style={{ fontSize: '28px', marginBottom: '8px' }}>{t.icone}</span>
-                    <h3 style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 'bold', color: theme.textMain }}>{t.nome}</h3>
-                    <span style={{ fontSize: '10px', color: theme.textSub, fontWeight: 'bold' }}>{t.data}</span>
+                  <div key={i} style={{ backgroundColor: theme.inputBg, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', border: `1px solid ${cW}30` }}>
+                    <span style={{ fontSize: '26px' }}>{t.icone}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: theme.textMain, lineHeight: 1.3 }}>{t.nome}</span>
+                    <span style={{ fontSize: '10px', color: theme.textSub, fontWeight: '600' }}>{t.data}</span>
                   </div>
                 ))}
               </div>
