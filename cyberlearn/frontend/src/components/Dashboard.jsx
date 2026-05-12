@@ -14,7 +14,7 @@ export default function Dashboard({ theme, user, setView }) {
   const [anoAtual, setAnoAtual] = useState(hoje.getFullYear());
   const [diaSelecionado, setDiaSelecionado] = useState(null);
 
-  // Leaderboard
+  // Leaderboard Modal
   const [leaderboardExpandido, setLeaderboardExpandido] = useState(false);
 
   useEffect(() => {
@@ -104,8 +104,68 @@ export default function Dashboard({ theme, user, setView }) {
   const rank = getRank(stats?.pontuacaoTotal);
   const top3 = classificacao.slice(0, 3);
 
+  // ── MODAL DA LEADERBOARD ───────────────────────────────────────────
+  const renderLeaderboardModal = () => {
+    if (!leaderboardExpandido) return null;
+    return (
+      <div 
+        style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+        onClick={() => setLeaderboardExpandido(false)}
+      >
+        <div 
+          style={{ backgroundColor: theme.cardBg, width: '500px', maxWidth: '90%', maxHeight: '85vh', borderRadius: '20px', border: `1px solid ${theme.inputBorder}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', animation: 'fadeIn 0.2s ease-out' }} 
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header do Modal */}
+          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${theme.inputBorder}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.inputBg }}>
+            <h3 style={{ margin: 0, color: theme.textMain, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={cP} strokeWidth="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Classificação Completa
+            </h3>
+            <button onClick={() => setLeaderboardExpandido(false)} style={{ background: 'none', border: 'none', color: theme.textSub, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Fechar">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          
+          {/* Corpo do Modal (Lista) */}
+          <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {classificacao.map((aluno, i) => {
+              const isTu = aluno.id === user?.id;
+              const posColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : theme.textSub;
+              return (
+                <div
+                  key={aluno.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 16px', borderRadius: '12px',
+                    backgroundColor: isTu ? `${cP}12` : i % 2 === 0 ? theme.inputBg : 'transparent',
+                    border: isTu ? `1px solid ${cP}35` : '1px solid transparent',
+                  }}
+                >
+                  <span style={{ fontSize: '14px', fontWeight: '900', color: posColor, minWidth: '28px', textAlign: 'center' }}>
+                    {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i + 1}`}
+                  </span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: cP, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: '700', flexShrink: 0 }}>
+                    {aluno.avatar ? <img src={aluno.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (aluno.nome || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ flex: 1, fontSize: '14px', fontWeight: isTu ? '800' : '600', color: theme.textMain, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {aluno.nome} {isTu && <span style={{ color: cP, fontSize: '12px' }}>(Tu)</span>}
+                  </span>
+                  <span style={{ fontSize: '14px', fontWeight: '800', color: isTu ? cP : theme.textSub }}>{aluno.xp_total || 0} XP</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
+      
+      {/* Insere a modal aqui para ser renderizada caso estado seja true */}
+      {renderLeaderboardModal()}
 
       {/* ── ESTATÍSTICAS ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
@@ -202,14 +262,27 @@ export default function Dashboard({ theme, user, setView }) {
                     fontSize: '13px', fontWeight: isSel || isHoje ? '700' : '500',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     gap: '2px', position: 'relative', outline: 'none', transition: 'all 0.15s ease',
-                    backgroundColor: isSel ? cP : temAtiv ? `${cS}22` : theme.inputBg,
-                    color: isSel ? '#fff' : temAtiv ? cS : theme.textMain,
+                    backgroundColor: isSel ? cP : temAtiv ? `${cS}18` : theme.inputBg,
+                    color: isSel ? '#fff' : theme.textMain,
                     boxShadow: isHoje && !isSel ? `0 0 0 2px ${cP}` : 'none',
+                    padding: '2px', overflow: 'hidden'
                   }}
+                  title={temAtiv ? ativs.map(a => a.titulo).join(', ') : ''}
                 >
-                  {dia}
+                  <span style={{ fontSize: temAtiv ? '11px' : '13px' }}>{dia}</span>
+                  
+                  {/* Se houver atividade, mostra o título da primeira e as restantes como +X */}
                   {temAtiv && !isSel && (
-                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: cS, flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '800', color: cS, width: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
+                        {ativs[0].titulo}
+                      </span>
+                      {ativs.length > 1 && (
+                        <span style={{ fontSize: '8px', fontWeight: 'bold', color: theme.textSub, marginTop: '-2px' }}>
+                          +{ativs.length - 1}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </button>
               );
@@ -232,7 +305,7 @@ export default function Dashboard({ theme, user, setView }) {
           {diaSelecionado && (() => {
             const ativs = getAtivsDia(diaSelecionado);
             return (
-              <div style={{ marginTop: '14px', padding: '16px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}` }}>
+              <div style={{ marginTop: '14px', padding: '16px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}`, animation: 'fadeIn 0.2s ease-out' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: ativs.length ? '12px' : 0 }}>
                   <span style={{ fontWeight: '700', fontSize: '13px', color: theme.textMain }}>
                     {diaSelecionado} de {MESES[mesAtual]}
@@ -249,8 +322,8 @@ export default function Dashboard({ theme, user, setView }) {
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', backgroundColor: theme.cardBg, borderRadius: '10px', border: `1px solid ${theme.inputBorder}` }}>
                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: cS, flexShrink: 0 }} />
                         <div style={{ fontSize: '13px', color: theme.textMain }}>
-                          <span style={{ fontWeight: '600', color: cP, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{a.tipo}</span>
-                          <div>{a.titulo}</div>
+                          <span style={{ fontWeight: '800', color: cP, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: `${cP}15`, padding: '2px 6px', borderRadius: '4px', marginBottom: '2px', display: 'inline-block' }}>{a.tipo}</span>
+                          <div style={{ fontWeight: '600' }}>{a.titulo}</div>
                         </div>
                       </div>
                     ))}
@@ -362,55 +435,16 @@ export default function Dashboard({ theme, user, setView }) {
                   return null;
                 })()}
 
-                {/* Botão ver tabela completa */}
+                {/* Botão que agora abre a Modal em vez de expandir */}
                 <button
-                  onClick={() => setLeaderboardExpandido(v => !v)}
-                  style={{ width: '100%', padding: '10px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', cursor: 'pointer', color: theme.textSub, fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+                  onClick={() => setLeaderboardExpandido(true)}
+                  style={{ width: '100%', padding: '12px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', cursor: 'pointer', color: theme.textMain, fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${theme.primary}15`; e.currentTarget.style.borderColor = theme.primary; e.currentTarget.style.color = theme.primary; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.inputBg; e.currentTarget.style.borderColor = theme.inputBorder; e.currentTarget.style.color = theme.textMain; }}
                 >
-                  {leaderboardExpandido ? (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-                      Ocultar tabela completa
-                    </>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                      Ver todos os {classificacao.length} alunos
-                    </>
-                  )}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                  Ver Tabela Completa ({classificacao.length} alunos)
                 </button>
-
-                {/* Tabela completa expansível */}
-                {leaderboardExpandido && (
-                  <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
-                    {classificacao.map((aluno, i) => {
-                      const isTu = aluno.id === user?.id;
-                      const posColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : theme.textSub;
-                      return (
-                        <div
-                          key={aluno.id}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '9px 12px', borderRadius: '10px',
-                            backgroundColor: isTu ? `${cP}12` : i % 2 === 0 ? theme.inputBg : 'transparent',
-                            border: isTu ? `1px solid ${cP}35` : '1px solid transparent',
-                          }}
-                        >
-                          <span style={{ fontSize: '12px', fontWeight: '800', color: posColor, minWidth: '24px', textAlign: 'center' }}>
-                            {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i + 1}`}
-                          </span>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: cP, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: '700', flexShrink: 0 }}>
-                            {aluno.avatar ? <img src={aluno.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : (aluno.nome || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <span style={{ flex: 1, fontSize: '13px', fontWeight: isTu ? '700' : '500', color: theme.textMain, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {aluno.nome} {isTu && <span style={{ color: cP, fontSize: '11px' }}>(Tu)</span>}
-                          </span>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: isTu ? cP : theme.textSub }}>{aluno.xp_total || 0} XP</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </>
             )}
           </div>

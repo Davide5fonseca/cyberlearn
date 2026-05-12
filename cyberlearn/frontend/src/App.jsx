@@ -14,6 +14,7 @@ import AdminProfessores from './components/AdminProfessores';
 import AdminAprovacoes from './components/AdminAprovacoes';
 import { apiFetch } from './api';
 
+// ─── Utilitário: comprime uma imagem base64 antes de enviar ao servidor ────────
 const compressImage = (base64, maxWidth = 300, quality = 0.75) =>
   new Promise((resolve) => {
     const img = new Image();
@@ -25,7 +26,7 @@ const compressImage = (base64, maxWidth = 300, quality = 0.75) =>
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => resolve(base64); // se falhar, usa o original
+    img.onerror = () => resolve(base64); 
     img.src = base64;
   });
 // ────────────────────────────────────────────────────────────────────────────────
@@ -168,6 +169,7 @@ function App() {
       let avatarParaEnviar = undefined;
       if (avatarImg?.startsWith('data:')) {
         avatarParaEnviar = await compressImage(avatarImg);
+        if (user?.id) localStorage.setItem(`cyberlearn_avatar_${user.id}`, avatarParaEnviar);
       }
 
       const response = await apiFetch('/atualizar-perfil', {
@@ -196,7 +198,8 @@ function App() {
         setUser({
           ...user,
           nome: profileData.nome,
-          avatar: data.utilizador?.avatar ?? (avatarParaEnviar ?? user.avatar),
+          // Corrigido: Garante que se avatarImg for null, o avatar na aplicação fica null
+          avatar: avatarParaEnviar !== undefined ? avatarParaEnviar : avatarImg,
           biografiaProf: profileData.biografiaProf,
           metodologia: profileData.metodologia,
           nivelExperiencia: profileData.nivelExperiencia,
@@ -283,6 +286,7 @@ function App() {
           {view === 'cursos'             && <Cursos setView={setView} theme={theme} setActiveCourse={setActiveCourse} />}
           {view === 'licao'              && <Licao setView={setView} theme={theme} curso={activeCourse} user={user} setTargetQuizCourse={setTargetQuizCourse} />}
           {view === 'quizzes'            && <Quizzes theme={theme} setView={setView} user={user} targetQuizCourse={targetQuizCourse} setTargetQuizCourse={setTargetQuizCourse} />}
+          
           {view === 'professor_dashboard'&& <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos'   && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos'   && <ProfessorCursos theme={theme} user={user} />}

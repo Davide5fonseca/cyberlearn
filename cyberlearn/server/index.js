@@ -92,8 +92,9 @@ const criarNotificacao = async ({ utilizador_id = null, perfil_alvo = null, icon
             'INSERT INTO notificacoes_sistema (utilizador_id, perfil_alvo, icone, cor, titulo, mensagem, acao) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [utilizador_id, perfil_alvo, icone, cor, titulo, mensagem, acao]
         );
+        console.log(`🔔 Notificação criada para [${perfil_alvo || utilizador_id}]: ${titulo}`);
     } catch (err) {
-        console.error('Erro ao injetar notificação:', err.message);
+        console.error('❌ Erro ao injetar notificação:', err.message);
     }
 };
 
@@ -734,7 +735,7 @@ app.get('/professor/aluno/:id/detalhes', async (req, res) => {
 });
 
 // ==========================================
-// 8. APAGAR UTILIZADORES
+// 8. APAGAR UTILIZADORES E CARREGAR INFOS PROF
 // ==========================================
 app.delete('/utilizadores/:id', async (req, res) => {
     const { id } = req.params;
@@ -775,6 +776,7 @@ app.get('/professor/quizzes/:id', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao carregar quizzes do professor.' });
     }
 });
+
 app.delete('/professores/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -806,10 +808,11 @@ app.get('/notificacoes/:id', async (req, res) => {
         let notificacoes = [];
 
         // 1. Notificações Persistentes do Sistema (Aprovações, Rejeições, Pedidos Admin, etc)
+        // Corrigido com ::INTEGER explícito e garantia de types!
         const dbNotifsRes = await pool.query(`
             SELECT id, icone, cor, titulo, mensagem, to_char(data_criacao, 'DD/MM/YYYY') as data, acao
             FROM notificacoes_sistema
-            WHERE utilizador_id = $1 OR perfil_alvo = $2
+            WHERE utilizador_id = $1::INTEGER OR perfil_alvo = $2
             ORDER BY data_criacao DESC
             LIMIT 15
         `, [id, perfil]);
@@ -970,6 +973,9 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
         
         if (cursoRes.rows.length > 0) {
             const { titulo, professor_id } = cursoRes.rows[0];
+            
+            // Corrigido: Primeiro apagar os quizzes associados (cascade) para a BD não atrofiar!
+            await pool.query('DELETE FROM quizzes WHERE curso_id = $1', [id]);
             await pool.query(`DELETE FROM cursos WHERE id = $1`, [id]);
             
             // Notificar Professor (específico)
@@ -985,6 +991,7 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
             res.status(404).json({ erro: `Curso não encontrado.` });
         }
     } catch (err) {
+        console.error("Erro ao rejeitar curso:", err);
         res.status(500).json({ erro: `Erro ao rejeitar curso.` });
     }
 });
