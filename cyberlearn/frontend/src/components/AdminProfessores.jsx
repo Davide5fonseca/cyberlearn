@@ -146,8 +146,8 @@ export default function AdminProfessores({ theme }) {
                     <td style={styles.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={styles.avatar}>
-                          {prof.avatar_url ? (
-                            <img src={prof.avatar_url} alt={`Foto de ${prof.nome}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {prof.avatar ? (
+                            <img src={prof.avatar} alt={`Foto de ${prof.nome}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             prof.nome.charAt(0).toUpperCase()
                           )}

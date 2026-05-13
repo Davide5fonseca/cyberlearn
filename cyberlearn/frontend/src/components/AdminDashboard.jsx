@@ -162,8 +162,12 @@ export default function AdminDashboard({ theme, user, setView }) {
                   <tr key={acesso.id} style={{ transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg } }}>
                     <td style={{...styles.td, paddingLeft: '32px'}}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' }}>
-                          {acesso.nome.charAt(0).toUpperCase()}
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
+                          {acesso.avatar ? (
+                            <img src={acesso.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            acesso.nome.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <span style={{ fontWeight: '600' }}>{acesso.nome}</span>
                       </div>
@@ -212,7 +216,7 @@ export default function AdminDashboard({ theme, user, setView }) {
         </div>
         
         <div style={styles.metricCard}>
-          <div style={{...styles.iconBox, color: theme.success}}>
+          <div style={{...styles.iconBox, color: theme.success, backgroundColor: `${theme.success}15`}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
           </div>
           <p style={{ margin: '0 0 4px 0', color: theme.textSub, fontSize: '13px', fontWeight: '600' }}>{t('admin.activeSessions')}</p>
@@ -220,15 +224,13 @@ export default function AdminDashboard({ theme, user, setView }) {
         </div>
         
         <div style={styles.metricCard}>
-          <div style={{...styles.iconBox, color: theme.warning}}>
+          <div style={{...styles.iconBox, color: theme.warning, backgroundColor: `${theme.warning}15`}}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           </div>
           <p style={{ margin: '0 0 4px 0', color: theme.textSub, fontSize: '13px', fontWeight: '600' }}>{t('admin.totalLogins')}</p>
           <h3 style={{ margin: 0, color: theme.textMain, fontSize: '28px', fontWeight: '800' }}>{estatisticas.totalAcessos}</h3>
         </div>
       </div>
-
-
 
       <div style={styles.cardContainer}>
         
@@ -281,8 +283,12 @@ export default function AdminDashboard({ theme, user, setView }) {
                 <tr key={acesso.id} style={{ transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg } }}>
                   <td style={{...styles.td, paddingLeft: '32px'}}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' }}>
-                        {acesso.nome.charAt(0).toUpperCase()}
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
+                        {acesso.avatar ? (
+                          <img src={acesso.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          acesso.nome.charAt(0).toUpperCase()
+                        )}
                       </div>
                       <span style={{ fontWeight: '600' }}>{acesso.nome}</span>
                     </div>

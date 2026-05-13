@@ -654,7 +654,7 @@ app.get('/professores', async (req, res) => {
 app.get('/acessos', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT a.id, u.nome, u.email, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
+            SELECT a.id, u.nome, u.email, u.avatar, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
             FROM logs_acesso a
             JOIN utilizadores u ON a.utilizador_id = u.id
             WHERE LOWER(TRIM(u.perfil)) = 'aluno'
@@ -670,7 +670,7 @@ app.get('/acessos', async (req, res) => {
 app.get('/acessos-professores', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT a.id, u.nome, u.email, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
+            SELECT a.id, u.nome, u.email, u.avatar, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
             FROM logs_acesso a
             JOIN utilizadores u ON a.utilizador_id = u.id
             WHERE LOWER(TRIM(u.perfil)) = 'professor'
