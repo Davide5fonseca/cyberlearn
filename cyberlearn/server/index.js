@@ -928,12 +928,13 @@ app.get('/admin/pendentes', async (req, res) => {
         
         res.status(200).json({ cursos: cursosRes.rows, quizzes: quizzesRes.rows });
     } catch (err) {
+        console.error("Erro na pendentes:", err);
         res.status(500).json({ erro: 'Erro ao carregar pendentes.' });
     }
 });
 
 app.put('/admin/aprovar/curso/:id', async (req, res) => {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
     try {
         const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
         
@@ -962,23 +963,26 @@ app.put('/admin/aprovar/curso/:id', async (req, res) => {
             res.status(404).json({ erro: `Curso não encontrado.` });
         }
     } catch (err) {
+        console.error("Erro aprovar curso:", err);
         res.status(500).json({ erro: `Erro ao aprovar curso.` });
     }
 });
 
 app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
     try {
         const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
         
         if (cursoRes.rows.length > 0) {
             const { titulo, professor_id } = cursoRes.rows[0];
             
-            // Corrigido: Primeiro apagar os quizzes associados (cascade) para a BD não atrofiar!
+            // É fundamental garantir que estas ações ocorrem na ordem certa para a BD não atrofiar com restrições
+            await pool.query('DELETE FROM resultados_quizzes WHERE quiz_id IN (SELECT id FROM quizzes WHERE curso_id = $1)', [id]).catch(() => {});
             await pool.query('DELETE FROM quizzes WHERE curso_id = $1', [id]);
+            await pool.query('DELETE FROM comentarios_licao WHERE curso_id = $1', [id]).catch(() => {});
             await pool.query(`DELETE FROM cursos WHERE id = $1`, [id]);
             
-            // Notificar Professor (específico)
+            // Notificar Professor
             await criarNotificacao({
                 utilizador_id: professor_id, icone: '❌', cor: '#ef4444',
                 titulo: 'Curso Rejeitado',
@@ -997,8 +1001,10 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
 });
 
 app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
-    // É obrigatório usar decodeURIComponent para ler espaços e acentos que vêm do Frontend
-    const titulo = decodeURIComponent(req.params.titulo); 
+    // Tenta descodificar caso o Express não o tenha feito automaticamente
+    let titulo = req.params.titulo;
+    try { titulo = decodeURIComponent(titulo); } catch (e) { /* ignora */ }
+
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1032,14 +1038,16 @@ app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
             res.status(404).json({ erro: `Quiz não encontrado na base de dados.` });
         }
     } catch (err) {
-        console.error(err);
+        console.error("Erro aprovar quiz:", err);
         res.status(500).json({ erro: `Erro ao aprovar quiz.` });
     }
 });
 
 app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
-    // É obrigatório usar decodeURIComponent para ler espaços e acentos que vêm do Frontend
-    const titulo = decodeURIComponent(req.params.titulo);
+    // Tenta descodificar caso o Express não o tenha feito automaticamente
+    let titulo = req.params.titulo;
+    try { titulo = decodeURIComponent(titulo); } catch (e) { /* ignora */ }
+
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1065,7 +1073,7 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
             res.status(404).json({ erro: `Quiz não encontrado.` });
         }
     } catch (err) {
-        console.error(err);
+        console.error("Erro rejeitar quiz:", err);
         res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
     }
 });
