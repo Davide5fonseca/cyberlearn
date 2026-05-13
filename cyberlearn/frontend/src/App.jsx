@@ -248,9 +248,9 @@ function App() {
                    view === 'quizzes'             ? 'Quizzes' : 'O Teu Perfil '}
                 </h1>
                 <p style={{ color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px' }}>
-                  {view === 'dashboard'          ? 'Bem-vindo ao teu centro de treino.' :
+                  {view === 'dashboard'          ? 'Bem-vindo ao teu centro de estudo.' :
                    view === 'professor_dashboard' ? 'Aqui está a atividade dos alunos.' :
-                   view === 'professor_alunos'    ? 'Acompanha o progresso e as notas da tua turma.' :
+                   view === 'professor_alunos'    ? 'Acompanha o progresso e as notas dos teus alunos.' :
                    view === 'professor_cursos'    ? 'Cria, edita e apaga conteúdos educativos.' :
                    view === 'admin_dashboard'     ? 'Aqui está a atividade dos professores.' :
                    view === 'admin_professores'   ? 'Consulta perfis e remove professores do sistema.' :
@@ -286,7 +286,6 @@ function App() {
           {view === 'cursos'             && <Cursos setView={setView} theme={theme} setActiveCourse={setActiveCourse} />}
           {view === 'licao'              && <Licao setView={setView} theme={theme} curso={activeCourse} user={user} setTargetQuizCourse={setTargetQuizCourse} />}
           {view === 'quizzes'            && <Quizzes theme={theme} setView={setView} user={user} targetQuizCourse={targetQuizCourse} setTargetQuizCourse={setTargetQuizCourse} />}
-          
           {view === 'professor_dashboard'&& <ProfessorDashboard theme={theme} user={user} />}
           {view === 'professor_alunos'   && <ProfessorAlunos theme={theme} />}
           {view === 'professor_cursos'   && <ProfessorCursos theme={theme} user={user} />}
