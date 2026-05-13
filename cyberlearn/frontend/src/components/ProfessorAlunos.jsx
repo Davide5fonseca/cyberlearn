@@ -62,14 +62,6 @@ export default function ProfessorAlunos({ theme }) {
     }
   };
 
-  const getRank = (xp) => {
-    const xpNum = Number(xp) || 0;
-    if (xpNum >= 2500) return { titulo: 'CISO', cor: '#ef4444' }; 
-    if (xpNum >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' }; 
-    if (xpNum >= 600) return { titulo: 'Analista Júnior', cor: '#3b82f6' }; 
-    if (xpNum >= 250) return { titulo: 'Explorador', cor: '#10b981' }; 
-    return { titulo: 'Script Kiddie', cor: theme.textSub }; 
-  };
 
   const styles = {
     container: { display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '30px', animation: 'fadeIn 0.4s ease' },
@@ -118,9 +110,6 @@ export default function ProfessorAlunos({ theme }) {
               <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
                 <span style={{backgroundColor: `${theme.primary}20`, color: theme.primary, padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold'}}>
                   {selectedAluno.xp_total || 0} XP
-                </span>
-                <span style={{backgroundColor: `${rank.cor}20`, color: rank.cor, padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}>
-                  Rank: {rank.titulo}
                 </span>
               </div>
             </div>

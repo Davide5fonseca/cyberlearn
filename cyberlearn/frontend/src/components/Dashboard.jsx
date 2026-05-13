@@ -45,15 +45,6 @@ export default function Dashboard({ theme, user, setView }) {
     }
   };
 
-  const getRank = (xp) => {
-    const p = xp || 0;
-    if (p >= 2500) return { titulo: 'CISO',           cor: '#ef4444' };
-    if (p >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' };
-    if (p >=  600) return { titulo: 'Analista Júnior', cor: '#3b82f6' };
-    if (p >=  250) return { titulo: 'Explorador',     cor: '#10b981' };
-    return               { titulo: 'Script Kiddie',   cor: theme.textSub || '#888' };
-  };
-
   // ── Calendário ─────────────────────────────────────────────────────
   const diasNoMes   = new Date(anoAtual, mesAtual + 1, 0).getDate();
   const primeiroDia = new Date(anoAtual, mesAtual, 1).getDay();
@@ -508,7 +499,7 @@ export default function Dashboard({ theme, user, setView }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cW} strokeWidth="2.5"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Vitrina de Troféus</span>
+              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Coleção de Troféus</span>
               {trofeus.length > 0 && (
                 <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: cW, backgroundColor: `${cW}18`, padding: '3px 8px', borderRadius: '10px' }}>
                   {trofeus.length} Conquistados

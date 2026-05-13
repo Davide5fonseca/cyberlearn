@@ -239,8 +239,8 @@ function App() {
                 <h1 style={{ fontSize: isMobile ? '18px' : '20px', color: theme.textMain, margin: 0, fontWeight: 'bold' }}>
                   {view === 'dashboard'          ? `Olá, ${user?.nome.split(' ')[0]} ` :
                    view === 'professor_dashboard' ? `Olá, ${user?.nome.split(' ')[0]} ` :
-                   view === 'professor_alunos'    ? `Gestão de Turmas ` :
-                   view === 'professor_cursos'    ? `O Teu Cofre de Cursos ` :
+                   view === 'professor_alunos'    ? `Gestão de Alunos ` :
+                   view === 'professor_cursos'    ? `Contéudos Educativos ` :
                    view === 'admin_dashboard'     ? `Olá, ${user?.nome.split(' ')[0]} ` :
                    view === 'admin_professores'   ? `Gestão de Professores ` :
                    view === 'admin_aprovacoes'    ? `Aprovações de Conteúdos ` :
