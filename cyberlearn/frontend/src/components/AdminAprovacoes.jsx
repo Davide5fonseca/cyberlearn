@@ -23,8 +23,19 @@ export default function AdminAprovacoes({ theme }) {
 
   const handleAprovar = async (tipo, identificador) => {
     try {
-      // Usar encodeURIComponent para proteger títulos com espaços (ex: "Teste Final")
-      const res = await apiFetch(`/admin/aprovar/${tipo}/${encodeURIComponent(identificador)}`, { method: 'PUT' });
+      let res;
+      if (tipo === 'quiz') {
+        // Envia o título de forma segura no BODY do pedido em vez da URL
+        res = await apiFetch('/admin/aprovar/quiz', { 
+          method: 'PUT', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ titulo: identificador })
+        });
+      } else {
+        // Cursos usam ID (número), por isso a URL funciona perfeitamente
+        res = await apiFetch(`/admin/aprovar/${tipo}/${identificador}`, { method: 'PUT' });
+      }
+      
       if (res.ok) buscarPendentes();
     } catch (err) {
       console.error(err);
@@ -34,8 +45,18 @@ export default function AdminAprovacoes({ theme }) {
   const handleRejeitar = async (tipo, identificador) => {
     if (!window.confirm(`Tens a certeza que queres REJEITAR e APAGAR este ${tipo}?`)) return;
     try {
-      // Usar encodeURIComponent para proteger títulos com espaços
-      const res = await apiFetch(`/admin/rejeitar/${tipo}/${encodeURIComponent(identificador)}`, { method: 'DELETE' });
+      let res;
+      if (tipo === 'quiz') {
+        // Usamos POST para enviar o título de forma segura no BODY
+        res = await apiFetch('/admin/rejeitar/quiz', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ titulo: identificador })
+        });
+      } else {
+        res = await apiFetch(`/admin/rejeitar/${tipo}/${identificador}`, { method: 'DELETE' });
+      }
+
       if (res.ok) buscarPendentes();
     } catch (err) {
       console.error(err);

@@ -1000,11 +1000,12 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
     }
 });
 
-app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
-    // Tenta descodificar caso o Express não o tenha feito automaticamente
-    let titulo = req.params.titulo;
-    try { titulo = decodeURIComponent(titulo); } catch (e) { /* ignora */ }
+// ... Todo o teu código acima disto permanece igual ...
 
+app.put('/admin/aprovar/quiz', async (req, res) => {
+    // Recebe o título em segurança pelo corpo da mensagem
+    const { titulo } = req.body; 
+    
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1038,16 +1039,15 @@ app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
             res.status(404).json({ erro: `Quiz não encontrado na base de dados.` });
         }
     } catch (err) {
-        console.error("Erro aprovar quiz:", err);
+        console.error("ERRO AO APROVAR QUIZ:", err);
         res.status(500).json({ erro: `Erro ao aprovar quiz.` });
     }
 });
 
-app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
-    // Tenta descodificar caso o Express não o tenha feito automaticamente
-    let titulo = req.params.titulo;
-    try { titulo = decodeURIComponent(titulo); } catch (e) { /* ignora */ }
-
+app.post('/admin/rejeitar/quiz', async (req, res) => {
+    // Usamos POST para garantir que o body chega intacto
+    const { titulo } = req.body;
+    
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1058,6 +1058,9 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
 
         if (quizRes.rows.length > 0) {
             const prof_id = quizRes.rows[0].professor_id;
+            
+            // Apaga as tentativas do quiz antes de apagar o quiz em si
+            await pool.query(`DELETE FROM tentativas_quizzes WHERE quiz_titulo = $1`, [titulo]).catch(()=>console.log("Sem tentativas."));
             await pool.query(`DELETE FROM quizzes WHERE titulo = $1`, [titulo]);
             
             // Notificar Professor
@@ -1073,7 +1076,7 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
             res.status(404).json({ erro: `Quiz não encontrado.` });
         }
     } catch (err) {
-        console.error("Erro rejeitar quiz:", err);
+        console.error("ERRO AO REJEITAR QUIZ:", err);
         res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
     }
 });
