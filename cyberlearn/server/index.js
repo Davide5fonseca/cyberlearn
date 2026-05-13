@@ -997,7 +997,8 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
 });
 
 app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
-    const { titulo } = req.params;
+    // É obrigatório usar decodeURIComponent para ler espaços e acentos que vêm do Frontend
+    const titulo = decodeURIComponent(req.params.titulo); 
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1028,15 +1029,17 @@ app.put('/admin/aprovar/quiz/:titulo', async (req, res) => {
 
             res.status(200).json({ mensagem: `Quiz aprovado com sucesso!` });
         } else {
-            res.status(404).json({ erro: `Quiz não encontrado.` });
+            res.status(404).json({ erro: `Quiz não encontrado na base de dados.` });
         }
     } catch (err) {
+        console.error(err);
         res.status(500).json({ erro: `Erro ao aprovar quiz.` });
     }
 });
 
 app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
-    const { titulo } = req.params;
+    // É obrigatório usar decodeURIComponent para ler espaços e acentos que vêm do Frontend
+    const titulo = decodeURIComponent(req.params.titulo);
     try {
         const quizRes = await pool.query(`
             SELECT q.titulo, c.professor_id 
@@ -1062,6 +1065,7 @@ app.delete('/admin/rejeitar/quiz/:titulo', async (req, res) => {
             res.status(404).json({ erro: `Quiz não encontrado.` });
         }
     } catch (err) {
+        console.error(err);
         res.status(500).json({ erro: `Erro ao rejeitar quiz.` });
     }
 });
