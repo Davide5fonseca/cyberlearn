@@ -45,6 +45,15 @@ export default function Dashboard({ theme, user, setView }) {
     }
   };
 
+  const getRank = (xp) => {
+    const p = xp || 0;
+    if (p >= 2500) return { titulo: 'CISO',           cor: '#ef4444' };
+    if (p >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' };
+    if (p >=  600) return { titulo: 'Analista Júnior', cor: '#3b82f6' };
+    if (p >=  250) return { titulo: 'Explorador',     cor: '#10b981' };
+    return               { titulo: 'Script Kiddie',   cor: theme.textSub || '#888' };
+  };
+
   // ── Calendário ─────────────────────────────────────────────────────
   const diasNoMes   = new Date(anoAtual, mesAtual + 1, 0).getDate();
   const primeiroDia = new Date(anoAtual, mesAtual, 1).getDay();
@@ -302,32 +311,26 @@ export default function Dashboard({ theme, user, setView }) {
                   key={dia}
                   onClick={() => setDiaSelecionado(isSel ? null : dia)}
                   style={{
-                    height: '58px', // Altura fixa
-                    border: 'none', borderRadius: '8px', cursor: 'pointer',
+                    aspectRatio: '1.2', border: 'none', borderRadius: '8px', cursor: 'pointer',
                     fontSize: '12px', fontWeight: isSel || isHoje ? '700' : '500',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     gap: '1px', position: 'relative', outline: 'none', transition: 'all 0.15s ease',
                     backgroundColor: isSel ? cP : temAtiv ? `${cS}15` : theme.inputBg,
                     color: isSel ? '#fff' : theme.textMain,
                     boxShadow: isHoje && !isSel ? `0 0 0 1.5px ${cP}` : 'none',
-                    padding: '4px 2px', overflow: 'hidden'
+                    padding: '2px', overflow: 'hidden'
                   }}
-                  title={temAtiv ? ativs.map(a => `${a.tipo}: ${a.titulo}`).join('\n') : ''}
+                  title={temAtiv ? ativs.map(a => a.titulo).join(', ') : ''}
                 >
-                  <span style={{ fontSize: temAtiv ? '10px' : '12px', marginBottom: temAtiv ? '2px' : 'auto', marginTop: temAtiv ? '0' : 'auto' }}>
-                    {dia}
-                  </span>
+                  <span style={{ fontSize: temAtiv ? '10px' : '12px' }}>{dia}</span>
                   
                   {temAtiv && !isSel && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                      <span style={{ fontSize: '7px', fontWeight: '800', color: theme.textMain, opacity: 0.7, textTransform: 'uppercase', marginBottom: '1px' }}>
-                        {ativs[0].tipo}
-                      </span>
                       <span style={{ fontSize: '8px', fontWeight: '700', color: cS, width: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
                         {ativs[0].titulo}
                       </span>
                       {ativs.length > 1 && (
-                        <span style={{ fontSize: '7px', fontWeight: 'bold', color: theme.textSub, marginTop: '1px' }}>
+                        <span style={{ fontSize: '7px', fontWeight: 'bold', color: theme.textSub, marginTop: '-2px' }}>
                           +{ativs.length - 1}
                         </span>
                       )}
@@ -349,6 +352,7 @@ export default function Dashboard({ theme, user, setView }) {
             </div>
           </div>
 
+          {/* Painel do dia selecionado otimizado para não crescer demasiado */}
           {diaSelecionado && (() => {
             const ativs = getAtivsDia(diaSelecionado);
             return (
@@ -490,21 +494,11 @@ export default function Dashboard({ theme, user, setView }) {
             )}
           </div>
 
-          {/* ── TROFÉUS COMO BOTÃO QUE ABRE A MODAL ──────────────────────────────────────────── */}
-          <div 
-            onClick={() => { if (trofeus.length > 0) setTrofeusExpandido(true); }}
-            style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow, cursor: trofeus.length > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { if (trofeus.length > 0) e.currentTarget.style.borderColor = cW; }}
-            onMouseLeave={(e) => { if (trofeus.length > 0) e.currentTarget.style.borderColor = theme.inputBorder; }}
-          >
+          {/* ── TROFÉUS ──────────────────────────────────────────── */}
+          <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cW} strokeWidth="2.5"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Coleção de Troféus</span>
-              {trofeus.length > 0 && (
-                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: cW, backgroundColor: `${cW}18`, padding: '3px 8px', borderRadius: '10px' }}>
-                  {trofeus.length} Conquistados
-                </span>
-              )}
+              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Troféus Recentes</span>
             </div>
 
             {trofeus.length === 0 ? (
@@ -514,8 +508,7 @@ export default function Dashboard({ theme, user, setView }) {
               </div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                  {/* Mostra apenas os 2 mais recentes no painel principal */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
                   {trofeus.slice(0, 2).map((t, i) => (
                     <div key={i} style={{ backgroundColor: theme.inputBg, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', border: `1px solid ${cW}30` }}>
                       <span style={{ fontSize: '26px' }}>{t.icone}</span>
@@ -524,15 +517,18 @@ export default function Dashboard({ theme, user, setView }) {
                     </div>
                   ))}
                 </div>
+                
                 {trofeus.length > 2 && (
-                  <p style={{ textAlign: 'center', fontSize: '12px', color: theme.textSub, marginTop: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    + {trofeus.length - 2} Troféus
-                  </p>
+                  <button
+                    onClick={() => setTrofeusExpandido(true)}
+                    style={{ width: '100%', padding: '12px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', cursor: 'pointer', color: theme.textMain, fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${cW}15`; e.currentTarget.style.borderColor = cW; e.currentTarget.style.color = cW; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.inputBg; e.currentTarget.style.borderColor = theme.inputBorder; e.currentTarget.style.color = theme.textMain; }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    Ver coleção completa ({trofeus.length})
+                  </button>
                 )}
-                <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '11px', color: theme.primary, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  Clica para abrir a coleção inteira
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
               </>
             )}
           </div>
