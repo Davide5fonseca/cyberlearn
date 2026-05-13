@@ -10,10 +10,10 @@ const translations = {
 
     'sidebar.profAnalytics': 'Dashboard',
     'sidebar.profStudents': 'Alunos',
-    'sidebar.profStudio': 'Contéudos',
+    'sidebar.profStudio': 'Cursos',
 
     'sidebar.dashboard': 'Dashboard',
-    'sidebar.courses': 'Contéudos',
+    'sidebar.courses': 'Cursos',
     'sidebar.quizzes': 'Quizzes',
     'sidebar.logout': 'Sair da Conta'
   }

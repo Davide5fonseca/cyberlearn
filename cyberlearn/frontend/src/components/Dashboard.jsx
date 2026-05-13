@@ -259,43 +259,45 @@ export default function Dashboard({ theme, user, setView }) {
       {/* ── GRELHA PRINCIPAL ─────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '24px', alignItems: 'start' }}>
 
-        {/* COLUNA ESQUERDA — Calendário COMPACTADO COM ALTURA FIXA */}
-        <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
+        {/* COLUNA ESQUERDA — Calendário COMPACTADO */}
+        <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '20px', boxShadow: theme.shadow }}>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={cP} strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Calendário de Progresso</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cP} strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span style={{ fontWeight: '800', fontSize: '15px', color: theme.textMain }}>Calendário de Progresso</span>
             </div>
             {diasAtivos > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: '700', backgroundColor: `${cS}18`, color: cS, padding: '4px 10px', borderRadius: '20px' }}>
+              <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: `${cS}18`, color: cS, padding: '3px 8px', borderRadius: '20px' }}>
                 {diasAtivos} dia{diasAtivos !== 1 ? 's' : ''} ativo{diasAtivos !== 1 ? 's' : ''}
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <button
               onClick={() => mudarMes(-1)}
-              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
+              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <span style={{ fontWeight: '700', fontSize: '15px', color: theme.textMain }}>{MESES[mesAtual]} {anoAtual}</span>
+            <span style={{ fontWeight: '700', fontSize: '14px', color: theme.textMain }}>{MESES[mesAtual]} {anoAtual}</span>
             <button
               onClick={() => mudarMes(1)}
-              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
+              style={{ background: 'none', border: `1px solid ${theme.inputBorder}`, borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', transition: 'border-color 0.2s' }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '6px' }}>
+          {/* Diminuído o gap da grelha de dias */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
             {DIAS_SEMANA.map((d, i) => (
-              <div key={i} style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: theme.textSub, padding: '2px 0', letterSpacing: '0.03em' }}>{d}</div>
+              <div key={i} style={{ textAlign: 'center', fontSize: '10px', fontWeight: '700', color: theme.textSub, padding: '2px 0', letterSpacing: '0.03em' }}>{d}</div>
             ))}
           </div>
 
+          {/* Diminuído o gap da grelha de dias */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
             {espacosVazios.map((_, i) => <div key={`v${i}`} />)}
             {dias.map(dia => {
@@ -309,7 +311,7 @@ export default function Dashboard({ theme, user, setView }) {
                   key={dia}
                   onClick={() => setDiaSelecionado(isSel ? null : dia)}
                   style={{
-                    height: '58px', // <-- Altura fixa para não alongar!
+                    height: '58px', // Altura fixa
                     border: 'none', borderRadius: '8px', cursor: 'pointer',
                     fontSize: '12px', fontWeight: isSel || isHoje ? '700' : '500',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
@@ -345,7 +347,7 @@ export default function Dashboard({ theme, user, setView }) {
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '16px', paddingTop: '10px', borderTop: `1px solid ${theme.inputBorder}` }}>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${theme.inputBorder}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: theme.textSub }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: `${cS}22`, border: `1px solid ${cS}` }} />
               Dia ativo
@@ -497,11 +499,21 @@ export default function Dashboard({ theme, user, setView }) {
             )}
           </div>
 
-          {/* ── TROFÉUS ──────────────────────────────────────────── */}
-          <div style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow }}>
+          {/* ── TROFÉUS COMO BOTÃO QUE ABRE A MODAL ──────────────────────────────────────────── */}
+          <div 
+            onClick={() => { if (trofeus.length > 0) setTrofeusExpandido(true); }}
+            style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '24px', boxShadow: theme.shadow, cursor: trofeus.length > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => { if (trofeus.length > 0) e.currentTarget.style.borderColor = cW; }}
+            onMouseLeave={(e) => { if (trofeus.length > 0) e.currentTarget.style.borderColor = theme.inputBorder; }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cW} strokeWidth="2.5"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Troféus Recentes</span>
+              <span style={{ fontWeight: '800', fontSize: '16px', color: theme.textMain }}>Vitrina de Troféus</span>
+              {trofeus.length > 0 && (
+                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: cW, backgroundColor: `${cW}18`, padding: '3px 8px', borderRadius: '10px' }}>
+                  {trofeus.length} Conquistados
+                </span>
+              )}
             </div>
 
             {trofeus.length === 0 ? (
@@ -511,7 +523,8 @@ export default function Dashboard({ theme, user, setView }) {
               </div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                  {/* Mostra apenas os 2 mais recentes no painel principal */}
                   {trofeus.slice(0, 2).map((t, i) => (
                     <div key={i} style={{ backgroundColor: theme.inputBg, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '6px', border: `1px solid ${cW}30` }}>
                       <span style={{ fontSize: '26px' }}>{t.icone}</span>
@@ -520,18 +533,15 @@ export default function Dashboard({ theme, user, setView }) {
                     </div>
                   ))}
                 </div>
-                
                 {trofeus.length > 2 && (
-                  <button
-                    onClick={() => setTrofeusExpandido(true)}
-                    style={{ width: '100%', padding: '12px', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '10px', cursor: 'pointer', color: theme.textMain, fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${cW}15`; e.currentTarget.style.borderColor = cW; e.currentTarget.style.color = cW; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.inputBg; e.currentTarget.style.borderColor = theme.inputBorder; e.currentTarget.style.color = theme.textMain; }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                    Ver coleção completa ({trofeus.length})
-                  </button>
+                  <p style={{ textAlign: 'center', fontSize: '12px', color: theme.textSub, marginTop: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    + {trofeus.length - 2} Troféus
+                  </p>
                 )}
+                <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '11px', color: theme.primary, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  Clica para abrir a coleção inteira
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
               </>
             )}
           </div>
