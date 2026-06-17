@@ -198,7 +198,19 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
         {`
           .auth-layout { display: flex; flex-direction: row-reverse; height: 100vh; width: 100%; background-color: ${theme.bg}; overflow: hidden; }
           .auth-left-panel { flex: 1; display: flex; flex-direction: column; padding: 32px; justify-content: center; background-color: ${theme.cardBg}; overflow: hidden; position: relative; }
-          .auth-right-panel { flex: 1; background-color: ${theme.primary}; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; color: #ffffff; position: relative; overflow: hidden; }
+
+          /* Painel da marca: gradiente azul -> ciano com grelha e brilho */
+          .auth-right-panel { flex: 1; background: linear-gradient(145deg, #0b1120 0%, #1e40af 55%, #0e7490 105%); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; color: #ffffff; position: relative; overflow: hidden; }
+          .auth-right-panel::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px); background-size: 42px 42px; -webkit-mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 72%); mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 72%); }
+          .auth-right-panel::after { content: ''; position: absolute; top: -18%; left: 50%; width: 560px; height: 560px; transform: translateX(-50%); background: radial-gradient(circle, rgba(34,211,238,0.30) 0%, transparent 62%); pointer-events: none; }
+
+          /* Inputs: realce do acento ao focar */
+          .auth-left-panel input:focus { border-color: ${theme.accent} !important; box-shadow: 0 0 0 3px ${theme.accent}33; }
+
+          /* Botão primário com hover */
+          .auth-left-panel form button[type="submit"] { background-image: ${theme.gradient}; }
+          .auth-left-panel form button[type="submit"]:hover { filter: brightness(1.07); transform: translateY(-1px); }
+
           @media (max-width: 900px) { .auth-layout { flex-direction: column; } .auth-right-panel { display: none; } .auth-left-panel { padding: 24px; justify-content: center; } }
           @keyframes floatPadlock { 0% { transform: translate(-50%, -46%) rotate(-5deg) scale(1.8); } 50% { transform: translate(-50%, -54%) rotate(5deg) scale(1.9); } 100% { transform: translate(-50%, -46%) rotate(-5deg) scale(1.8); } }
           .parallax-padlock { animation: floatPadlock 12s ease-in-out infinite; transform-origin: center; filter: drop-shadow(0 40px 30px rgba(0, 0, 0, 0.4)); }

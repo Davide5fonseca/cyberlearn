@@ -81,7 +81,7 @@ function App() {
     }
   }, [user]);
 
-  useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#060b14' : '#f0f2f5'; document.body.style.transition = 'background-color 0.3s ease'; try { localStorage.setItem('cyberlearn_darkMode', JSON.stringify(isDarkMode)); } catch {} }, [isDarkMode]);
+  useEffect(() => { document.body.style.backgroundColor = isDarkMode ? '#070b14' : '#f8fafc'; document.body.style.transition = 'background-color 0.3s ease'; try { localStorage.setItem('cyberlearn_darkMode', JSON.stringify(isDarkMode)); } catch {} }, [isDarkMode]);
 
   useEffect(() => { try { if (user) { localStorage.setItem('cyberlearn_user', JSON.stringify(user)); } else { localStorage.removeItem('cyberlearn_user'); } } catch {} }, [user]);
 
@@ -225,7 +225,26 @@ function App() {
     }
   };
 
-  const theme = useMemo(() => ({ bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 8px 20px rgba(0,0,0,0.4)' : '0 4px 10px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981' }), [isDarkMode]);
+  const theme = useMemo(() => ({
+    bg:          isDarkMode ? '#070b14' : '#f8fafc',
+    cardBg:      isDarkMode ? '#0f172a' : '#ffffff',
+    sidebarBg:   isDarkMode ? '#0b1120' : '#ffffff',
+    textMain:    isDarkMode ? '#e2e8f0' : '#0f172a',
+    textSub:     isDarkMode ? '#94a3b8' : '#64748b',
+    inputBg:     isDarkMode ? '#16213a' : '#f8fafc',
+    inputBorder: isDarkMode ? '#243044' : '#e2e8f0',
+    inputText:   isDarkMode ? '#e2e8f0' : '#0f172a',
+    shadow:      isDarkMode ? '0 10px 30px -12px rgba(0,0,0,0.65)' : '0 4px 16px -4px rgba(15,23,42,0.10)',
+    iconBg:      isDarkMode ? '#16213a' : '#f1f5f9',
+    iconColor:   isDarkMode ? '#facc15' : '#475569',
+    primary:     '#3b82f6',
+    accent:      '#22d3ee',
+    gradient:    'linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%)',
+    danger:      '#ef4444',
+    warning:     '#f59e0b',
+    success:     '#10b981',
+    textUniversal: '#2563eb',
+  }), [isDarkMode]);
 
   if (['login', 'register', 'forgot', 'reset'].includes(view)) {
     return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} show2FA={show2FA} setShow2FA={setShow2FA} />;

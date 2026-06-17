@@ -81,7 +81,7 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
     
     courseDesc: { fontSize: '14px', color: theme.textSub, margin: '0 0 24px 0', lineHeight: '1.6', flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }, // Corta o texto em 3 linhas
     
-    button: { width: '100%', padding: '14px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.primary}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
+    button: { width: '100%', padding: '14px', backgroundImage: theme.gradient, backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 14px ${theme.primary}45`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
 
     searchInput: { width: '100%', maxWidth: '420px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${theme.inputBorder}`, backgroundColor: theme.inputBg, color: theme.inputText, fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   };
@@ -157,8 +157,8 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
                       setActiveCourse(curso);
                       setView('licao');
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.textUniversal; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.primary; e.currentTarget.style.transform = 'scale(1)'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; e.currentTarget.style.transform = 'scale(1)'; }}
                   >
                     Iniciar Módulo
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
