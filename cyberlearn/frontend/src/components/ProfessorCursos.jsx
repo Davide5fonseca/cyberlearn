@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function ProfessorCursos({ theme, user }) {
-  const [activeTab, setActiveTab] = useState('gerirCursos'); 
+  const { notify, confirm } = useUI();
+  const [activeTab, setActiveTab] = useState('gerirCursos');
   
   const [cursosReais, setCursosReais] = useState([]); 
   const [quizzesReais, setQuizzesReais] = useState([]); 
@@ -106,27 +109,27 @@ export default function ProfessorCursos({ theme, user }) {
 
   const handleDeleteCurso = async (e, cursoId) => {
     e.stopPropagation();
-    if (!window.confirm("Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados!")) return; 
+    if (!(await confirm({ title: 'Apagar curso', message: "Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados.", confirmLabel: 'Apagar', danger: true }))) return;
     try {
       const response = await apiFetch(`/cursos/${cursoId}`, { method: 'DELETE' });
       if (response.ok) {
-        alert("✅ Curso apagado com sucesso.");
-        setCursosReais(cursosReais.filter(curso => curso.id !== cursoId)); 
-        buscarQuizzes(); 
-      }
-    } catch (error) { alert("Erro de ligação."); }
+        notify("Curso apagado com sucesso.", 'success');
+        setCursosReais(cursosReais.filter(curso => curso.id !== cursoId));
+        buscarQuizzes();
+      } else { notify('Não foi possível apagar o curso.', 'error'); }
+    } catch (error) { notify("Erro de ligação.", 'error'); }
   };
 
   const handleDeleteQuiz = async (e, titulo) => {
     e.stopPropagation();
-    if (!window.confirm(`Tens a certeza que queres APAGAR a avaliação "${titulo}"?`)) return; 
+    if (!(await confirm({ title: 'Apagar avaliação', message: `Tens a certeza que queres APAGAR a avaliação "${titulo}"?`, confirmLabel: 'Apagar', danger: true }))) return;
     try {
       const response = await apiFetch(`/quizzes/${encodeURIComponent(titulo)}`, { method: 'DELETE' });
       if (response.ok) {
-        alert("✅ Quiz apagado com sucesso.");
-        setQuizzesReais(quizzesReais.filter(q => q.titulo !== titulo)); 
-      }
-    } catch (error) { alert("Erro de ligação."); }
+        notify("Quiz apagado com sucesso.", 'success');
+        setQuizzesReais(quizzesReais.filter(q => q.titulo !== titulo));
+      } else { notify('Não foi possível apagar o quiz.', 'error'); }
+    } catch (error) { notify("Erro de ligação.", 'error'); }
   };
 
   const handleCursoChange = (e) => setCursoData({ ...cursoData, [e.target.name]: e.target.value });
@@ -168,9 +171,9 @@ export default function ProfessorCursos({ theme, user }) {
     setTimeout(() => { textarea.focus(); textarea.setSelectionRange(start + tagStart.length, end + tagStart.length); }, 0);
   };
 
-  const insertTemplate = (index) => {
+  const insertTemplate = async (index) => {
     const templateHTML = `<h2>O que é [Tema do Curso]?</h2>\n\n<p>Uma breve explicação sobre o tema principal do curso.</p>\n\n<div style="padding: 15px; background-color: #1e293b; border-left: 4px solid #3b82f6; border-radius: 4px; margin: 20px 0;">\n  <h4 style="color: #3b82f6; margin-top: 0;">ℹ️ Dica de Segurança</h4>\n  <p style="margin-bottom: 0;">Escreve aqui um aviso importante para o aluno.</p>\n</div>\n\n<h3>Sinais Vermelhos a procurar:</h3>\n<ul>\n  <li><strong>Ponto 1:</strong> Explicação do ponto 1.</li>\n  <li><strong>Ponto 2:</strong> Explicação do ponto 2.</li>\n</ul>`;
-    if(licoes[index].length > 0) if(!window.confirm("Vai substituir o texto desta lição. Continuar?")) return;
+    if (licoes[index].length > 0 && !(await confirm("Isto vai substituir o texto desta lição. Continuar?"))) return;
     handleLicaoTextoChange(index, templateHTML);
   };
 
@@ -188,18 +191,18 @@ export default function ProfessorCursos({ theme, user }) {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("✅ " + data.mensagem);
+        notify(data.mensagem || 'Curso guardado!', 'success');
         goNovoCurso();
-        setActiveTab('gerirCursos'); 
-      } else alert("Erro: " + data.erro);
-    } catch (err) { alert("Erro de ligação."); }
+        setActiveTab('gerirCursos');
+      } else notify(data.erro || 'Não foi possível guardar o curso.', 'error');
+    } catch (err) { notify("Erro de ligação.", 'error'); }
   };
 
   const handleSubmitQuiz = async (e) => { 
     e.preventDefault(); 
     const cursoEncontrado = cursosReais.find(c => c.titulo.toLowerCase().trim() === quizMeta.nome_curso.toLowerCase().trim());
     if (!cursoEncontrado) {
-        alert("Erro: O curso que escreveste não foi encontrado. Garante que o nome está igual ao que criaste!");
+        notify("O curso que escreveste não foi encontrado. Garante que o nome está igual ao que criaste.", 'error');
         return;
     }
 
@@ -215,11 +218,16 @@ export default function ProfessorCursos({ theme, user }) {
         if (res.ok) perguntasGuardadas++;
       }
 
-      alert(`✅ Avaliação com ${perguntasGuardadas} pergunta(s) guardada com sucesso!`);
+      // Reporta o resultado real: não declarar sucesso se algumas perguntas falharam.
+      if (perguntasGuardadas === perguntasQuiz.length) {
+        notify(`Avaliação com ${perguntasGuardadas} pergunta(s) guardada com sucesso!`, 'success');
+      } else {
+        notify(`Apenas ${perguntasGuardadas} de ${perguntasQuiz.length} perguntas foram guardadas. Verifica a avaliação e tenta guardar as restantes.`, 'warning');
+      }
       goNovoQuiz();
       setActiveTab('gerirCursos');
 
-    } catch (err) { alert("Erro ao guardar quiz."); }
+    } catch (err) { notify("Erro ao guardar quiz.", 'error'); }
   };
 
   const styles = {
@@ -306,7 +314,7 @@ export default function ProfessorCursos({ theme, user }) {
           <p style={{color: theme.textSub, fontSize: '14px', lineHeight: '1.6', marginBottom: '40px'}}>{viewingCurso.descricao}</p>
 
           {conteudosLicao.map((htmlTexto, idx) => {
-            const htmlLimpo = htmlTexto.replace(/background-color:\s*[^;"]+;?/gi, '').replace(/color:\s*[^;"]+;?/gi, '').replace(/background:\s*[^;"]+;?/gi, '');
+            const htmlLimpo = DOMPurify.sanitize(htmlTexto.replace(/background-color:\s*[^;"]+;?/gi, '').replace(/color:\s*[^;"]+;?/gi, '').replace(/background:\s*[^;"]+;?/gi, ''), { USE_PROFILES: { html: true } });
             return (
               <div key={idx} style={{marginBottom: '30px', padding: '25px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}40`}}>
                 <h3 style={{margin: '0 0 20px 0', color: theme.primary, borderBottom: `2px solid ${theme.primary}30`, paddingBottom: '10px', display: 'inline-block'}}>

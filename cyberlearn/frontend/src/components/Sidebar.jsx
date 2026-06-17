@@ -1,28 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api';
-
-const translations = {
-  pt: {
-    'sidebar.adminPlatform': 'Dashboard',
-    'sidebar.adminUsers': 'Professores',
-    'sidebar.adminAprovacoes': 'Aprovações',
-    'sidebar.profile': 'Perfil',
-
-    'sidebar.profAnalytics': 'Dashboard',
-    'sidebar.profStudents': 'Alunos',
-    'sidebar.profStudio': 'Cursos',
-
-    'sidebar.dashboard': 'Dashboard',
-    'sidebar.courses': 'Cursos',
-    'sidebar.quizzes': 'Quizzes',
-    'sidebar.logout': 'Sair da Conta'
-  }
-};
+import { useTranslation } from '../i18n';
 
 export default function Sidebar({ view, setView, handleLogout, theme, user, isMobile }) {
 
-  const [lang] = useState('pt');
-  const t = (key) => translations[lang][key] || key;
+  const t = useTranslation();
 
   const isProfessor = user?.tipo === 'professor';
   const isAdmin = user?.tipo === 'admin';

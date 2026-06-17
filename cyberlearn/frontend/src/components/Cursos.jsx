@@ -5,7 +5,6 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
   const [cursos, setCursos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mantido o estado da pesquisa caso precises de o ligar a um componente externo no futuro
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -44,9 +43,10 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
     return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'; // Iniciante
   };
 
-  const cursosFiltrados = cursos.filter(curso => 
-    curso.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    curso.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+  const termo = searchTerm.toLowerCase();
+  const cursosFiltrados = cursos.filter(curso =>
+    (curso.titulo || '').toLowerCase().includes(termo) ||
+    (curso.descricao || '').toLowerCase().includes(termo)
   );
 
   const styles = {
@@ -82,12 +82,23 @@ export default function Cursos({ setView, theme, setActiveCourse }) {
     courseDesc: { fontSize: '14px', color: theme.textSub, margin: '0 0 24px 0', lineHeight: '1.6', flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }, // Corta o texto em 3 linhas
     
     button: { width: '100%', padding: '14px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${theme.primary}40`, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' },
+
+    searchInput: { width: '100%', maxWidth: '420px', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${theme.inputBorder}`, backgroundColor: theme.inputBg, color: theme.inputText, fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   };
 
   return (
     <div style={styles.container}>
-      
-      {/* O HEADER FOI REMOVIDO DAQUI */}
+
+      {!loading && cursos.length > 0 && (
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Pesquisar cursos por título ou descrição..."
+          aria-label="Pesquisar cursos"
+          style={styles.searchInput}
+        />
+      )}
 
       {loading ? (
         <div style={{textAlign: 'center', padding: '60px', color: theme.textSub, fontWeight: 'bold'}}>

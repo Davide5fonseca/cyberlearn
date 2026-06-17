@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function Quizzes({ theme, setView, user, targetQuizCourse, setTargetQuizCourse }) {
+  const { notify, confirm } = useUI();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -65,10 +67,10 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
               setShowResults(false);
               setSelectedOption(null);
             } else {
-              alert("Este quiz ainda não tem perguntas disponíveis!");
+              notify("Este quiz ainda não tem perguntas disponíveis!", 'warning');
             }
           } else {
-            alert(`Ainda não existe um quiz associado ao curso "${targetQuizCourse}".`);
+            notify(`Ainda não existe um quiz associado ao curso "${targetQuizCourse}".`, 'info');
           }
           // Limpamos o alvo para não forçar a abertura noutras visitas à página
           if (setTargetQuizCourse) setTargetQuizCourse(null);
@@ -85,7 +87,7 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
 
   const handleStartQuiz = (quiz) => {
     if (quiz.perguntas.length === 0) {
-      alert("Este quiz ainda não tem perguntas disponíveis!");
+      notify("Este quiz ainda não tem perguntas disponíveis!", 'warning');
       return;
     }
     setActiveQuiz(quiz);
@@ -279,7 +281,7 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
               <span style={{color: theme.textSub, fontSize: '14px', fontWeight: 'bold'}}>
                  Questão <span style={{color: activeColor, fontSize: '18px'}}>{currentQuestion + 1}</span> de {activeQuiz.perguntas.length}
               </span>
-              <span style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px', transition: 'background 0.2s'}} onClick={() => { if(window.confirm('Queres mesmo sair? O teu progresso será perdido.')) setActiveQuiz(null) }}>Abandonar</span>
+              <span style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px', transition: 'background 0.2s'}} onClick={async () => { if (await confirm({ title: 'Abandonar quiz', message: 'Queres mesmo sair? O teu progresso será perdido.', confirmLabel: 'Abandonar', danger: true })) setActiveQuiz(null); }}>Abandonar</span>
             </div>
             <div style={styles.progressContainer}>
               <div style={styles.progressBar(progressPercent, activeColor)}></div>

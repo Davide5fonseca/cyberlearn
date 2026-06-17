@@ -1,49 +1,8 @@
 import { useState, useEffect } from 'react';
-
-const translations = {
-  pt: {
-    'auth.welcome': 'Bem-vindo',
-    'auth.subtitleLogin': 'Insere as tuas credenciais para aceder à plataforma.',
-    'auth.email': 'Endereço de E-mail',
-    'auth.password': 'Palavra-Passe',
-    'auth.passwordHint': 'Mínimo de 8 caracteres, 1 maiúscula e 1 carácter especial.',
-    'auth.forgot': 'Esqueceste-te da senha?',
-    'auth.signIn': 'Entrar',
-    'auth.noAccount': 'Ainda não tens conta?',
-    'auth.signUp': 'Regista-te aqui',
-    'auth.createAccount': 'Criar Conta',
-    'auth.subtitleRegister': 'Junta-te à nossa plataforma de cibersegurança.',
-    'auth.fullName': 'Nome Completo',
-    'auth.confirmPassword': 'Confirmar Palavra-Passe',
-    'auth.role': 'Tipo de Conta',
-    'auth.student': 'Aluno',
-    'auth.instructor': 'Professor',
-    'auth.admin': 'Administrador',
-    'auth.createBtn': 'Criar Conta',
-    'auth.hasAccount': 'Já tens uma conta?',
-    'auth.resetTitle': 'Recuperar Senha',
-    'auth.resetSub': 'Introduz o teu e-mail para receberes um código.',
-    'auth.sendLink': 'Enviar Código',
-    'auth.backLogin': 'Voltar ao Login',
-    'auth.back': 'Voltar',
-    'auth.newPassTitle': 'Nova Senha',
-    'auth.newPassSub': 'Insere o código que recebeste por e-mail e a tua nova senha.',
-    'auth.newPass': 'Nova Palavra-Passe',
-    'auth.confirmNewPass': 'Confirmar Nova Palavra-Passe',
-    'auth.resetBtn': 'Atualizar Palavra-Passe',
-    'auth.twoFaTitle': 'Segurança 2FA',
-    'auth.twoFaSub': 'Insere o código de 6 dígitos enviado para o teu e-mail.',
-    'auth.code': 'Código de 6 dígitos',
-    'auth.verifyBtn': 'Verificar Acesso',
-    'auth.brandTitle': 'Domina a\nCibersegurança',
-    'auth.brandSub': 'Aprende, pratica e protege. Junta-te à elite da segurança digital.'
-  }
-};
+import { useTranslation } from '../i18n';
 
 export default function Auth({ view, setView, formData, handleInputChange, handleSubmit, theme, isDarkMode, setIsDarkMode, show2FA, setShow2FA }) {
-  // Idioma fixo em PT
-  const lang = 'pt';
-  const t = (key) => translations[lang][key] || key;
+  const t = useTranslation();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   

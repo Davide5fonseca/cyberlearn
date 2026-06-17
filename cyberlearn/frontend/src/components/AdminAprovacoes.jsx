@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function AdminAprovacoes({ theme }) {
+  const { notify, confirm } = useUI();
   const [pendentes, setPendentes] = useState({ cursos: [], quizzes: [] });
   const [loading, setLoading] = useState(true);
 
@@ -36,14 +38,16 @@ export default function AdminAprovacoes({ theme }) {
         res = await apiFetch(`/admin/aprovar/${tipo}/${identificador}`, { method: 'PUT' });
       }
       
-      if (res.ok) buscarPendentes();
+      if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} aprovado com sucesso!`, 'success'); buscarPendentes(); }
+      else notify('Não foi possível aprovar.', 'error');
     } catch (err) {
       console.error(err);
+      notify('Erro de ligação ao servidor.', 'error');
     }
   };
 
   const handleRejeitar = async (tipo, identificador) => {
-    if (!window.confirm(`Tens a certeza que queres REJEITAR e APAGAR este ${tipo}?`)) return;
+    if (!(await confirm({ title: 'Rejeitar conteúdo', message: `Tens a certeza que queres REJEITAR e APAGAR este ${tipo}?`, confirmLabel: 'Rejeitar', danger: true }))) return;
     try {
       let res;
       if (tipo === 'quiz') {
@@ -57,9 +61,11 @@ export default function AdminAprovacoes({ theme }) {
         res = await apiFetch(`/admin/rejeitar/${tipo}/${identificador}`, { method: 'DELETE' });
       }
 
-      if (res.ok) buscarPendentes();
+      if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} rejeitado e removido.`, 'success'); buscarPendentes(); }
+      else notify('Não foi possível rejeitar.', 'error');
     } catch (err) {
       console.error(err);
+      notify('Erro de ligação ao servidor.', 'error');
     }
   };
 

@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function ProfessorDashboard({ theme, user }) {
+  const { notify } = useUI();
   const [acessos, setAcessos] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export default function ProfessorDashboard({ theme, user }) {
       
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
-      alert("Houve um problema ao gerar o PDF. Verifica a consola.");
+      notify("Houve um problema ao gerar o PDF.", 'error');
     }
   };
 
@@ -261,7 +263,7 @@ export default function ProfessorDashboard({ theme, user }) {
             </button>
 
             <button 
-              onClick={() => { carregarDados(); alert("Aviso: Dados atualizados."); }}
+              onClick={() => { carregarDados(); notify('Dados atualizados.', 'success'); }}
               style={styles.buttonSecondary}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}

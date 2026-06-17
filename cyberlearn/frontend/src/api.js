@@ -1,4 +1,6 @@
-export const API_URL = 'https://cyberlearn-nine.vercel.app';
+// Endereço da API. Definido por VITE_API_URL em build/dev; o fallback
+// garante que produção continua a funcionar mesmo sem a variável definida.
+export const API_URL = import.meta.env.VITE_API_URL || 'https://cyberlearn-nine.vercel.app';
 
 // Lê o token JWT guardado após o login.
 export function getToken() {

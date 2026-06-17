@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function ProfessorAlunos({ theme }) {
+  const { notify, confirm } = useUI();
   const [viewMode, setViewMode] = useState('list');
   const [alunos, setAlunos] = useState([]);
   const [selectedAluno, setSelectedAluno] = useState(null);
@@ -44,21 +46,25 @@ export default function ProfessorAlunos({ theme }) {
   const handleDeleteAluno = async (e, id, nome) => {
     e.stopPropagation(); 
     
-    if (window.confirm(`Tem a certeza absoluta que deseja eliminar o(a) aluno(a) ${nome}?\n\nEsta ação é irreversível e apagará todas as notas, XP e troféus associados a esta conta.`)) {
-      try {
-        const res = await apiFetch(`/utilizadores/${id}`, {
-          method: 'DELETE'
-        });
-        
-        if (res.ok) {
-          setAlunos(alunos.filter(a => a.id !== id));
-          if (selectedAluno && selectedAluno.id === id) setViewMode('list');
-        } else {
-          alert("Não foi possível eliminar o aluno.");
-        }
-      } catch (error) {
-        console.error("Erro ao eliminar aluno:", error);
+    const ok = await confirm({
+      title: 'Eliminar aluno',
+      message: `Tem a certeza que deseja eliminar o(a) aluno(a) ${nome}?\n\nEsta ação é irreversível e apagará todas as notas, XP e troféus associados a esta conta.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await apiFetch(`/utilizadores/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setAlunos(alunos.filter(a => a.id !== id));
+        if (selectedAluno && selectedAluno.id === id) setViewMode('list');
+        notify('Aluno eliminado.', 'success');
+      } else {
+        notify("Não foi possível eliminar o aluno.", 'error');
       }
+    } catch (error) {
+      console.error("Erro ao eliminar aluno:", error);
+      notify('Erro de ligação ao servidor.', 'error');
     }
   };
 
@@ -251,7 +257,7 @@ export default function ProfessorAlunos({ theme }) {
           </h2>
 
           <button 
-            onClick={() => { buscarAlunos(); alert("Aviso: Dados da turma atualizados."); }}
+            onClick={() => { buscarAlunos(); notify('Dados da turma atualizados.', 'success'); }}
             style={styles.buttonSecondary}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}

@@ -2,32 +2,12 @@ import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { apiFetch } from '../api';
-
-const translations = {
-  pt: {
-    'admin.activeInstructors': 'Professores Registados',
-    'admin.activeSessions': 'Sessões Ativas (24h)',
-    'admin.totalLogins': 'Total de Acessos',
-    'admin.loginHistory': 'Histórico de Acessos',
-    'admin.monitorDesc': 'Monitoriza os últimos 5 acessos à plataforma por professores.',
-    'admin.fullHistoryDesc': 'Lista completa de todos os acessos efetuados por professores.',
-    'admin.refresh': 'Atualizar Dados',
-    'admin.exportPdf': 'Exportar PDF',
-    'admin.viewAll': 'Ver Todo o Histórico',
-    'admin.back': 'Voltar ao Painel',
-    'notifications.notif1Title': 'Aviso',
-    'admin.user': 'Professor',
-    'admin.email': 'Endereço de E-mail',
-    'admin.timestamp': 'Data e Hora do Acesso',
-    'admin.status': 'Estado',
-    'common.success': 'Sucesso',
-    'admin.noData': 'Ainda não há registos de acesso.'
-  }
-};
+import { useUI } from './ui/UIProvider';
+import { useTranslation } from '../i18n';
 
 export default function AdminDashboard({ theme, user, setView }) {
-  const [lang] = useState('pt');
-  const t = (key) => translations[lang][key] || key;
+  const { notify } = useUI();
+  const t = useTranslation();
 
   const [acessos, setAcessos] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -257,7 +237,7 @@ export default function AdminDashboard({ theme, user, setView }) {
             )}
 
             <button 
-              onClick={() => { carregarDados(); alert(t('notifications.notif1Title') + ": Dados atualizados."); }}
+              onClick={() => { carregarDados(); notify('Dados atualizados.', 'success'); }}
               style={styles.buttonSecondary}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}

@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 
 export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
   // Estado para saber em que lição o aluno está (começa na 0)
@@ -44,10 +45,13 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
   const totalLicoes = conteudosDasLicoes.length;
   let licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || "O professor ainda não adicionou conteúdo a esta lição.";
 
+  // Remove cores inline (estética: o tema controla as cores)...
   licaoAtualHTML = licaoAtualHTML
-    .replace(/background-color:\s*[^;"]+;?/gi, '') 
-    .replace(/color:\s*[^;"]+;?/gi, '')           
-    .replace(/background:\s*[^;"]+;?/gi, '');      
+    .replace(/background-color:\s*[^;"]+;?/gi, '')
+    .replace(/color:\s*[^;"]+;?/gi, '')
+    .replace(/background:\s*[^;"]+;?/gi, '');
+  // ...e sanitiza para prevenir XSS no conteúdo criado pelos professores.
+  licaoAtualHTML = DOMPurify.sanitize(licaoAtualHTML, { USE_PROFILES: { html: true } });
 
   const handleNext = () => {
     if (currentLicaoIndex < totalLicoes - 1) {

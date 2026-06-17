@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import Profile from './Profile'; 
+import Profile from './Profile';
 import { apiFetch } from '../api';
+import { useUI } from './ui/UIProvider';
 
 export default function AdminProfessores({ theme }) {
+  const { notify, confirm } = useUI();
   const [professores, setProfessores] = useState([]);
   const [professorSelecionado, setProfessorSelecionado] = useState(null);
   
@@ -21,24 +23,26 @@ export default function AdminProfessores({ theme }) {
   }, []);
 
   const handleEliminar = async (id, nome) => {
-    const confirmacao = window.confirm(
-      `Queres mesmo remover o professor ${nome} da plataforma? 😢\n\nAtenção: Todos os cursos, materiais e quizzes que esta pessoa criou vão desaparecer para sempre. Esta ação não tem volta a dar!`
-    );
-    
+    const confirmacao = await confirm({
+      title: 'Remover professor',
+      message: `Queres mesmo remover o professor ${nome} da plataforma?\n\nAtenção: todos os cursos, materiais e quizzes que esta pessoa criou vão desaparecer para sempre. Esta ação é irreversível.`,
+      confirmLabel: 'Remover',
+      danger: true,
+    });
     if (!confirmacao) return;
 
     try {
       const response = await apiFetch(`/professores/${id}`, { method: 'DELETE' });
       const data = await response.json();
-      
+
       if (response.ok) {
-        alert(`Feito! ${data.mensagem} 👋`);
+        notify(data.mensagem || 'Professor removido.', 'success');
         carregarProfessores(); // Atualizamos a montra para refletir a saída
       } else {
-        alert(`Ops, algo correu mal: ${data.erro} 🛑`);
+        notify(data.erro || 'Algo correu mal.', 'error');
       }
     } catch (error) {
-      alert("Não conseguimos ligar ao servidor. Verifica a tua internet e tenta de novo. 🔌");
+      notify("Não conseguimos ligar ao servidor. Verifica a tua ligação e tenta de novo.", 'error');
     }
   };
 

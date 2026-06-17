@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Auth from './components/Auth';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -13,6 +13,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AdminProfessores from './components/AdminProfessores';
 import AdminAprovacoes from './components/AdminAprovacoes';
 import { apiFetch } from './api';
+import { useUI } from './components/ui/UIProvider';
 
 // ─── Utilitário: comprime uma imagem base64 antes de enviar ao servidor ────────
 const compressImage = (base64, maxWidth = 300, quality = 0.75) =>
@@ -32,6 +33,7 @@ const compressImage = (base64, maxWidth = 300, quality = 0.75) =>
 // ────────────────────────────────────────────────────────────────────────────────
 
 function App() {
+  const { notify } = useUI();
   const [user, setUser] = useState(() => {
     try { const saved = localStorage.getItem('cyberlearn_user'); return saved ? JSON.parse(saved) : null; } catch { return null; }
   });
@@ -92,7 +94,7 @@ function App() {
     if (view === 'login' && show2FA) {
       const formDataObj = new FormData(e.currentTarget);
       const tokenFinal = formDataObj.get('codigo2FA');
-      if (!tokenFinal || tokenFinal.length !== 6) return alert("Por favor, preenche todos os 6 dígitos enviados para o teu email.");
+      if (!tokenFinal || tokenFinal.length !== 6) return notify("Preenche todos os 6 dígitos enviados para o teu email.", 'warning');
       try {
         const response = await apiFetch('/login-2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ utilizadorId: tempUserId, token: tokenFinal }) });
         const data = await response.json();
@@ -109,22 +111,22 @@ function App() {
           if (data.utilizador.tipo === 'admin') setView('admin_dashboard');
           else if (data.utilizador.tipo === 'professor') setView('professor_dashboard');
           else setView('dashboard');
-        } else { alert(`Erro: ${data.erro}`); }
-      } catch (error) { alert("Erro de ligação com o servidor."); }
+        } else { notify(data.erro || 'Não foi possível validar o código.', 'error'); }
+      } catch (error) { notify("Erro de ligação com o servidor.", 'error'); }
       return;
     }
 
     if (view === 'reset') {
-      if (formData.password !== formData.confirmarPassword) return alert("As palavras-passe não coincidem!");
+      if (formData.password !== formData.confirmarPassword) return notify("As palavras-passe não coincidem!", 'warning');
       const formDataObj = new FormData(e.currentTarget);
       const codigoReset = formDataObj.get('codigoReset');
-      if (!codigoReset || codigoReset.length !== 6) return alert("Por favor, insere o código de 6 dígitos que recebeste no email.");
+      if (!codigoReset || codigoReset.length !== 6) return notify("Insere o código de 6 dígitos que recebeste no email.", 'warning');
       try {
         const response = await apiFetch('/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, token: codigoReset, novaPassword: formData.password }) });
         const data = await response.json();
-        if (response.ok) { alert("Sucesso! " + data.mensagem); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); }
-        else { alert(`Erro: ${data.erro}`); }
-      } catch (error) { alert("Erro de ligação."); }
+        if (response.ok) { notify(data.mensagem || 'Palavra-passe atualizada!', 'success'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); }
+        else { notify(data.erro || 'Não foi possível repor a palavra-passe.', 'error'); }
+      } catch (error) { notify("Erro de ligação.", 'error'); }
       return;
     }
 
@@ -132,19 +134,19 @@ function App() {
       try {
         const response = await apiFetch('/recuperar-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email }) });
         const data = await response.json();
-        if (response.ok) { setView('reset'); } else { alert(`Erro: ${data.erro}`); }
-      } catch (error) { alert("Erro de ligação."); }
+        if (response.ok) { setView('reset'); } else { notify(data.erro || 'Não foi possível enviar o código.', 'error'); }
+      } catch (error) { notify("Erro de ligação.", 'error'); }
       return;
     }
 
-    if (view === 'register' && formData.password !== formData.confirmarPassword) return alert("As palavras-passe não coincidem!");
+    if (view === 'register' && formData.password !== formData.confirmarPassword) return notify("As palavras-passe não coincidem!", 'warning');
 
     const endpoint = view === 'login' ? '/login' : '/registar';
     try {
       const response = await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const data = await response.json();
       if (response.ok) {
-        if (view === 'register') { alert('Conta criada com sucesso!'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); }
+        if (view === 'register') { notify('Conta criada com sucesso!', 'success'); setView('login'); setFormData({ ...formData, password: '', confirmarPassword: '' }); }
         else if (view === 'login') {
           if (data.requires2FA) {
             setTempUserId(data.utilizadorId);
@@ -160,14 +162,14 @@ function App() {
             else setView('dashboard');
           }
         }
-      } else { alert(`Erro: ${data.erro}`); }
-    } catch (error) { alert("Erro de ligação ao servidor."); }
+      } else { notify(data.erro || 'Ocorreu um erro.', 'error'); }
+    } catch (error) { notify("Erro de ligação ao servidor.", 'error'); }
   };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (profileData.novaSenha && profileData.novaSenha !== profileData.confirmarNovaSenha)
-      return alert("As novas palavras-passe não coincidem!");
+      return notify("As novas palavras-passe não coincidem!", 'warning');
 
     try {
       let avatarParaEnviar = undefined;
@@ -198,7 +200,7 @@ function App() {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Alterações guardadas com sucesso!");
+        notify("Alterações guardadas com sucesso!", 'success');
         setUser({
           ...user,
           nome: profileData.nome,
@@ -214,16 +216,16 @@ function App() {
           linkedin: profileData.linkedin,
         });
         setProfileData({ ...profileData, senhaAtual: '', novaSenha: '', confirmarNovaSenha: '' });
-      } else { 
-        alert(`Erro: ${data.erro}`); 
+      } else {
+        notify(data.erro || 'Não foi possível guardar o perfil.', 'error');
       }
     } catch (error) {
       console.error('Erro ao guardar perfil:', error);
-      alert("Erro de ligação ao servidor.");
+      notify("Erro de ligação ao servidor.", 'error');
     }
   };
 
-  const theme = { bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 8px 20px rgba(0,0,0,0.4)' : '0 4px 10px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981' };
+  const theme = useMemo(() => ({ bg: isDarkMode ? '#060b14' : '#f0f2f5', cardBg: isDarkMode ? '#171f2f' : '#ffffff', sidebarBg: isDarkMode ? '#111827' : '#ffffff', textMain: isDarkMode ? '#ffffff' : '#111827', textSub: isDarkMode ? '#9ca3af' : '#6b7280', inputBg: isDarkMode ? '#1f2937' : '#f9fafb', inputBorder: isDarkMode ? '#374151' : '#d1d5db', inputText: isDarkMode ? '#ffffff' : '#111827', shadow: isDarkMode ? '0 8px 20px rgba(0,0,0,0.4)' : '0 4px 10px rgba(0,0,0,0.05)', iconBg: isDarkMode ? '#1f2937' : '#f3f4f6', iconColor: isDarkMode ? '#facc15' : '#4b5563', primary: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', textUniversal: '#3b82f6', success: '#10b981' }), [isDarkMode]);
 
   if (['login', 'register', 'forgot', 'reset'].includes(view)) {
     return <Auth view={view} setView={setView} formData={formData} handleInputChange={handleInputChange} handleSubmit={handleSubmit} theme={theme} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} show2FA={show2FA} setShow2FA={setShow2FA} />;
