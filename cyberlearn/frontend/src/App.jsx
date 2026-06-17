@@ -256,7 +256,10 @@ function App() {
 
         <Sidebar view={view} setView={setView} handleLogout={handleLogout} theme={theme} user={user} isMobile={isMobile} />
 
-        <div style={{ flex: 1, padding: isMobile ? '15px' : '20px 30px', boxSizing: 'border-box', overflowY: 'auto', overflowX: 'hidden', height: isMobile ? 'calc(100vh - 65px)' : '100vh' }}>
+        <div style={{ flex: 1, padding: isMobile ? '15px' : '20px 30px', boxSizing: 'border-box', overflowY: 'auto', overflowX: 'hidden', height: isMobile ? 'calc(100vh - 65px)' : '100vh',
+          background: isDarkMode
+            ? `radial-gradient(900px circle at 10% -8%, rgba(59,130,246,0.13), transparent 45%), radial-gradient(820px circle at 98% 112%, rgba(34,211,238,0.11), transparent 45%), linear-gradient(rgba(148,163,184,0.035) 1px, transparent 1px) 0 0/100% 44px, linear-gradient(90deg, rgba(148,163,184,0.035) 1px, transparent 1px) 0 0/44px 100%, ${theme.bg}`
+            : `radial-gradient(900px circle at 10% -8%, rgba(59,130,246,0.06), transparent 45%), radial-gradient(820px circle at 98% 112%, rgba(34,211,238,0.05), transparent 45%), ${theme.bg}` }}>
 
           {view !== 'licao' && (
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '20px', gap: isMobile ? '15px' : '0' }}>

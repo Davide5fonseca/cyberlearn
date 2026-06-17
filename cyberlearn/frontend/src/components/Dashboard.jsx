@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
+import { StatCard } from './ui/primitives';
 
 export default function Dashboard({ theme, user, setView }) {
   const [trofeus, setTrofeus] = useState([]);
@@ -239,20 +240,7 @@ export default function Dashboard({ theme, user, setView }) {
             color: cW, value: stats?.diasSeguidos || 0, label: 'Dias Seguidos', sub: '🔥',
           },
         ].map((s, i) => (
-          <div key={i} style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.inputBorder}`, borderRadius: '16px', padding: '20px', boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', backgroundColor: `${s.color}15`, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {s.icon}
-            </div>
-            <div>
-              <div style={{ fontSize: '28px', fontWeight: '800', color: theme.textMain, lineHeight: 1 }}>
-                {s.value}{s.sub === '🔥' ? ' 🔥' : ''}
-              </div>
-              <div style={{ fontSize: '12px', color: theme.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>{s.label}</div>
-              {s.sub && s.sub !== '🔥' && (
-                <div style={{ fontSize: '12px', color: s.color, fontWeight: '700', marginTop: '2px' }}>{s.sub}</div>
-              )}
-            </div>
-          </div>
+          <StatCard key={i} theme={theme} icon={s.icon} color={s.color} value={s.value} label={s.label} sub={s.sub} />
         ))}
       </div>
 
