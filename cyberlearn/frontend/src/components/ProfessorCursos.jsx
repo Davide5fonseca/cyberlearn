@@ -233,7 +233,7 @@ export default function ProfessorCursos({ theme, user }) {
   const styles = {
     container: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease' },
     tabsContainer: { display: 'inline-flex', gap: '4px', backgroundColor: theme.inputBg, padding: '6px', borderRadius: '10px', boxShadow: `inset 0 2px 4px rgba(0,0,0,0.1)` },
-    tabButton: (isActive) => ({ backgroundColor: isActive ? theme.primary : 'transparent', color: isActive ? 'white' : theme.textSub, border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: isActive ? 'bold' : '600', cursor: 'pointer', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: isActive ? `0 4px 8px ${theme.primary}50` : 'none' }),
+    tabButton: (isActive) => ({ backgroundColor: isActive ? theme.primary : 'transparent', backgroundImage: isActive ? theme.gradient : 'none', color: isActive ? 'white' : theme.textSub, border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: isActive ? 'bold' : '600', cursor: 'pointer', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: isActive ? `0 4px 8px ${theme.primary}45` : 'none' }),
     card: { backgroundColor: theme.cardBg, borderRadius: '12px', padding: '30px', boxShadow: theme.shadow, border: `1px solid ${theme.inputBorder}40` },
     sectionTitle: { fontSize: '18px', color: theme.textMain, margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' },
     table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: theme.textMain, fontSize: '13px' },
@@ -243,7 +243,7 @@ export default function ProfessorCursos({ theme, user }) {
     label: { display: 'block', fontSize: '11px', color: theme.textSub, fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' },
     input: { width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.inputText, padding: '12px 14px', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', transition: 'all 0.2s', fontFamily: 'inherit' },
     textarea: { width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.inputText, padding: '12px 14px', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', minHeight: '90px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.4' },
-    submitButton: { backgroundColor: theme.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'transform 0.1s, opacity 0.2s', boxShadow: `0 4px 10px ${theme.primary}50` },
+    submitButton: { backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'transform 0.1s, opacity 0.2s', boxShadow: `0 4px 10px ${theme.primary}45` },
     deleteButton: { backgroundColor: `${theme.danger}15`, color: theme.danger, border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.2s' },
     viewButton: { backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textMain, padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'background-color 0.2s' },
     backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start', transition: 'all 0.2s', marginBottom: '20px' },
@@ -374,7 +374,7 @@ export default function ProfessorCursos({ theme, user }) {
             </div>
 
             {/* BOTÃO EDITAR QUIZ */}
-            <button onClick={handleEditQuiz} style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`, margin: 0}}>
+            <button onClick={handleEditQuiz} style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`, margin: 0}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
               Editar Quiz
             </button>
@@ -484,7 +484,7 @@ export default function ProfessorCursos({ theme, user }) {
                 <h2 style={styles.sectionTitle}>Os teus Quizzes publicados</h2>
                 <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>Gestão de testes associados aos teus cursos.</p>
               </div>
-              <button style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={goNovoQuiz}>+ Adicionar Quiz</button>
+              <button style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={goNovoQuiz}>+ Adicionar Quiz</button>
             </div>
             
             {loading ? (
@@ -681,7 +681,7 @@ export default function ProfessorCursos({ theme, user }) {
             ))}
 
             <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, boxShadow: `0 4px 10px ${theme.warning}50`}}>{editingQuizTitulo ? "Guardar Alterações" : "Guardar Quiz"}</button>
+              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}}>{editingQuizTitulo ? "Guardar Alterações" : "Guardar Quiz"}</button>
             </div>
           </form>
         </div>

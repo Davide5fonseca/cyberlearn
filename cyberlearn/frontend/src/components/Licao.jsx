@@ -19,7 +19,7 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
     text: { fontSize: '16px', color: theme.textSub, lineHeight: '1.8' },
     footer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '50px', paddingTop: '25px', borderTop: `1px solid ${theme.inputBorder}60` },
     backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s' },
-    nextBtn: { backgroundColor: theme.primary, color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: `0 4px 12px ${theme.primary}50`, transition: 'transform 0.2s' }
+    nextBtn: { backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: `0 4px 12px ${theme.primary}45`, transition: 'transform 0.2s' }
   };
 
   if (!curso) {

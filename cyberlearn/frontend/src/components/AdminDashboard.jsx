@@ -142,7 +142,7 @@ export default function AdminDashboard({ theme, user, setView }) {
                   <tr key={acesso.id} style={{ transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg } }}>
                     <td style={{...styles.td, paddingLeft: '32px'}}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
                           {acesso.avatar ? (
                             <img src={acesso.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
@@ -263,7 +263,7 @@ export default function AdminDashboard({ theme, user, setView }) {
                 <tr key={acesso.id} style={{ transition: 'background-color 0.2s', ':hover': { backgroundColor: theme.inputBg } }}>
                   <td style={{...styles.td, paddingLeft: '32px'}}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', overflow: 'hidden' }}>
                         {acesso.avatar ? (
                           <img src={acesso.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (

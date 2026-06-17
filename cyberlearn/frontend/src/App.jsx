@@ -295,7 +295,7 @@ function App() {
                 <div
                   onClick={() => setView('profile')}
                   title="Aceder ao Perfil"
-                  style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: `0 4px 10px ${theme.primary}50`, transition: 'transform 0.2s ease', overflow: 'hidden' }}
+                  style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: `0 4px 10px ${theme.primary}50`, transition: 'transform 0.2s ease', overflow: 'hidden' }}
                   onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                   onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                 >

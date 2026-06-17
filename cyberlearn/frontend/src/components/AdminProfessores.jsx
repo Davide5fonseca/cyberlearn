@@ -100,7 +100,7 @@ export default function AdminProfessores({ theme }) {
     table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: theme.textMain, fontSize: '14px' },
     th: { padding: '16px 12px', borderBottom: `2px solid ${theme.inputBorder}`, color: theme.textSub, textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.5px', fontWeight: 'bold' },
     td: { padding: '16px 12px', borderBottom: `1px solid ${theme.inputBorder}60`, verticalAlign: 'middle' },
-    avatar: { width: '42px', height: '42px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '16px', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 },
+    avatar: { width: '42px', height: '42px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '16px', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 },
     viewButton: { backgroundColor: `${theme.primary}15`, color: theme.primary, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' },
     deleteButton: { backgroundColor: `${theme.danger}15`, color: theme.danger, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }
   };

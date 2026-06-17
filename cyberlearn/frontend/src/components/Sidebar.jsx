@@ -532,6 +532,7 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
             height: '40px',
             borderRadius: '50%',
             backgroundColor: theme.primary,
+            backgroundImage: theme.gradient,
             color: 'white',
             display: 'flex',
             justifyContent: 'center',

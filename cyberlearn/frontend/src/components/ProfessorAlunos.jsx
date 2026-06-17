@@ -86,7 +86,7 @@ export default function ProfessorAlunos({ theme }) {
     td: { padding: '16px', borderBottom: `1px solid ${theme.inputBorder}40`, color: theme.textMain, fontSize: '14px' },
     tr: { transition: 'background-color 0.2s', cursor: 'pointer' },
     profileHeader: { display: 'flex', gap: '20px', alignItems: 'center', paddingBottom: '24px', borderBottom: `1px solid ${theme.inputBorder}60`, marginBottom: '24px', flexWrap: 'wrap' },
-    avatarBig: { width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '32px', fontWeight: 'bold', boxShadow: `0 4px 15px ${theme.primary}50`, overflow: 'hidden' },
+    avatarBig: { width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '32px', fontWeight: 'bold', boxShadow: `0 4px 15px ${theme.primary}50`, overflow: 'hidden' },
     backBtn: { backgroundColor: theme.inputBg, color: theme.textMain, border: `1px solid ${theme.inputBorder}`, padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start', transition: 'all 0.2s' },
     profileGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' },
     infoBox: { backgroundColor: theme.inputBg, padding: '20px', borderRadius: '12px', border: `1px solid ${theme.inputBorder}40` },
@@ -299,7 +299,7 @@ export default function ProfessorAlunos({ theme }) {
                     >
                       <td style={styles.td}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                          <div style={{width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden'}}>
+                          <div style={{width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden'}}>
                             {aluno.avatar ? <img src={aluno.avatar} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : aluno.nome.charAt(0).toUpperCase()}
                           </div>
                           <span style={{fontWeight: 'bold'}}>{aluno.nome}</span>

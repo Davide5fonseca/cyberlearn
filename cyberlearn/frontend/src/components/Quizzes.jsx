@@ -255,7 +255,7 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
           </div>
           
           <button 
-             style={{...styles.button('iniciante'), width: 'auto', padding: '16px 50px', backgroundColor: theme.primary, boxShadow: `0 8px 20px ${theme.primary}40`, fontSize: '16px'}} 
+             style={{...styles.button('iniciante'), width: 'auto', padding: '16px 50px', backgroundColor: theme.primary, backgroundImage: theme.gradient, boxShadow: `0 8px 20px ${theme.primary}45`, fontSize: '16px'}}
              onClick={() => setView('dashboard')}
              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.filter = 'brightness(1.1)'; }}
              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; }}
