@@ -4,14 +4,69 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 
-console.log("A LER O EMAIL DO .ENV:", process.env.EMAIL_USER);
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('❌ FATAL: JWT_SECRET não está definido no ambiente. Por segurança, o servidor não vai arrancar.');
+    process.exit(1);
+}
 
 const app = express();
+
+// Necessário atrás de um proxy (Vercel) para ler o IP real e para o rate-limit.
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ==========================================
+// MIDDLEWARES DE SEGURANÇA (JWT + RATE LIMIT)
+// ==========================================
+const gerarToken = (u) => jwt.sign(
+    { id: u.id, perfil: (u.perfil || '').toLowerCase().trim(), nome: u.nome, email: u.email },
+    JWT_SECRET,
+    { expiresIn: '12h' }
+);
+
+// Exige um token válido. Preenche req.user = { id, perfil, nome, email }.
+const autenticar = (req, res, next) => {
+    const header = req.headers['authorization'] || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) return res.status(401).json({ erro: 'Autenticação necessária.' });
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch (err) {
+        return res.status(401).json({ erro: 'Sessão inválida ou expirada. Volta a iniciar sessão.' });
+    }
+};
+
+// Exige que o perfil do utilizador esteja na lista permitida.
+const exigirPerfil = (...perfis) => (req, res, next) => {
+    if (!req.user || !perfis.includes(req.user.perfil)) {
+        return res.status(403).json({ erro: 'Não tens permissão para realizar esta ação.' });
+    }
+    next();
+};
+
+// Permite o próprio utilizador (id no URL) OU um dos perfis elevados indicados.
+const proprioOuPerfil = (...perfis) => (req, res, next) => {
+    const alvo = parseInt(req.params.id ?? req.params.utilizadorId, 10);
+    if (req.user && (req.user.id === alvo || perfis.includes(req.user.perfil))) return next();
+    return res.status(403).json({ erro: 'Não tens permissão para aceder a estes dados.' });
+};
+
+// Limita tentativas em rotas sensíveis de autenticação (anti brute-force).
+const limiterAuth = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { erro: 'Demasiadas tentativas. Por favor aguarda alguns minutos e tenta novamente.' }
+});
 
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -120,9 +175,19 @@ transporter.verify(function(error, success) {
 // ==========================================
 // 2. AUTENTICAÇÃO E GESTÃO DE PERFIL
 // ==========================================
-app.post('/registar', async (req, res) => {
+app.post('/registar', limiterAuth, async (req, res) => {
     const { nome, email, password, tipo } = req.body;
     try {
+        // Apenas alunos e professores se podem registar. Contas de admin
+        // nunca são criadas por este endpoint público (anti escalada de privilégios).
+        const perfil = String(tipo || '').toLowerCase().trim();
+        if (!['aluno', 'professor'].includes(perfil)) {
+            return res.status(400).json({ erro: 'Tipo de conta inválido.' });
+        }
+        if (!nome || !email || !password) {
+            return res.status(400).json({ erro: 'Nome, email e palavra-passe são obrigatórios.' });
+        }
+
         const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
         if (userExists.rows.length > 0) return res.status(400).json({ erro: 'Este email já está registado.' });
 
@@ -130,9 +195,9 @@ app.post('/registar', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, salt);
 
         const novoUtilizador = await pool.query(
-            `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo) 
+            `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo)
              VALUES ($1, $2, $3, $4, NOW(), true) RETURNING id, nome, email, perfil`,
-            [nome, email, passwordHash, tipo]
+            [nome, email, passwordHash, perfil]
         );
 
         res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
@@ -141,7 +206,7 @@ app.post('/registar', async (req, res) => {
     }
 });
 
-app.post('/login', async (req, res) => {
+app.post('/login', limiterAuth, async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
@@ -189,7 +254,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.post('/login-2fa', async (req, res) => {
+app.post('/login-2fa', limiterAuth, async (req, res) => {
     const { utilizadorId, token } = req.body;
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [utilizadorId]);
@@ -225,10 +290,13 @@ app.post('/login-2fa', async (req, res) => {
             await pool.query('UPDATE utilizadores SET last_login_date = $1, streak_count = $2 WHERE id = $3', [hoje, novoStreak, utilizador.id]);
         } catch (streakErr) {}
 
-        res.status(200).json({ 
-            mensagem: 'Acesso validado com sucesso!', 
-            utilizador: { 
-                id: utilizador.id, nome: utilizador.nome, email: utilizador.email, 
+        const authToken = gerarToken(utilizador);
+
+        res.status(200).json({
+            mensagem: 'Acesso validado com sucesso!',
+            token: authToken,
+            utilizador: {
+                id: utilizador.id, nome: utilizador.nome, email: utilizador.email,
                 tipo: utilizador.perfil, data_registo: utilizador.data_registo,
                 avatar: utilizador.avatar, biografiaProf: utilizador.biografia_prof,
                 metodologia: utilizador.metodologia, nivelExperiencia: utilizador.nivel_experiencia,
@@ -242,7 +310,7 @@ app.post('/login-2fa', async (req, res) => {
     }
 });
 
-app.post('/recuperar-senha', async (req, res) => {
+app.post('/recuperar-senha', limiterAuth, async (req, res) => {
     const { email } = req.body;
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
@@ -279,7 +347,7 @@ app.post('/recuperar-senha', async (req, res) => {
     }
 });
 
-app.post('/reset-password', async (req, res) => {
+app.post('/reset-password', limiterAuth, async (req, res) => {
     const { email, token, novaPassword } = req.body;
     try {
         const result = await pool.query(
@@ -304,12 +372,14 @@ app.post('/reset-password', async (req, res) => {
     }
 });
 
-app.post('/atualizar-perfil', async (req, res) => {
-    const { 
-        id, nome, senhaAtual, novaSenha, avatar, 
-        biografiaProf, metodologia, 
-        nivelExperiencia, interesse, biografia, conquistas, github, linkedin 
-    } = req.body; 
+app.post('/atualizar-perfil', autenticar, async (req, res) => {
+    const {
+        nome, senhaAtual, novaSenha, avatar,
+        biografiaProf, metodologia,
+        nivelExperiencia, interesse, biografia, conquistas, github, linkedin
+    } = req.body;
+    // A identidade vem sempre do token, nunca do corpo do pedido.
+    const id = req.user.id;
 
     try {
         const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [id]);
@@ -346,10 +416,10 @@ app.post('/atualizar-perfil', async (req, res) => {
 // ==========================================
 // 3. GESTÃO DE CURSOS
 // ==========================================
-app.get('/cursos', async (req, res) => {
+app.get('/cursos', autenticar, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT c.*, u.nome as nome_professor 
+            SELECT c.*, u.nome as nome_professor
             FROM cursos c 
             LEFT JOIN utilizadores u ON c.professor_id = u.id 
             WHERE c.aprovado = true
@@ -361,8 +431,10 @@ app.get('/cursos', async (req, res) => {
     }
 });
 
-app.post('/cursos', async (req, res) => {
-    const { titulo, nivel, descricao, conteudo_licao, professor_id } = req.body;
+app.post('/cursos', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
+    const { titulo, nivel, descricao, conteudo_licao } = req.body;
+    // O autor é sempre o utilizador autenticado.
+    const professor_id = req.user.id;
     try {
         const result = await pool.query(
             'INSERT INTO cursos (titulo, nivel, descricao, conteudo_licao, professor_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -387,10 +459,15 @@ app.post('/cursos', async (req, res) => {
     }
 });
 
-app.put('/cursos/:id', async (req, res) => {
+app.put('/cursos/:id', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     const { id } = req.params;
     const { titulo, nivel, descricao, conteudo_licao } = req.body;
     try {
+        if (req.user.perfil === 'professor') {
+            const dono = await pool.query('SELECT professor_id FROM cursos WHERE id = $1', [id]);
+            if (dono.rows.length === 0) return res.status(404).json({ erro: 'Curso não encontrado.' });
+            if (dono.rows[0].professor_id !== req.user.id) return res.status(403).json({ erro: 'Só podes editar os teus próprios cursos.' });
+        }
         await pool.query(
             'UPDATE cursos SET titulo = $1, nivel = $2, descricao = $3, conteudo_licao = $4 WHERE id = $5',
             [titulo, nivel, descricao, conteudo_licao, id]
@@ -401,9 +478,14 @@ app.put('/cursos/:id', async (req, res) => {
     }
 });
 
-app.delete('/cursos/:id', async (req, res) => {
+app.delete('/cursos/:id', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     const { id } = req.params;
     try {
+        if (req.user.perfil === 'professor') {
+            const dono = await pool.query('SELECT professor_id FROM cursos WHERE id = $1', [id]);
+            if (dono.rows.length === 0) return res.status(404).json({ erro: 'Curso não encontrado.' });
+            if (dono.rows[0].professor_id !== req.user.id) return res.status(403).json({ erro: 'Só podes apagar os teus próprios cursos.' });
+        }
         await pool.query('DELETE FROM quizzes WHERE curso_id = $1', [id]);
         await pool.query('DELETE FROM cursos WHERE id = $1', [id]);
         res.status(200).json({ mensagem: 'Curso apagado permanentemente!' });
@@ -415,10 +497,10 @@ app.delete('/cursos/:id', async (req, res) => {
 // ==========================================
 // 4. GESTÃO DE QUIZZES E RESULTADOS
 // ==========================================
-app.get('/quizzes', async (req, res) => {
+app.get('/quizzes', autenticar, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT q.*, c.titulo as nome_curso, c.nivel as nivel_curso 
+            SELECT q.*, c.titulo as nome_curso, c.nivel as nivel_curso
             FROM quizzes q 
             JOIN cursos c ON q.curso_id = c.id 
             WHERE q.aprovado = true
@@ -430,9 +512,15 @@ app.get('/quizzes', async (req, res) => {
     }
 });
 
-app.post('/quizzes', async (req, res) => {
+app.post('/quizzes', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     const { titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta } = req.body;
     try {
+        // Um professor só pode adicionar perguntas a cursos seus.
+        if (req.user.perfil === 'professor') {
+            const dono = await pool.query('SELECT professor_id FROM cursos WHERE id = $1', [curso_id]);
+            if (dono.rows.length === 0) return res.status(404).json({ erro: 'Curso não encontrado.' });
+            if (dono.rows[0].professor_id !== req.user.id) return res.status(403).json({ erro: 'Só podes criar quizzes para os teus próprios cursos.' });
+        }
         await pool.query(
             'INSERT INTO quizzes (titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
             [titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta]
@@ -453,9 +541,19 @@ app.post('/quizzes', async (req, res) => {
     }
 });
 
-app.delete('/quizzes/:titulo', async (req, res) => {
+app.delete('/quizzes/:titulo', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     const { titulo } = req.params;
     try {
+        if (req.user.perfil === 'professor') {
+            const donos = await pool.query(
+                'SELECT DISTINCT c.professor_id FROM quizzes q JOIN cursos c ON q.curso_id = c.id WHERE q.titulo = $1',
+                [titulo]
+            );
+            const alheio = donos.rows.some(r => r.professor_id !== req.user.id);
+            if (donos.rows.length === 0 || alheio) {
+                return res.status(403).json({ erro: 'Só podes apagar quizzes dos teus próprios cursos.' });
+            }
+        }
         await pool.query('DELETE FROM quizzes WHERE titulo = $1', [titulo]);
         res.status(200).json({ mensagem: 'Avaliação apagada permanentemente!' });
     } catch (err) {
@@ -463,8 +561,9 @@ app.delete('/quizzes/:titulo', async (req, res) => {
     }
 });
 
-app.post('/quizzes/salvar-resultado', async (req, res) => {
-    const { utilizadorId, quizTitulo, acertos, totalPerguntas } = req.body;
+app.post('/quizzes/salvar-resultado', autenticar, async (req, res) => {
+    const { quizTitulo, acertos, totalPerguntas } = req.body;
+    const utilizadorId = req.user.id;
     try {
         await pool.query(
             'INSERT INTO tentativas_quizzes (utilizador_id, quiz_titulo, acertos, total_perguntas) VALUES ($1, $2, $3, $4)',
@@ -479,7 +578,7 @@ app.post('/quizzes/salvar-resultado', async (req, res) => {
 // ==========================================
 // 5. GAMIFICAÇÃO E XP
 // ==========================================
-app.get('/conquistas/:utilizadorId', async (req, res) => {
+app.get('/conquistas/:utilizadorId', autenticar, proprioOuPerfil('professor', 'admin'), async (req, res) => {
     try {
         const { utilizadorId } = req.params;
         const result = await pool.query(`
@@ -495,8 +594,9 @@ app.get('/conquistas/:utilizadorId', async (req, res) => {
     }
 });
 
-app.post('/conquistas/atribuir', async (req, res) => {
-    const { utilizadorId, nomeConquista } = req.body;
+app.post('/conquistas/atribuir', autenticar, async (req, res) => {
+    const { nomeConquista } = req.body;
+    const utilizadorId = req.user.id;
     try {
         const conquistaRes = await pool.query('SELECT id FROM conquistas_catalogo WHERE nome = $1', [nomeConquista]);
         if (conquistaRes.rows.length === 0) return res.status(404).json({ erro: 'Troféu não existe no catálogo.' });
@@ -513,12 +613,15 @@ app.post('/conquistas/atribuir', async (req, res) => {
     }
 });
 
-app.post('/xp/adicionar', async (req, res) => {
-    const { utilizadorId, quantidade } = req.body;
+app.post('/xp/adicionar', autenticar, async (req, res) => {
+    const { quantidade } = req.body;
+    const utilizadorId = req.user.id;
     try {
+        // Limita a quantidade de XP por pedido para evitar abusos.
+        const xp = Math.max(0, Math.min(parseInt(quantidade, 10) || 0, 100));
         const result = await pool.query(
             'UPDATE utilizadores SET xp_total = xp_total + $1 WHERE id = $2 RETURNING xp_total',
-            [quantidade, utilizadorId]
+            [xp, utilizadorId]
         );
         res.status(200).json({ mensagem: 'XP Adicionado', xp_total: result.rows[0].xp_total });
     } catch (err) {
@@ -526,7 +629,7 @@ app.post('/xp/adicionar', async (req, res) => {
     }
 });
 
-app.get('/classificacao', async (req, res) => {
+app.get('/classificacao', autenticar, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT id, nome, avatar, xp_total 
@@ -544,7 +647,7 @@ app.get('/classificacao', async (req, res) => {
 // ==========================================
 // 6. DASHBOARDS (ESTATÍSTICAS)
 // ==========================================
-app.get('/estatisticas/aluno/:id', async (req, res) => {
+app.get('/estatisticas/aluno/:id', autenticar, proprioOuPerfil('professor', 'admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const userRes = await pool.query('SELECT xp_total FROM utilizadores WHERE id = $1', [id]);
@@ -578,7 +681,7 @@ app.get('/estatisticas/aluno/:id', async (req, res) => {
     }
 });
 
-app.get('/admin-estatisticas', async (req, res) => {
+app.get('/admin-estatisticas', autenticar, exigirPerfil('admin'), async (req, res) => {
     try {
         const profsResult = await pool.query("SELECT COUNT(*) FROM utilizadores WHERE LOWER(TRIM(perfil)) = 'professor'");
         const sessoesResult = await pool.query("SELECT COUNT(DISTINCT utilizador_id) FROM logs_acesso WHERE data_hora_acesso >= NOW() - INTERVAL '24 hours'");
@@ -595,7 +698,7 @@ app.get('/admin-estatisticas', async (req, res) => {
     }
 });
 
-app.get('/estatisticas/aluno/:id/atividades', async (req, res) => {
+app.get('/estatisticas/aluno/:id/atividades', autenticar, proprioOuPerfil('professor', 'admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const quizzesRes = await pool.query(`
@@ -621,7 +724,7 @@ app.get('/estatisticas/aluno/:id/atividades', async (req, res) => {
 // ==========================================
 // 7. LISTAGEM DE UTILIZADORES E ACESSOS
 // ==========================================
-app.get('/alunos', async (req, res) => {
+app.get('/alunos', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo,
@@ -636,11 +739,11 @@ app.get('/alunos', async (req, res) => {
     }
 });
 
-app.get('/professores', async (req, res) => {
+app.get('/professores', autenticar, exigirPerfil('admin'), async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo,
-                   avatar, biografia_prof as "biografiaProf", metodologia 
+                   avatar, biografia_prof as "biografiaProf", metodologia
             FROM utilizadores 
             WHERE LOWER(TRIM(perfil)) = 'professor' 
             ORDER BY nome ASC
@@ -651,7 +754,7 @@ app.get('/professores', async (req, res) => {
     }
 });
 
-app.get('/acessos', async (req, res) => {
+app.get('/acessos', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT a.id, u.nome, u.email, u.avatar, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
@@ -667,7 +770,7 @@ app.get('/acessos', async (req, res) => {
     }
 });
 
-app.get('/acessos-professores', async (req, res) => {
+app.get('/acessos-professores', autenticar, exigirPerfil('admin'), async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT a.id, u.nome, u.email, u.avatar, to_char(a.data_hora_acesso, 'DD/MM/YYYY HH24:MI') as data
@@ -683,7 +786,7 @@ app.get('/acessos-professores', async (req, res) => {
     }
 });
 
-app.get('/professor/alunos', async (req, res) => {
+app.get('/professor/alunos', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT id, nome, email, xp_total, avatar 
@@ -697,7 +800,7 @@ app.get('/professor/alunos', async (req, res) => {
     }
 });
 
-app.get('/professor/aluno/:id/detalhes', async (req, res) => {
+app.get('/professor/aluno/:id/detalhes', autenticar, exigirPerfil('professor', 'admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const userRes = await pool.query(
@@ -737,7 +840,7 @@ app.get('/professor/aluno/:id/detalhes', async (req, res) => {
 // ==========================================
 // 8. APAGAR UTILIZADORES E CARREGAR INFOS PROF
 // ==========================================
-app.delete('/utilizadores/:id', async (req, res) => {
+app.delete('/utilizadores/:id', autenticar, exigirPerfil('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         await pool.query('DELETE FROM resultados_quizzes WHERE utilizador_id = $1', [id]);
@@ -751,7 +854,7 @@ app.delete('/utilizadores/:id', async (req, res) => {
     }
 });
 
-app.get('/professor/cursos/:id', async (req, res) => {
+app.get('/professor/cursos/:id', autenticar, proprioOuPerfil('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('SELECT * FROM cursos WHERE professor_id = $1 ORDER BY id DESC', [id]);
@@ -761,7 +864,7 @@ app.get('/professor/cursos/:id', async (req, res) => {
     }
 });
 
-app.get('/professor/quizzes/:id', async (req, res) => {
+app.get('/professor/quizzes/:id', autenticar, proprioOuPerfil('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query(`
@@ -777,7 +880,7 @@ app.get('/professor/quizzes/:id', async (req, res) => {
     }
 });
 
-app.delete('/professores/:id', async (req, res) => {
+app.delete('/professores/:id', autenticar, exigirPerfil('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         await pool.query('DELETE FROM logs_acesso WHERE utilizador_id = $1', [id]);
@@ -798,7 +901,7 @@ app.delete('/professores/:id', async (req, res) => {
 // ==========================================
 // 9. CENTRO DE NOTIFICAÇÕES
 // ==========================================
-app.get('/notificacoes/:id', async (req, res) => {
+app.get('/notificacoes/:id', autenticar, proprioOuPerfil('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const userRes = await pool.query('SELECT perfil FROM utilizadores WHERE id = $1', [id]);
@@ -907,7 +1010,7 @@ app.get('/notificacoes/:id', async (req, res) => {
 // ==========================================
 // 10. APROVAÇÕES DO ADMIN
 // ==========================================
-app.get('/admin/pendentes', async (req, res) => {
+app.get('/admin/pendentes', autenticar, exigirPerfil('admin'), async (req, res) => {
     try {
         const cursosRes = await pool.query(`
             SELECT c.*, u.nome as nome_professor 
@@ -933,7 +1036,7 @@ app.get('/admin/pendentes', async (req, res) => {
     }
 });
 
-app.put('/admin/aprovar/curso/:id', async (req, res) => {
+app.put('/admin/aprovar/curso/:id', autenticar, exigirPerfil('admin'), async (req, res) => {
     const id = parseInt(req.params.id, 10);
     try {
         const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
@@ -968,7 +1071,7 @@ app.put('/admin/aprovar/curso/:id', async (req, res) => {
     }
 });
 
-app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
+app.delete('/admin/rejeitar/curso/:id', autenticar, exigirPerfil('admin'), async (req, res) => {
     const id = parseInt(req.params.id, 10);
     try {
         const cursoRes = await pool.query('SELECT titulo, professor_id FROM cursos WHERE id = $1', [id]);
@@ -1002,7 +1105,7 @@ app.delete('/admin/rejeitar/curso/:id', async (req, res) => {
 
 // ... Todo o teu código acima disto permanece igual ...
 
-app.put('/admin/aprovar/quiz', async (req, res) => {
+app.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), async (req, res) => {
     // Recebe o título em segurança pelo corpo da mensagem
     const { titulo } = req.body; 
     
@@ -1044,7 +1147,7 @@ app.put('/admin/aprovar/quiz', async (req, res) => {
     }
 });
 
-app.post('/admin/rejeitar/quiz', async (req, res) => {
+app.post('/admin/rejeitar/quiz', autenticar, exigirPerfil('admin'), async (req, res) => {
     // Usamos POST para garantir que o body chega intacto
     const { titulo } = req.body;
     

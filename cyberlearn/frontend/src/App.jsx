@@ -85,7 +85,7 @@ function App() {
 
   const handleInputChange   = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
-  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); setTargetQuizCourse(null); try { localStorage.removeItem('cyberlearn_user'); } catch {} };
+  const handleLogout = () => { setUser(null); setView('login'); setFormData({ ...formData, password: '' }); setTempUserId(null); setShow2FA(false); setAvatarImg(null); setActiveCourse(null); setTargetQuizCourse(null); try { localStorage.removeItem('cyberlearn_user'); localStorage.removeItem('cyberlearn_token'); } catch {} };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -99,7 +99,10 @@ function App() {
         if (response.ok) {
           const userData = { ...data.utilizador, streakCount: data.utilizador.streakCount || 0 };
           setUser(userData);
-          try { localStorage.setItem('cyberlearn_user', JSON.stringify(userData)); } catch {}
+          try {
+            localStorage.setItem('cyberlearn_user', JSON.stringify(userData));
+            if (data.token) localStorage.setItem('cyberlearn_token', data.token);
+          } catch {}
           setAvatarImg(data.utilizador.avatar || null);
           setShow2FA(false);
           setFormData({ ...formData, password: '' });
@@ -149,6 +152,7 @@ function App() {
           } else {
             const userData = { ...data.utilizador, streakCount: data.utilizador.streakCount || 0 };
             setUser(userData);
+            try { if (data.token) localStorage.setItem('cyberlearn_token', data.token); } catch {}
             setAvatarImg(data.utilizador.avatar || null);
             setFormData({ ...formData, password: '' });
             if (data.utilizador.tipo === 'admin') setView('admin_dashboard');

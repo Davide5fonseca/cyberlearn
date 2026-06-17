@@ -354,9 +354,6 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                       <label style={{fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', color: theme.textMain, cursor: 'pointer'}}>
                         <input type="radio" name="tipo" value="professor" checked={formData.tipo === 'professor'} onChange={handleInputChange} /> {t('auth.instructor')}
                       </label>
-                      <label style={{fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', color: theme.textMain, cursor: 'pointer'}}>
-                        <input type="radio" name="tipo" value="admin" checked={formData.tipo === 'admin'} onChange={handleInputChange} /> {t('auth.admin')}
-                      </label>
                     </div>
                   </div>
                   <button type="submit" style={styles.button}>{t('auth.createBtn')}</button>
