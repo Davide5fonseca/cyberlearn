@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 import { useUI } from './ui/UIProvider';
 
-export default function Quizzes({ theme, setView, user, targetQuizCourse, setTargetQuizCourse }) {
+export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQuizCourse }) {
   const { notify, confirm } = useUI();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,8 +10,9 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [score, setScore] = useState(0);
-  const [showResults, setShowResults] = useState(false);
+  const [respostas, setRespostas] = useState([]);
+  const [resultado, setResultado] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     buscarQuizzes();
@@ -23,35 +24,9 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
       setLoading(true);
       const response = await apiFetch('/quizzes');
       if (response.ok) {
-        const data = await response.json();
-        
-        const groupedQuizzes = {};
-        
-        data.forEach(row => {
-          if (!groupedQuizzes[row.titulo]) {
-            groupedQuizzes[row.titulo] = {
-              id: row.id,
-              titulo: row.titulo,
-              nome_curso: row.nome_curso,
-              nivel_curso: row.nivel_curso,
-              perguntas: []
-            };
-          }
-          
-          const opcoes = [row.opcao_a, row.opcao_b];
-          if (row.opcao_c && row.opcao_c.trim() !== '') opcoes.push(row.opcao_c);
-          if (row.opcao_d && row.opcao_d.trim() !== '') opcoes.push(row.opcao_d);
-
-          const mapResposta = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
-
-          groupedQuizzes[row.titulo].perguntas.push({
-            pergunta: row.pergunta,
-            opcoes: opcoes,
-            respostaCerta: mapResposta[row.resposta_correta]
-          });
-        });
-
-        const arrayQuizzes = Object.values(groupedQuizzes);
+        // O servidor já devolve as avaliações agrupadas e SEM as respostas certas —
+        // a correção acontece do lado do servidor na submissão.
+        const arrayQuizzes = await response.json();
         setQuizzes(arrayQuizzes);
 
         // --- LÓGICA DE ABERTURA AUTOMÁTICA ---
@@ -63,8 +38,8 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
             if (quizAlvo.perguntas.length > 0) {
               setActiveQuiz(quizAlvo);
               setCurrentQuestion(0);
-              setScore(0);
-              setShowResults(false);
+              setRespostas([]);
+              setResultado(null);
               setSelectedOption(null);
             } else {
               notify("Este quiz ainda não tem perguntas disponíveis!", 'warning');
@@ -92,72 +67,44 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
     }
     setActiveQuiz(quiz);
     setCurrentQuestion(0);
-    setScore(0);
-    setShowResults(false);
+    setRespostas([]);
+    setResultado(null);
     setSelectedOption(null);
   };
 
+  // Guarda a resposta escolhida e, no fim, envia tudo ao servidor —
+  // é o servidor que corrige, atribui XP e desbloqueia troféus.
   const handleAnswer = async () => {
-    let novaPontuacao = score;
+    const perguntaAtual = activeQuiz.perguntas[currentQuestion];
+    const novasRespostas = [
+      ...respostas,
+      { perguntaId: perguntaAtual.id, opcao: perguntaAtual.opcoes[selectedOption].letra }
+    ];
 
-    if (selectedOption === activeQuiz.perguntas[currentQuestion].respostaCerta) {
-      novaPontuacao = score + 1;
-      setScore(novaPontuacao);
-    }
-    
     if (currentQuestion + 1 < activeQuiz.perguntas.length) {
+      setRespostas(novasRespostas);
       setCurrentQuestion(currentQuestion + 1);
       setSelectedOption(null);
-    } else {
-      setShowResults(true);
+      return;
+    }
 
-      if (user?.id) {
-        const totalPerguntas = activeQuiz.perguntas.length;
-        const percentagem = (novaPontuacao / totalPerguntas) * 100;
-        
-        let xpGanho = 10; 
-        if (percentagem === 100) xpGanho = 100;
-        else if (percentagem >= 80) xpGanho = 75;
-        else if (percentagem >= 50) xpGanho = 50;
-
-        try {
-          await apiFetch('/quizzes/salvar-resultado', {
-             method: 'POST', headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ 
-               utilizadorId: user.id, 
-               quizTitulo: activeQuiz.titulo, 
-               acertos: novaPontuacao, 
-               totalPerguntas: totalPerguntas 
-             })
-          });
-
-          await apiFetch('/xp/adicionar', {
-             method: 'POST', headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ utilizadorId: user.id, quantidade: xpGanho })
-          });
-
-          await apiFetch('/conquistas/atribuir', {
-             method: 'POST', headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Primeiro Sangue' })
-          });
-
-          if (percentagem >= 50) {
-            await apiFetch('/conquistas/atribuir', {
-               method: 'POST', headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Escudo Ativo' })
-            });
-
-            if (percentagem === 100) {
-                await apiFetch('/conquistas/atribuir', {
-                   method: 'POST', headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ utilizadorId: user.id, nomeConquista: 'Hacker Perfeito' })
-                });
-            }
-          }
-        } catch (error) {
-          console.error("Erro ao atribuir troféus/XP:", error);
-        }
+    try {
+      setSubmitting(true);
+      const res = await apiFetch(`/quizzes/${activeQuiz.grupoId}/submeter`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respostas: novasRespostas })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResultado(data);
+      } else {
+        notify(data.erro || 'Não foi possível submeter a avaliação.', 'error');
       }
+    } catch (error) {
+      console.error("Erro ao submeter avaliação:", error);
+      notify('Erro de ligação ao servidor. A tua avaliação não foi submetida.', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -220,8 +167,8 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
     progressBar: (percent, activeColor) => ({ width: `${percent}%`, height: '100%', backgroundColor: activeColor, transition: 'width 0.3s ease' })
   };
 
-  if (showResults) {
-    const passed = score >= activeQuiz.perguntas.length / 2;
+  if (resultado) {
+    const passed = resultado.acertos >= resultado.total / 2;
     return (
       <div style={styles.centeredWrapper}>
         <div style={styles.resultCard}>
@@ -237,7 +184,7 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
           </h2>
           
           <p style={{color: theme.textSub, fontSize: '18px', margin: '0 0 30px 0'}}>
-            Respondeste corretamente a <strong style={{color: theme.primary, fontSize: '24px'}}>{score}</strong> de {activeQuiz.perguntas.length} questões.
+            Respondeste corretamente a <strong style={{color: theme.primary, fontSize: '24px'}}>{resultado.acertos}</strong> de {resultado.total} questões.
           </p>
           
           <div style={{
@@ -250,8 +197,14 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
               {passed ? 'Parabéns! Foste aprovado neste módulo.' : 'Não atingiste a pontuação mínima necessária.'}
             </span>
             <span style={{fontSize: '14px', color: theme.textSub, fontWeight: '500'}}>
-              {passed ? 'O teu progresso foi guardado na tua vitrina.' : 'Garantiste 10 XP de consolação. Revê o material e tenta novamente.'}
+              Ganhaste <strong style={{color: theme.primary}}>{resultado.xpGanho} XP</strong>, validados pelo servidor.
+              {!passed && ' Revê o material e tenta novamente.'}
             </span>
+            {resultado.conquistasNovas?.length > 0 && (
+              <span style={{fontSize: '14px', color: theme.textMain, fontWeight: '600'}}>
+                Novos troféus: {resultado.conquistasNovas.map(c => `${c.icone || '🏅'} ${c.nome}`).join(' · ')}
+              </span>
+            )}
           </div>
           
           <button 
@@ -294,30 +247,30 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
 
           <div style={{marginBottom: '40px'}}>
             {currentQData.opcoes.map((opcao, index) => (
-              <button 
-                key={index} 
+              <button
+                key={opcao.letra}
                 style={styles.optionBtn(selectedOption === index, activeColor)}
                 onClick={() => setSelectedOption(index)}
                 onMouseEnter={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = activeColor }}
                 onMouseLeave={(e) => { if(selectedOption !== index) e.currentTarget.style.borderColor = theme.inputBorder }}
               >
                 <span style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '28px', height: '28px', borderRadius: '6px', backgroundColor: selectedOption === index ? activeColor : theme.inputBorder, color: selectedOption === index ? 'white' : theme.textSub, fontWeight: 'bold', fontSize: '13px' }}>
-                  {String.fromCharCode(65 + index)}
+                  {opcao.letra}
                 </span>
-                {opcao}
+                {opcao.texto}
               </button>
             ))}
           </div>
 
           <div style={{display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.inputBorder}`, paddingTop: '25px'}}>
             <button 
-              style={{...styles.button(activeQuiz.nivel_curso), width: 'auto', padding: '14px 40px', opacity: selectedOption === null ? 0.5 : 1, cursor: selectedOption === null ? 'not-allowed' : 'pointer', boxShadow: selectedOption === null ? 'none' : `0 4px 12px ${activeColor}40`}} 
-              disabled={selectedOption === null}
+              style={{...styles.button(activeQuiz.nivel_curso), width: 'auto', padding: '14px 40px', opacity: (selectedOption === null || submitting) ? 0.5 : 1, cursor: (selectedOption === null || submitting) ? 'not-allowed' : 'pointer', boxShadow: (selectedOption === null || submitting) ? 'none' : `0 4px 12px ${activeColor}40`}}
+              disabled={selectedOption === null || submitting}
               onClick={handleAnswer}
               onMouseEnter={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.filter = 'brightness(1.1)'; } }}
               onMouseLeave={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; } }}
             >
-              {currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar Avaliação' : 'Confirmar e Avançar'}
+              {submitting ? 'A submeter...' : currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar Avaliação' : 'Confirmar e Avançar'}
             </button>
           </div>
         </div>
@@ -343,8 +296,8 @@ export default function Quizzes({ theme, setView, user, targetQuizCourse, setTar
       ) : (
         <div style={styles.grid}>
           {quizzes.map((quiz) => (
-            <div 
-              key={quiz.id} 
+            <div
+              key={quiz.grupoId}
               style={styles.card} 
               onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = `0 12px 24px rgba(0,0,0,0.2)`; }} 
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = theme.shadow; }}

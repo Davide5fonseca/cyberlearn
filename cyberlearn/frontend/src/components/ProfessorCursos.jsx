@@ -53,13 +53,13 @@ export default function ProfessorCursos({ theme, user }) {
       const res = await apiFetch(`/professor/quizzes/${user.id}`);
       if (res.ok) {
         const data = await res.json();
+        // Agrupa por grupo_id: dois quizzes homónimos em cursos diferentes são distintos.
         const grouped = {};
         data.forEach(q => {
-          if (!grouped[q.titulo]) {
-            // Guarda o estado de aprovação
-            grouped[q.titulo] = { titulo: q.titulo, nome_curso: q.nome_curso, aprovado: q.aprovado, perguntas: [] };
+          if (!grouped[q.grupo_id]) {
+            grouped[q.grupo_id] = { grupoId: q.grupo_id, titulo: q.titulo, nome_curso: q.nome_curso, aprovado: q.grupo_aprovado, perguntas: [] };
           }
-          grouped[q.titulo].perguntas.push(q);
+          grouped[q.grupo_id].perguntas.push(q);
         });
         setQuizzesReais(Object.values(grouped));
       }
@@ -102,7 +102,7 @@ export default function ProfessorCursos({ theme, user }) {
     setQuizMeta({ titulo: viewingQuiz.titulo, nome_curso: viewingQuiz.nome_curso });
     setPerguntasQuiz(viewingQuiz.perguntas);
     setNumeroPerguntas(viewingQuiz.perguntas.length);
-    setEditingQuizTitulo(viewingQuiz.titulo);
+    setEditingQuizTitulo(viewingQuiz.grupoId);
     setViewingQuiz(null);
     setActiveTab('createQuiz');
   };
@@ -120,14 +120,14 @@ export default function ProfessorCursos({ theme, user }) {
     } catch (error) { notify("Erro de ligação.", 'error'); }
   };
 
-  const handleDeleteQuiz = async (e, titulo) => {
+  const handleDeleteQuiz = async (e, quiz) => {
     e.stopPropagation();
-    if (!(await confirm({ title: 'Apagar avaliação', message: `Tens a certeza que queres APAGAR a avaliação "${titulo}"?`, confirmLabel: 'Apagar', danger: true }))) return;
+    if (!(await confirm({ title: 'Apagar avaliação', message: `Tens a certeza que queres APAGAR a avaliação "${quiz.titulo}"?`, confirmLabel: 'Apagar', danger: true }))) return;
     try {
-      const response = await apiFetch(`/quizzes/${encodeURIComponent(titulo)}`, { method: 'DELETE' });
+      const response = await apiFetch(`/quizzes/${quiz.grupoId}`, { method: 'DELETE' });
       if (response.ok) {
         notify("Quiz apagado com sucesso.", 'success');
-        setQuizzesReais(quizzesReais.filter(q => q.titulo !== titulo));
+        setQuizzesReais(quizzesReais.filter(q => q.grupoId !== quiz.grupoId));
       } else { notify('Não foi possível apagar o quiz.', 'error'); }
     } catch (error) { notify("Erro de ligação.", 'error'); }
   };
@@ -207,8 +207,9 @@ export default function ProfessorCursos({ theme, user }) {
     }
 
     try {
+      // Em modo edição, editingQuizTitulo guarda o grupo_id da avaliação original.
       if (editingQuizTitulo) {
-        await apiFetch(`/quizzes/${encodeURIComponent(editingQuizTitulo)}`, { method: 'DELETE' });
+        await apiFetch(`/quizzes/${editingQuizTitulo}`, { method: 'DELETE' });
       }
 
       let perguntasGuardadas = 0;
@@ -507,8 +508,8 @@ export default function ProfessorCursos({ theme, user }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {quizzesReais.map((quiz, idx) => (
-                      <tr key={idx} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingQuiz(quiz)}>
+                    {quizzesReais.map((quiz) => (
+                      <tr key={quiz.grupoId} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingQuiz(quiz)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{quiz.titulo}</td>
                         <td style={styles.td}><span style={{color: theme.primary, fontWeight: '600'}}>{quiz.nome_curso}</span></td>
                         <td style={styles.td}>{quiz.perguntas.length} {quiz.perguntas.length === 1 ? 'Pergunta' : 'Perguntas'}</td>
@@ -520,7 +521,7 @@ export default function ProfessorCursos({ theme, user }) {
                         <td style={{...styles.td, textAlign: 'right'}}>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
                             <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingQuiz(quiz); }}>Ver Detalhes</button>
-                            <button style={styles.deleteButton} onClick={(e) => handleDeleteQuiz(e, quiz.titulo)}>Apagar</button>
+                            <button style={styles.deleteButton} onClick={(e) => handleDeleteQuiz(e, quiz)}>Apagar</button>
                           </div>
                         </td>
                       </tr>

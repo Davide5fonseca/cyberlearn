@@ -85,30 +85,20 @@ const quizSchema = z.object({
     opcao_b: textoObrigatorio('A opção B', 1000),
     opcao_c: textoObrigatorio('A opção C', 1000),
     opcao_d: textoObrigatorio('A opção D', 1000),
-    resposta_correta: z.string({ error: 'A resposta correta é obrigatória.' }).trim().toLowerCase()
-        .pipe(z.enum(['a', 'b', 'c', 'd'], { error: 'A resposta correta deve ser a, b, c ou d.' }))
+    // Maiúsculas para manter consistência com os dados existentes na BD.
+    resposta_correta: z.string({ error: 'A resposta correta é obrigatória.' }).trim().toUpperCase()
+        .pipe(z.enum(['A', 'B', 'C', 'D'], { error: 'A resposta correta deve ser A, B, C ou D.' }))
 });
 
-const salvarResultadoSchema = z.object({
-    quizTitulo: textoObrigatorio('O título do quiz'),
-    acertos: z.coerce.number().int().min(0),
-    totalPerguntas: z.coerce.number().int().min(0)
-});
-
-// ---------- Gamificação ----------
-
-const atribuirConquistaSchema = z.object({
-    nomeConquista: textoObrigatorio('O nome da conquista')
-});
-
-const adicionarXpSchema = z.object({
-    quantidade: z.coerce.number({ error: 'Quantidade inválida.' }).int().min(0)
-});
-
-// ---------- Admin ----------
-
-const tituloQuizSchema = z.object({
-    titulo: textoObrigatorio('O título')
+// Submissão de um quiz pelo aluno: apenas as opções escolhidas.
+const submeterQuizSchema = z.object({
+    respostas: z.array(z.object({
+        perguntaId: inteiroPositivo('Pergunta'),
+        opcao: z.string({ error: 'Opção inválida.' }).trim().toUpperCase()
+            .pipe(z.enum(['A', 'B', 'C', 'D'], { error: 'A opção deve ser A, B, C ou D.' }))
+    }), { error: 'As respostas são obrigatórias.' })
+        .min(1, 'Responde a pelo menos uma pergunta.')
+        .max(100, 'Demasiadas respostas.')
 });
 
 // Middleware: valida req.body contra o schema; 400 com a primeira mensagem de erro.
@@ -132,8 +122,5 @@ module.exports = {
     atualizarPerfilSchema,
     cursoSchema,
     quizSchema,
-    salvarResultadoSchema,
-    atribuirConquistaSchema,
-    adicionarXpSchema,
-    tituloQuizSchema
+    submeterQuizSchema
 };

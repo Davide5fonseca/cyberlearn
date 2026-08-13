@@ -52,17 +52,27 @@ CREATE TABLE IF NOT EXISTS cursos (
     data_criacao   TIMESTAMP DEFAULT NOW()
 );
 
--- ---------- Quizzes (uma linha = uma pergunta; agrupadas por titulo) ----------
+-- ---------- Quizzes: grupo (avaliação) + perguntas ----------
+CREATE TABLE IF NOT EXISTS quiz_grupos (
+    id           SERIAL PRIMARY KEY,
+    titulo       VARCHAR(255) NOT NULL,
+    curso_id     INTEGER REFERENCES cursos(id) ON DELETE CASCADE,
+    aprovado     BOOLEAN NOT NULL DEFAULT false,
+    data_criacao TIMESTAMP DEFAULT NOW(),
+    UNIQUE (titulo, curso_id)
+);
+
 CREATE TABLE IF NOT EXISTS quizzes (
     id               SERIAL PRIMARY KEY,
     titulo           VARCHAR(255) NOT NULL,
     curso_id         INTEGER REFERENCES cursos(id) ON DELETE CASCADE,
+    grupo_id         INTEGER NOT NULL REFERENCES quiz_grupos(id) ON DELETE CASCADE,
     pergunta         TEXT NOT NULL,
     opcao_a          TEXT,
     opcao_b          TEXT,
     opcao_c          TEXT,
     opcao_d          TEXT,
-    resposta_correta VARCHAR(1),                            -- 'a' | 'b' | 'c' | 'd'
+    resposta_correta VARCHAR(1),                            -- 'A' | 'B' | 'C' | 'D'
     aprovado         BOOLEAN NOT NULL DEFAULT false
 );
 
@@ -71,6 +81,7 @@ CREATE TABLE IF NOT EXISTS tentativas_quizzes (
     id              SERIAL PRIMARY KEY,
     utilizador_id   INTEGER REFERENCES utilizadores(id) ON DELETE CASCADE,
     quiz_titulo     VARCHAR(255),
+    quiz_grupo_id   INTEGER REFERENCES quiz_grupos(id) ON DELETE SET NULL,
     acertos         INTEGER NOT NULL DEFAULT 0,
     total_perguntas INTEGER NOT NULL DEFAULT 0,
     data_realizacao TIMESTAMP DEFAULT NOW()

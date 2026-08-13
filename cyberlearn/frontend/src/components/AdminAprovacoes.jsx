@@ -25,19 +25,9 @@ export default function AdminAprovacoes({ theme }) {
 
   const handleAprovar = async (tipo, identificador) => {
     try {
-      let res;
-      if (tipo === 'quiz') {
-        // Envia o título de forma segura no BODY do pedido em vez da URL
-        res = await apiFetch('/admin/aprovar/quiz', { 
-          method: 'PUT', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ titulo: identificador })
-        });
-      } else {
-        // Cursos usam ID (número), por isso a URL funciona perfeitamente
-        res = await apiFetch(`/admin/aprovar/${tipo}/${identificador}`, { method: 'PUT' });
-      }
-      
+      // Cursos e quizzes são identificados por id numérico (grupo_id nos quizzes).
+      const res = await apiFetch(`/admin/aprovar/${tipo}/${identificador}`, { method: 'PUT' });
+
       if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} aprovado com sucesso!`, 'success'); buscarPendentes(); }
       else notify('Não foi possível aprovar.', 'error');
     } catch (err) {
@@ -49,17 +39,7 @@ export default function AdminAprovacoes({ theme }) {
   const handleRejeitar = async (tipo, identificador) => {
     if (!(await confirm({ title: 'Rejeitar conteúdo', message: `Tens a certeza que queres REJEITAR e APAGAR este ${tipo}?`, confirmLabel: 'Rejeitar', danger: true }))) return;
     try {
-      let res;
-      if (tipo === 'quiz') {
-        // Usamos POST para enviar o título de forma segura no BODY
-        res = await apiFetch('/admin/rejeitar/quiz', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ titulo: identificador })
-        });
-      } else {
-        res = await apiFetch(`/admin/rejeitar/${tipo}/${identificador}`, { method: 'DELETE' });
-      }
+      const res = await apiFetch(`/admin/rejeitar/${tipo}/${identificador}`, { method: 'DELETE' });
 
       if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} rejeitado e removido.`, 'success'); buscarPendentes(); }
       else notify('Não foi possível rejeitar.', 'error');
@@ -135,8 +115,8 @@ export default function AdminAprovacoes({ theme }) {
             Nenhum quiz a aguardar aprovação.
           </div>
         ) : (
-          pendentes.quizzes.map((quiz, index) => (
-            <div key={index} style={styles.itemRow} onMouseEnter={(e) => e.currentTarget.style.borderColor = `${theme.warning}50`} onMouseLeave={(e) => e.currentTarget.style.borderColor = `${theme.inputBorder}50`}>
+          pendentes.quizzes.map((quiz) => (
+            <div key={quiz.grupo_id} style={styles.itemRow} onMouseEnter={(e) => e.currentTarget.style.borderColor = `${theme.warning}50`} onMouseLeave={(e) => e.currentTarget.style.borderColor = `${theme.inputBorder}50`}>
               <div style={{ flex: 1, minWidth: '250px' }}>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: theme.textMain }}>{quiz.titulo}</h3>
                 <p style={{ margin: 0, fontSize: '12px', color: theme.textSub }}>Curso: <strong>{quiz.nome_curso}</strong> • Prof: <strong>{quiz.nome_professor}</strong> • {quiz.num_perguntas} Perguntas</p>
@@ -144,7 +124,7 @@ export default function AdminAprovacoes({ theme }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button 
                   style={styles.btnRejeitar} 
-                  onClick={() => handleRejeitar('quiz', quiz.titulo)}
+                  onClick={() => handleRejeitar('quiz', quiz.grupo_id)}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}15`}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
@@ -153,7 +133,7 @@ export default function AdminAprovacoes({ theme }) {
                 </button>
                 <button 
                   style={{ ...styles.btnAprovar, backgroundColor: theme.warning || '#f59e0b', color: '#fff' }} 
-                  onClick={() => handleAprovar('quiz', quiz.titulo)}
+                  onClick={() => handleAprovar('quiz', quiz.grupo_id)}
                   onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
                   onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
                 >

@@ -3,7 +3,6 @@ const { pool, comTransacao } = require('../config/db');
 const { autenticar, exigirPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
 const { criarNotificacao } = require('../services/notificacoes');
-const { validar, tituloQuizSchema } = require('../validacao/schemas');
 
 router.get('/teste-bd', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
     const result = await pool.query('SELECT NOW()');
@@ -20,12 +19,14 @@ router.get('/admin/pendentes', autenticar, exigirPerfil('admin'), asyncHandler(a
             ORDER BY c.data_criacao DESC
         `),
         pool.query(`
-            SELECT q.titulo, c.titulo as nome_curso, u.nome as nome_professor, COUNT(q.id) as num_perguntas
-            FROM quizzes q
-            JOIN cursos c ON q.curso_id = c.id
+            SELECT g.id as grupo_id, g.titulo, c.titulo as nome_curso, u.nome as nome_professor, COUNT(q.id) as num_perguntas
+            FROM quiz_grupos g
+            JOIN cursos c ON g.curso_id = c.id
             LEFT JOIN utilizadores u ON c.professor_id = u.id
-            WHERE q.aprovado = false
-            GROUP BY q.titulo, c.titulo, u.nome
+            LEFT JOIN quizzes q ON q.grupo_id = g.id
+            WHERE g.aprovado = false
+            GROUP BY g.id, g.titulo, c.titulo, u.nome
+            ORDER BY g.id DESC
         `)
     ]);
 
@@ -92,21 +93,23 @@ router.delete('/admin/rejeitar/curso/:id', autenticar, exigirPerfil('admin'), as
     res.status(200).json({ mensagem: 'Curso rejeitado e apagado.' });
 }, 'Erro ao rejeitar curso.'));
 
-router.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), validar(tituloQuizSchema), asyncHandler(async (req, res) => {
-    // Recebe o título em segurança pelo corpo da mensagem
-    const { titulo } = req.body;
+router.put('/admin/aprovar/quiz/:grupoId', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+    // Aprovação por id do grupo: não afeta quizzes homónimos de outros cursos.
+    const grupoId = parseInt(req.params.grupoId, 10);
 
     const quizRes = await pool.query(`
-        SELECT q.titulo, c.professor_id
-        FROM quizzes q
-        JOIN cursos c ON q.curso_id = c.id
-        WHERE q.titulo = $1 LIMIT 1
-    `, [titulo]);
+        SELECT g.titulo, c.professor_id
+        FROM quiz_grupos g
+        JOIN cursos c ON g.curso_id = c.id
+        WHERE g.id = $1
+    `, [grupoId]);
 
     if (quizRes.rows.length === 0) return res.status(404).json({ erro: 'Quiz não encontrado na base de dados.' });
 
-    const prof_id = quizRes.rows[0].professor_id;
-    await pool.query('UPDATE quizzes SET aprovado = true WHERE titulo = $1', [titulo]);
+    const { titulo, professor_id: prof_id } = quizRes.rows[0];
+    await pool.query('UPDATE quiz_grupos SET aprovado = true WHERE id = $1', [grupoId]);
+    // Mantém a coluna legada das perguntas em sincronia.
+    await pool.query('UPDATE quizzes SET aprovado = true WHERE grupo_id = $1', [grupoId]);
 
     // Notificar Professor
     await criarNotificacao({
@@ -127,24 +130,23 @@ router.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), validar(tit
     res.status(200).json({ mensagem: 'Quiz aprovado com sucesso!' });
 }, 'Erro ao aprovar quiz.'));
 
-router.post('/admin/rejeitar/quiz', autenticar, exigirPerfil('admin'), validar(tituloQuizSchema), asyncHandler(async (req, res) => {
-    // Usamos POST para garantir que o body chega intacto
-    const { titulo } = req.body;
+router.delete('/admin/rejeitar/quiz/:grupoId', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+    const grupoId = parseInt(req.params.grupoId, 10);
 
     const quizRes = await pool.query(`
-        SELECT q.titulo, c.professor_id
-        FROM quizzes q
-        JOIN cursos c ON q.curso_id = c.id
-        WHERE q.titulo = $1 LIMIT 1
-    `, [titulo]);
+        SELECT g.titulo, c.professor_id
+        FROM quiz_grupos g
+        JOIN cursos c ON g.curso_id = c.id
+        WHERE g.id = $1
+    `, [grupoId]);
 
     if (quizRes.rows.length === 0) return res.status(404).json({ erro: 'Quiz não encontrado.' });
 
-    const prof_id = quizRes.rows[0].professor_id;
+    const { titulo, professor_id: prof_id } = quizRes.rows[0];
 
-    // Apaga as tentativas do quiz antes de apagar o quiz em si
-    await pool.query('DELETE FROM tentativas_quizzes WHERE quiz_titulo = $1', [titulo]).catch(() => console.log('Sem tentativas.'));
-    await pool.query('DELETE FROM quizzes WHERE titulo = $1', [titulo]);
+    // As perguntas caem em cascata; o histórico de tentativas é preservado
+    // (quiz_grupo_id passa a NULL, as estatísticas agregam por utilizador).
+    await pool.query('DELETE FROM quiz_grupos WHERE id = $1', [grupoId]);
 
     // Notificar Professor
     await criarNotificacao({

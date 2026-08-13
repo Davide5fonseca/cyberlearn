@@ -113,8 +113,9 @@ router.get('/professor/cursos/:id', autenticar, proprioOuPerfil('admin'), asyncH
 router.get('/professor/quizzes/:id', autenticar, proprioOuPerfil('admin'), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const result = await pool.query(`
-        SELECT q.*, c.titulo as nome_curso, c.nivel as nivel_curso
+        SELECT q.*, g.id as grupo_id, g.aprovado as grupo_aprovado, c.titulo as nome_curso, c.nivel as nivel_curso
         FROM quizzes q
+        JOIN quiz_grupos g ON q.grupo_id = g.id
         JOIN cursos c ON q.curso_id = c.id
         WHERE c.professor_id = $1
         ORDER BY q.id DESC
