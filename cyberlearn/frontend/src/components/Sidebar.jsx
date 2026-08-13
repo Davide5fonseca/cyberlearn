@@ -24,10 +24,11 @@ export default function Sidebar({ view, setView, handleLogout, theme, user, isMo
   useEffect(() => {
     if (user?.id) {
       buscarNotificacoes();
-      const lidasGuardadas = localStorage.getItem(`notificacoes_lidas_${user.id}`);
-      if (lidasGuardadas) {
-        setLidas(JSON.parse(lidasGuardadas));
-      }
+      // JSON corrompido no storage não pode rebentar a Sidebar inteira.
+      try {
+        const lidasGuardadas = localStorage.getItem(`notificacoes_lidas_${user.id}`);
+        if (lidasGuardadas) setLidas(JSON.parse(lidasGuardadas));
+      } catch { /* valor inválido: ignora */ }
     }
   }, [user]);
 

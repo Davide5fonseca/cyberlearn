@@ -24,6 +24,12 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Regras novas do react-hooks v7: sinalizam padrões legados (componentes
+      // definidos inline, mutações e setState em efeitos) cuja limpeza está
+      // prevista para o varrimento de UI. Ficam como aviso até lá.
+      'react-hooks/static-components': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
 ])

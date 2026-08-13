@@ -84,12 +84,12 @@ export default function ProfessorCursos({ theme, user }) {
 
   const handleEditCurso = () => {
     setCursoData({ titulo: viewingCurso.titulo, nivel: viewingCurso.nivel || 'iniciante', descricao: viewingCurso.descricao || '' });
-    let parsedLicoes = [''];
+    let parsedLicoes;
     try {
       const parsed = JSON.parse(viewingCurso.conteudo_licao);
       if (Array.isArray(parsed)) parsedLicoes = parsed;
       else parsedLicoes = [viewingCurso.conteudo_licao];
-    } catch (e) { parsedLicoes = [viewingCurso.conteudo_licao]; }
+    } catch { parsedLicoes = [viewingCurso.conteudo_licao]; }
     
     setLicoes(parsedLicoes);
     setNumeroLicoes(parsedLicoes.length);
@@ -117,7 +117,7 @@ export default function ProfessorCursos({ theme, user }) {
         setCursosReais(cursosReais.filter(curso => curso.id !== cursoId));
         buscarQuizzes();
       } else { notify('Não foi possível apagar o curso.', 'error'); }
-    } catch (error) { notify("Erro de ligação.", 'error'); }
+    } catch { notify("Erro de ligação.", 'error'); }
   };
 
   const handleDeleteQuiz = async (e, quiz) => {
@@ -129,7 +129,7 @@ export default function ProfessorCursos({ theme, user }) {
         notify("Quiz apagado com sucesso.", 'success');
         setQuizzesReais(quizzesReais.filter(q => q.grupoId !== quiz.grupoId));
       } else { notify('Não foi possível apagar o quiz.', 'error'); }
-    } catch (error) { notify("Erro de ligação.", 'error'); }
+    } catch { notify("Erro de ligação.", 'error'); }
   };
 
   const handleCursoChange = (e) => setCursoData({ ...cursoData, [e.target.name]: e.target.value });
@@ -195,7 +195,7 @@ export default function ProfessorCursos({ theme, user }) {
         goNovoCurso();
         setActiveTab('gerirCursos');
       } else notify(data.erro || 'Não foi possível guardar o curso.', 'error');
-    } catch (err) { notify("Erro de ligação.", 'error'); }
+    } catch { notify("Erro de ligação.", 'error'); }
   };
 
   const handleSubmitQuiz = async (e) => { 
@@ -228,7 +228,7 @@ export default function ProfessorCursos({ theme, user }) {
       goNovoQuiz();
       setActiveTab('gerirCursos');
 
-    } catch (err) { notify("Erro ao guardar quiz.", 'error'); }
+    } catch { notify("Erro ao guardar quiz.", 'error'); }
   };
 
   const styles = {
@@ -265,11 +265,11 @@ export default function ProfessorCursos({ theme, user }) {
   // VISTA DE DETALHES
 
   if (viewingCurso) {
-    let conteudosLicao = [];
+    let conteudosLicao;
     try {
       conteudosLicao = JSON.parse(viewingCurso.conteudo_licao);
       if (!Array.isArray(conteudosLicao)) conteudosLicao = [viewingCurso.conteudo_licao];
-    } catch (e) {
+    } catch {
       conteudosLicao = [viewingCurso.conteudo_licao];
     }
 

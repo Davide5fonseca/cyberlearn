@@ -15,10 +15,10 @@ function getPasswordStrength(pwd) {
   return            { score: 4, label: 'Forte',    color: '#00c896' };
 }
 
-export default function Profile({ 
-  user, profileData, handleProfileChange, handleSaveProfile, 
-  is2FAEnabled, setIs2FAEnabled, theme, avatarImg, setAvatarImg, 
-  isReadOnly = false, viewedUser = null 
+export default function Profile({
+  user, profileData, handleProfileChange, handleSaveProfile,
+  theme, avatarImg, setAvatarImg,
+  isReadOnly = false, viewedUser = null
 }) {
   const fileInputRef = useRef(null);
   const [showAtual, setShowAtual]         = useState(false);

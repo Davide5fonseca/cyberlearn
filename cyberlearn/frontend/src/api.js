@@ -7,6 +7,18 @@ export function getToken() {
   try { return localStorage.getItem('cyberlearn_token'); } catch { return null; }
 }
 
+// Registado pelo AuthContext: chamado quando o servidor devolve 401.
+// Substitui o antigo window.location.reload(), que perdia trabalho não guardado.
+let onSessionExpired = null;
+export function setOnSessionExpired(fn) { onSessionExpired = fn; }
+
+export class ApiError extends Error {
+  constructor(mensagem, status) {
+    super(mensagem);
+    this.status = status;
+  }
+}
+
 export async function apiFetch(path, options = {}) {
   const url = `${API_URL}${path}`;
 
@@ -17,16 +29,22 @@ export async function apiFetch(path, options = {}) {
 
   const response = await fetch(url, { ...options, headers });
 
-  // Sessão inválida/expirada: limpa o estado local e volta ao login.
-  if (response.status === 401) {
-    try {
-      localStorage.removeItem('cyberlearn_token');
-      localStorage.removeItem('cyberlearn_user');
-    } catch {}
-    if (!path.startsWith('/login') && !path.startsWith('/registar')) {
-      window.location.reload();
-    }
+  // Sessão inválida/expirada: o AuthContext limpa o estado e navega para o login.
+  if (response.status === 401 && !path.startsWith('/login') && !path.startsWith('/registar')) {
+    if (onSessionExpired) onSessionExpired();
   }
 
   return response;
+}
+
+// Variante que valida a resposta: devolve o JSON em caso de sucesso e
+// lança ApiError com a mensagem do servidor em caso de falha.
+export async function apiJson(path, options = {}) {
+  const response = await apiFetch(path, options);
+  let data = null;
+  try { data = await response.json(); } catch { /* resposta sem corpo */ }
+  if (!response.ok) {
+    throw new ApiError(data?.erro || 'Ocorreu um erro no servidor.', response.status);
+  }
+  return data;
 }

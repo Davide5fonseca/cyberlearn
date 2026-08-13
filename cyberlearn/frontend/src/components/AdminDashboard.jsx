@@ -5,7 +5,7 @@ import { apiFetch } from '../api';
 import { useUI } from './ui/UIProvider';
 import { useTranslation } from '../i18n';
 
-export default function AdminDashboard({ theme, user, setView }) {
+export default function AdminDashboard({ theme }) {
   const { notify } = useUI();
   const t = useTranslation();
 
@@ -19,14 +19,16 @@ export default function AdminDashboard({ theme, user, setView }) {
   });
 
   const carregarDados = () => {
+    // Validar res.ok e o formato: uma resposta de erro ({erro}) deixava
+    // `acessos` sem ser array e rebentava o render com TypeError.
     apiFetch('/acessos-professores')
-      .then(res => res.json())
-      .then(data => setAcessos(data))
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(data => { if (Array.isArray(data)) setAcessos(data); })
       .catch(err => console.error("Erro:", err));
 
     apiFetch('/admin-estatisticas')
-      .then(res => res.json())
-      .then(data => setEstatisticas(data))
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(data => setEstatisticas(prev => ({ ...prev, ...data })))
       .catch(err => console.error("Erro nas estatísticas:", err));
   };
 

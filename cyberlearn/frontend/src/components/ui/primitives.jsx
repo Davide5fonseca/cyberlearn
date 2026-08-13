@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 // Primitivos de UI partilhados do design "Cyber Dark refinado".
 // Recebem o objeto `theme` por props (mesma fonte de cores da app).
 

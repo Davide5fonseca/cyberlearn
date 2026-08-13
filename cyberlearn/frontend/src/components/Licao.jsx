@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState } from 'react';
 import DOMPurify from 'dompurify';
 
@@ -34,11 +33,11 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
     );
   }
 
-  let conteudosDasLicoes = [];
+  let conteudosDasLicoes;
   try {
     conteudosDasLicoes = JSON.parse(curso.conteudo_licao);
     if (!Array.isArray(conteudosDasLicoes)) conteudosDasLicoes = [curso.conteudo_licao];
-  } catch (error) {
+  } catch {
     conteudosDasLicoes = [curso.conteudo_licao];
   }
 

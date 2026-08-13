@@ -13,8 +13,8 @@ export default function AdminProfessores({ theme }) {
 
   const carregarProfessores = () => {
     apiFetch('/professores')
-      .then(res => res.json())
-      .then(data => setProfessores(data))
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(data => { if (Array.isArray(data)) setProfessores(data); })
       .catch(err => console.error("Ups, problema ao carregar a equipa:", err));
   };
 
@@ -41,7 +41,7 @@ export default function AdminProfessores({ theme }) {
       } else {
         notify(data.erro || 'Algo correu mal.', 'error');
       }
-    } catch (error) {
+    } catch {
       notify("Não conseguimos ligar ao servidor. Verifica a tua ligação e tenta de novo.", 'error');
     }
   };

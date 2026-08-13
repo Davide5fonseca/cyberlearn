@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 import { StatCard } from './ui/primitives';
 
-export default function Dashboard({ theme, user, setView }) {
+export default function Dashboard({ theme, user }) {
   const [trofeus, setTrofeus] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [classificacao, setClassificacao] = useState([]);
@@ -85,7 +85,6 @@ export default function Dashboard({ theme, user, setView }) {
   const cP = theme.primary  || '#3b82f6';
   const cS = theme.success  || '#10b981';
   const cW = theme.warning  || '#f59e0b';
-  const cD = theme.danger   || '#ef4444';
 
   const medalha = (pos) => {
     if (pos === 0) return { bg: 'linear-gradient(135deg,#fbbf24,#f59e0b)', icon: '🥇', label: '1º' };
