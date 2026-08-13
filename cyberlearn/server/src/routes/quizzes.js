@@ -3,6 +3,7 @@ const { pool } = require('../config/db');
 const { autenticar, exigirPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
 const { criarNotificacao } = require('../services/notificacoes');
+const { validar, quizSchema, salvarResultadoSchema } = require('../validacao/schemas');
 
 router.get('/quizzes', autenticar, asyncHandler(async (req, res) => {
     const result = await pool.query(`
@@ -15,7 +16,7 @@ router.get('/quizzes', autenticar, asyncHandler(async (req, res) => {
     res.status(200).json(result.rows);
 }, 'Erro ao carregar as avaliações.'));
 
-router.post('/quizzes', autenticar, exigirPerfil('professor', 'admin'), asyncHandler(async (req, res) => {
+router.post('/quizzes', autenticar, exigirPerfil('professor', 'admin'), validar(quizSchema), asyncHandler(async (req, res) => {
     const { titulo, curso_id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta } = req.body;
     // Um professor só pode adicionar perguntas a cursos seus.
     if (req.user.perfil === 'professor') {
@@ -56,7 +57,7 @@ router.delete('/quizzes/:titulo', autenticar, exigirPerfil('professor', 'admin')
     res.status(200).json({ mensagem: 'Avaliação apagada permanentemente!' });
 }, 'Erro interno ao apagar o quiz.'));
 
-router.post('/quizzes/salvar-resultado', autenticar, asyncHandler(async (req, res) => {
+router.post('/quizzes/salvar-resultado', autenticar, validar(salvarResultadoSchema), asyncHandler(async (req, res) => {
     const { quizTitulo, acertos, totalPerguntas } = req.body;
     const utilizadorId = req.user.id;
     await pool.query(

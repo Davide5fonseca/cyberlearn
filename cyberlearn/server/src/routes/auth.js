@@ -7,19 +7,16 @@ const { gerarToken, autenticar } = require('../middlewares/auth');
 const { limiterAuth } = require('../middlewares/rateLimit');
 const { asyncHandler } = require('../middlewares/errors');
 const { obterIp, gravarLogAcesso, gravarLogSeguranca } = require('../services/logs');
+const {
+    validar, registarSchema, loginSchema, login2FASchema,
+    recuperarSenhaSchema, resetPasswordSchema, atualizarPerfilSchema
+} = require('../validacao/schemas');
 
-router.post('/registar', limiterAuth, asyncHandler(async (req, res) => {
-    const { nome, email, password, tipo } = req.body;
-
+router.post('/registar', limiterAuth, validar(registarSchema), asyncHandler(async (req, res) => {
+    // O schema já validou nome/email/password e normalizou o email.
     // Apenas alunos e professores se podem registar. Contas de admin
     // nunca são criadas por este endpoint público (anti escalada de privilégios).
-    const perfil = String(tipo || '').toLowerCase().trim();
-    if (!['aluno', 'professor'].includes(perfil)) {
-        return res.status(400).json({ erro: 'Tipo de conta inválido.' });
-    }
-    if (!nome || !email || !password) {
-        return res.status(400).json({ erro: 'Nome, email e palavra-passe são obrigatórios.' });
-    }
+    const { nome, email, password, tipo: perfil } = req.body;
 
     const userExists = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
     if (userExists.rows.length > 0) return res.status(400).json({ erro: 'Este email já está registado.' });
@@ -36,7 +33,7 @@ router.post('/registar', limiterAuth, asyncHandler(async (req, res) => {
     res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
 }, 'Erro interno ao criar conta.'));
 
-router.post('/login', limiterAuth, asyncHandler(async (req, res) => {
+router.post('/login', limiterAuth, validar(loginSchema), asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
     const ip = obterIp(req);
@@ -65,7 +62,7 @@ router.post('/login', limiterAuth, asyncHandler(async (req, res) => {
     res.status(200).json({ requires2FA: true, utilizadorId: utilizador.id, mensagem: 'Código enviado para o teu email!' });
 }, 'Erro interno ao fazer login.'));
 
-router.post('/login-2fa', limiterAuth, asyncHandler(async (req, res) => {
+router.post('/login-2fa', limiterAuth, validar(login2FASchema), asyncHandler(async (req, res) => {
     const { utilizadorId, token } = req.body;
     const result = await pool.query('SELECT * FROM utilizadores WHERE id = $1', [utilizadorId]);
     if (result.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
@@ -132,7 +129,7 @@ router.post('/login-2fa', limiterAuth, asyncHandler(async (req, res) => {
     });
 }, 'Erro interno ao verificar o código.'));
 
-router.post('/recuperar-senha', limiterAuth, asyncHandler(async (req, res) => {
+router.post('/recuperar-senha', limiterAuth, validar(recuperarSenhaSchema), asyncHandler(async (req, res) => {
     const { email } = req.body;
     const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(200).json({ mensagem: 'Se o email existir, receberás um código.' });
@@ -149,7 +146,7 @@ router.post('/recuperar-senha', limiterAuth, asyncHandler(async (req, res) => {
     res.status(200).json({ mensagem: 'Código enviado com sucesso.' });
 }, 'Erro interno ao processar o pedido.'));
 
-router.post('/reset-password', limiterAuth, asyncHandler(async (req, res) => {
+router.post('/reset-password', limiterAuth, validar(resetPasswordSchema), asyncHandler(async (req, res) => {
     const { email, token, novaPassword } = req.body;
     const result = await pool.query(
         'SELECT * FROM utilizadores WHERE email = $1 AND reset_token = $2 AND reset_token_expiry > NOW()',
@@ -170,12 +167,22 @@ router.post('/reset-password', limiterAuth, asyncHandler(async (req, res) => {
     res.status(200).json({ mensagem: 'Palavra-passe atualizada com sucesso! Já podes fazer login.' });
 }, 'Erro interno ao processar o pedido.'));
 
-router.post('/atualizar-perfil', autenticar, asyncHandler(async (req, res) => {
-    const {
-        nome, senhaAtual, novaSenha, avatar,
-        biografiaProf, metodologia,
-        nivelExperiencia, interesse, biografia, conquistas, github, linkedin
-    } = req.body;
+// Mapa campo do pedido → coluna na BD. Só os campos presentes no corpo são
+// atualizados: um pedido parcial nunca apaga os restantes dados do perfil.
+const CAMPOS_PERFIL = {
+    nome: 'nome',
+    avatar: 'avatar',
+    biografiaProf: 'biografia_prof',
+    metodologia: 'metodologia',
+    nivelExperiencia: 'nivel_experiencia',
+    interesse: 'area_interesse',
+    biografia: 'biografia',
+    github: 'github',
+    linkedin: 'linkedin'
+};
+
+router.post('/atualizar-perfil', autenticar, validar(atualizarPerfilSchema), asyncHandler(async (req, res) => {
+    const { senhaAtual, novaSenha } = req.body;
     // A identidade vem sempre do token, nunca do corpo do pedido.
     const id = req.user.id;
 
@@ -183,7 +190,15 @@ router.post('/atualizar-perfil', autenticar, asyncHandler(async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
 
     const utilizador = result.rows[0];
-    let newPasswordHash = utilizador.password_hash;
+
+    const sets = [];
+    const valores = [];
+    for (const [campo, coluna] of Object.entries(CAMPOS_PERFIL)) {
+        if (req.body[campo] !== undefined) {
+            valores.push(req.body[campo]);
+            sets.push(`${coluna} = $${valores.length}`);
+        }
+    }
 
     if (novaSenha) {
         if (!senhaAtual) return res.status(400).json({ erro: 'Precisas de inserir a senha atual para mudar a segurança.' });
@@ -192,17 +207,14 @@ router.post('/atualizar-perfil', autenticar, asyncHandler(async (req, res) => {
         if (!isValid) return res.status(401).json({ erro: 'A palavra-passe atual está incorreta.' });
 
         const salt = await bcrypt.genSalt(10);
-        newPasswordHash = await bcrypt.hash(novaSenha, salt);
+        valores.push(await bcrypt.hash(novaSenha, salt));
+        sets.push(`password_hash = $${valores.length}`);
     }
 
-    await pool.query(
-        `UPDATE utilizadores SET
-            nome = $1, password_hash = $2, avatar = $3,
-            biografia_prof = $4, metodologia = $5,
-            nivel_experiencia = $6, area_interesse = $7, biografia = $8, github = $9, linkedin = $10
-        WHERE id = $11`,
-        [nome, newPasswordHash, avatar, biografiaProf, metodologia, nivelExperiencia, interesse, biografia, github, linkedin, id]
-    );
+    if (sets.length > 0) {
+        valores.push(id);
+        await pool.query(`UPDATE utilizadores SET ${sets.join(', ')} WHERE id = $${valores.length}`, valores);
+    }
 
     res.status(200).json({ mensagem: 'Perfil atualizado com sucesso!' });
 }, 'Erro interno ao processar o pedido.'));

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { pool } = require('../config/db');
 const { autenticar, proprioOuPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
+const { validar, atribuirConquistaSchema, adicionarXpSchema } = require('../validacao/schemas');
 
 router.get('/conquistas/:utilizadorId', autenticar, proprioOuPerfil('professor', 'admin'), asyncHandler(async (req, res) => {
     const { utilizadorId } = req.params;
@@ -15,7 +16,7 @@ router.get('/conquistas/:utilizadorId', autenticar, proprioOuPerfil('professor',
     res.status(200).json(result.rows);
 }, 'Erro ao carregar conquistas.'));
 
-router.post('/conquistas/atribuir', autenticar, asyncHandler(async (req, res) => {
+router.post('/conquistas/atribuir', autenticar, validar(atribuirConquistaSchema), asyncHandler(async (req, res) => {
     const { nomeConquista } = req.body;
     const utilizadorId = req.user.id;
     const conquistaRes = await pool.query('SELECT id FROM conquistas_catalogo WHERE nome = $1', [nomeConquista]);
@@ -30,7 +31,7 @@ router.post('/conquistas/atribuir', autenticar, asyncHandler(async (req, res) =>
     res.status(200).json({ mensagem: 'Troféu validado com sucesso!' });
 }, 'Erro ao atribuir conquista.'));
 
-router.post('/xp/adicionar', autenticar, asyncHandler(async (req, res) => {
+router.post('/xp/adicionar', autenticar, validar(adicionarXpSchema), asyncHandler(async (req, res) => {
     const { quantidade } = req.body;
     const utilizadorId = req.user.id;
     // Limita a quantidade de XP por pedido para evitar abusos.

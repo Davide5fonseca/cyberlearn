@@ -3,6 +3,7 @@ const { pool, comTransacao } = require('../config/db');
 const { autenticar, exigirPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
 const { criarNotificacao } = require('../services/notificacoes');
+const { validar, tituloQuizSchema } = require('../validacao/schemas');
 
 router.get('/teste-bd', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
     const result = await pool.query('SELECT NOW()');
@@ -91,7 +92,7 @@ router.delete('/admin/rejeitar/curso/:id', autenticar, exigirPerfil('admin'), as
     res.status(200).json({ mensagem: 'Curso rejeitado e apagado.' });
 }, 'Erro ao rejeitar curso.'));
 
-router.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+router.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), validar(tituloQuizSchema), asyncHandler(async (req, res) => {
     // Recebe o título em segurança pelo corpo da mensagem
     const { titulo } = req.body;
 
@@ -126,7 +127,7 @@ router.put('/admin/aprovar/quiz', autenticar, exigirPerfil('admin'), asyncHandle
     res.status(200).json({ mensagem: 'Quiz aprovado com sucesso!' });
 }, 'Erro ao aprovar quiz.'));
 
-router.post('/admin/rejeitar/quiz', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+router.post('/admin/rejeitar/quiz', autenticar, exigirPerfil('admin'), validar(tituloQuizSchema), asyncHandler(async (req, res) => {
     // Usamos POST para garantir que o body chega intacto
     const { titulo } = req.body;
 

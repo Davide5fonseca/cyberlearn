@@ -3,6 +3,7 @@ const { pool } = require('../config/db');
 const { autenticar, exigirPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
 const { criarNotificacao } = require('../services/notificacoes');
+const { validar, cursoSchema } = require('../validacao/schemas');
 
 router.get('/cursos', autenticar, asyncHandler(async (req, res) => {
     const result = await pool.query(`
@@ -15,7 +16,7 @@ router.get('/cursos', autenticar, asyncHandler(async (req, res) => {
     res.status(200).json(result.rows);
 }, 'Erro ao carregar os cursos.'));
 
-router.post('/cursos', autenticar, exigirPerfil('professor', 'admin'), asyncHandler(async (req, res) => {
+router.post('/cursos', autenticar, exigirPerfil('professor', 'admin'), validar(cursoSchema), asyncHandler(async (req, res) => {
     const { titulo, nivel, descricao, conteudo_licao } = req.body;
     // O autor é sempre o utilizador autenticado.
     const professor_id = req.user.id;
@@ -40,7 +41,7 @@ router.post('/cursos', autenticar, exigirPerfil('professor', 'admin'), asyncHand
     res.status(201).json({ mensagem: 'Curso publicado e a aguardar aprovação!', curso: result.rows[0] });
 }, 'Erro interno ao criar o curso.'));
 
-router.put('/cursos/:id', autenticar, exigirPerfil('professor', 'admin'), asyncHandler(async (req, res) => {
+router.put('/cursos/:id', autenticar, exigirPerfil('professor', 'admin'), validar(cursoSchema), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { titulo, nivel, descricao, conteudo_licao } = req.body;
     if (req.user.perfil === 'professor') {
