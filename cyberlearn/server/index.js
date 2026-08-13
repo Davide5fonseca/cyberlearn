@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
@@ -18,9 +20,24 @@ const app = express();
 // Necessário atrás de um proxy (Vercel) para ler o IP real e para o rate-limit.
 app.set('trust proxy', 1);
 
-app.use(cors());
+app.use(helmet());
+
+// Apenas as origens declaradas em FRONTEND_ORIGINS podem chamar a API.
+const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173')
+    .split(',').map(o => o.trim()).filter(Boolean);
+app.use(cors({ origin: origensPermitidas }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Limite global de pedidos (as rotas de autenticação têm o limiterAuth, mais apertado).
+app.use(rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { erro: 'Demasiados pedidos. Tenta novamente dentro de instantes.' }
+}));
 
 // ==========================================
 // MIDDLEWARES DE SEGURANÇA (JWT + RATE LIMIT)
@@ -91,19 +108,29 @@ const pool = new Pool({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     database: process.env.DB_DATABASE,
-    ssl: { rejectUnauthorized: false }
+    // Com DB_CA_CERT validamos o certificado do servidor; sem ele mantemos a ligação
+    // cifrada mas sem validação (limitação do fornecedor atual — ver README).
+    ssl: process.env.DB_CA_CERT
+        ? { rejectUnauthorized: true, ca: process.env.DB_CA_CERT }
+        : { rejectUnauthorized: false },
+    // Limites adequados a serverless: cada instância segura poucas ligações.
+    max: 5,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000
 });
+
+pool.on('error', (err) => console.error('❌ Erro inesperado no pool de ligações:', err.message));
 
 // ==========================================
 // 0. INICIALIZAÇÃO DE TABELAS & FUNÇÕES AUX
 // ==========================================
-app.get('/teste-bd', async (req, res) => {
+app.get('/teste-bd', autenticar, exigirPerfil('admin'), async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW()');
         res.json({ mensagem: 'Ligação ao PostgreSQL feita com sucesso!', tempo: result.rows[0] });
     } catch (err) {
         console.error("Erro na base de dados:", err.message);
-        res.status(500).json({ erro: 'Falha na ligação à base de dados.', detalhe: err.message });
+        res.status(500).json({ erro: 'Falha na ligação à base de dados.' });
     }
 });
 
@@ -241,11 +268,12 @@ app.post('/login', limiterAuth, async (req, res) => {
             return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
         }
 
-        const codigo2FA = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiracao = new Date(Date.now() + 10 * 60000); 
+        // crypto.randomInt: gerador criptograficamente seguro (Math.random é previsível).
+        const codigo2FA = crypto.randomInt(100000, 1000000).toString();
+        const expiracao = new Date(Date.now() + 10 * 60000);
 
         await pool.query(
-            'UPDATE utilizadores SET codigo_email_2fa = $1, codigo_email_expiracao = $2 WHERE id = $3',
+            'UPDATE utilizadores SET codigo_email_2fa = $1, codigo_email_expiracao = $2, codigo_2fa_tentativas = 0 WHERE id = $3',
             [codigo2FA, expiracao, utilizador.id]
         );
 
@@ -281,12 +309,26 @@ app.post('/login-2fa', limiterAuth, async (req, res) => {
         
         const utilizador = result.rows[0];
 
-        if (!utilizador.codigo_email_2fa || utilizador.codigo_email_2fa !== token) {
-            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null);
+        const ip2FA = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null;
+
+        if (!utilizador.codigo_email_2fa) {
+            return res.status(401).json({ erro: 'Não há nenhum código ativo. Volta ao login.' });
+        }
+        if (utilizador.codigo_email_2fa !== token) {
+            // Ao fim de 5 falhas o código é anulado — impede a iteração do espaço de códigos.
+            const upd = await pool.query(
+                'UPDATE utilizadores SET codigo_2fa_tentativas = codigo_2fa_tentativas + 1 WHERE id = $1 RETURNING codigo_2fa_tentativas',
+                [utilizador.id]
+            );
+            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, ip2FA);
+            if (upd.rows[0].codigo_2fa_tentativas >= 5) {
+                await pool.query('UPDATE utilizadores SET codigo_email_2fa = NULL, codigo_email_expiracao = NULL WHERE id = $1', [utilizador.id]);
+                return res.status(401).json({ erro: 'Demasiadas tentativas falhadas. Volta a iniciar sessão para receber um código novo.' });
+            }
             return res.status(401).json({ erro: 'Código incorreto. Tenta novamente.' });
         }
         if (new Date() > new Date(utilizador.codigo_email_expiracao)) {
-            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null);
+            await gravarLogSeguranca('2fa_falha', utilizador.email, utilizador.id, ip2FA);
             return res.status(401).json({ erro: 'Este código já expirou. Volta ao login.' });
         }
 
@@ -335,7 +377,7 @@ app.post('/recuperar-senha', limiterAuth, async (req, res) => {
         const result = await pool.query('SELECT * FROM utilizadores WHERE email = $1', [email]);
         if (result.rows.length === 0) return res.status(200).json({ mensagem: 'Se o email existir, receberás um código.' });
 
-        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const resetCode = crypto.randomInt(100000, 1000000).toString();
         const tokenExpiry = new Date(Date.now() + 15 * 60000); 
 
         await pool.query(
@@ -1202,7 +1244,13 @@ app.post('/admin/rejeitar/quiz', autenticar, exigirPerfil('admin'), async (req, 
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor a correr na porta ${PORT}`);
-});
+// Exportar a app permite testes com supertest e é o padrão esperado pelo @vercel/node.
+// O listen só corre quando o ficheiro é executado diretamente (npm run dev / start).
+module.exports = app;
+
+if (require.main === module) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Servidor a correr na porta ${PORT}`);
+    });
+}

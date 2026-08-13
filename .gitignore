@@ -6,8 +6,9 @@ node_modules
 .env.*
 !.env.example
 
-# Dumps e backups da base de dados
+# Dumps e backups da base de dados (o schema e as migrações versionadas são a exceção)
 *.sql
+!cyberlearn/server/db/**/*.sql
 *.dump
 *.bak
 
