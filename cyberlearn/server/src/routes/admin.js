@@ -3,6 +3,7 @@ const { pool, comTransacao } = require('../config/db');
 const { autenticar, exigirPerfil } = require('../middlewares/auth');
 const { asyncHandler } = require('../middlewares/errors');
 const { criarNotificacao } = require('../services/notificacoes');
+const { enviarBoasVindasProfessor } = require('../config/mailer');
 
 router.get('/teste-bd', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
     const result = await pool.query('SELECT NOW()');
@@ -10,7 +11,7 @@ router.get('/teste-bd', autenticar, exigirPerfil('admin'), asyncHandler(async (r
 }, 'Falha na ligação à base de dados.'));
 
 router.get('/admin/pendentes', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
-    const [cursosRes, quizzesRes] = await Promise.all([
+    const [cursosRes, quizzesRes, professoresRes] = await Promise.all([
         pool.query(`
             SELECT c.*, u.nome as nome_professor
             FROM cursos c
@@ -27,11 +28,74 @@ router.get('/admin/pendentes', autenticar, exigirPerfil('admin'), asyncHandler(a
             WHERE g.aprovado = false
             GROUP BY g.id, g.titulo, c.titulo, u.nome
             ORDER BY g.id DESC
+        `),
+        pool.query(`
+            SELECT id, nome, email, to_char(data_registo, 'DD/MM/YYYY') as data_registo
+            FROM utilizadores
+            WHERE LOWER(TRIM(perfil)) = 'professor' AND ativo = false
+            ORDER BY data_registo DESC
         `)
     ]);
 
-    res.status(200).json({ cursos: cursosRes.rows, quizzes: quizzesRes.rows });
+    res.status(200).json({ cursos: cursosRes.rows, quizzes: quizzesRes.rows, professores: professoresRes.rows });
 }, 'Erro ao carregar pendentes.'));
+
+router.put('/admin/aprovar/professor/:id', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const result = await pool.query(
+        "UPDATE utilizadores SET ativo = true WHERE id = $1 AND LOWER(TRIM(perfil)) = 'professor' RETURNING id, nome, email",
+        [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ erro: 'Professor não encontrado.' });
+
+    const professor = result.rows[0];
+    await criarNotificacao({
+        utilizador_id: professor.id, icone: '✅', cor: '#10b981',
+        titulo: 'Conta Aprovada!',
+        mensagem: 'A tua conta de professor foi aprovada. Bem-vindo ao CyberLearn!',
+        acao: 'professor_dashboard'
+    });
+    // O email de boas-vindas é acessório: uma falha de envio não anula a aprovação.
+    try { await enviarBoasVindasProfessor(professor); } catch (err) { console.error('⚠️ Falha no email de boas-vindas:', err.message); }
+
+    res.status(200).json({ mensagem: `Professor ${professor.nome} aprovado com sucesso!` });
+}, 'Erro ao aprovar professor.'));
+
+router.delete('/admin/rejeitar/professor/:id', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    // Só remove contas de professor ainda não aprovadas (as ativas saem por /professores/:id).
+    const result = await pool.query(
+        "DELETE FROM utilizadores WHERE id = $1 AND LOWER(TRIM(perfil)) = 'professor' AND ativo = false RETURNING id",
+        [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ erro: 'Professor pendente não encontrado.' });
+    res.status(200).json({ mensagem: 'Registo de professor rejeitado e removido.' });
+}, 'Erro ao rejeitar professor.'));
+
+// A tabela logs_seguranca sempre foi escrita (login_falha, 2fa_falha,
+// login_sucesso) mas nunca lida — este ecrã rentabiliza esses dados.
+router.get('/admin/logs-seguranca', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
+    const tiposValidos = ['login_falha', '2fa_falha', 'login_sucesso'];
+    const tipo = tiposValidos.includes(req.query.tipo) ? req.query.tipo : null;
+    const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 50, 1), 200);
+    const pagina = Math.max(parseInt(req.query.pagina, 10) || 1, 0);
+
+    const filtro = tipo ? 'WHERE l.tipo = $2' : '';
+    const params = tipo ? [limite, tipo, (pagina - 1) * limite] : [limite, (pagina - 1) * limite];
+    const offsetParam = tipo ? '$3' : '$2';
+
+    const result = await pool.query(`
+        SELECT l.id, l.tipo, l.email, l.ip, u.nome,
+               to_char(l.data_criacao, 'DD/MM/YYYY HH24:MI') as data
+        FROM logs_seguranca l
+        LEFT JOIN utilizadores u ON l.utilizador_id = u.id
+        ${filtro}
+        ORDER BY l.data_criacao DESC
+        LIMIT $1 OFFSET ${offsetParam}
+    `, params);
+
+    res.status(200).json(result.rows);
+}, 'Erro ao carregar os registos de segurança.'));
 
 router.put('/admin/aprovar/curso/:id', autenticar, exigirPerfil('admin'), asyncHandler(async (req, res) => {
     const id = parseInt(req.params.id, 10);

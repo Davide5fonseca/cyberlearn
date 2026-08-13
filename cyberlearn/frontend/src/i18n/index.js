@@ -44,6 +44,7 @@ export const messages = {
     'sidebar.adminPlatform': 'Dashboard',
     'sidebar.adminUsers': 'Professores',
     'sidebar.adminAprovacoes': 'Aprovações',
+    'sidebar.adminSeguranca': 'Segurança',
     'sidebar.profile': 'Perfil',
     'sidebar.profAnalytics': 'Dashboard',
     'sidebar.profStudents': 'Alunos',

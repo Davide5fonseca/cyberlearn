@@ -7,6 +7,7 @@ const { gerarToken, autenticar } = require('../middlewares/auth');
 const { limiterAuth } = require('../middlewares/rateLimit');
 const { asyncHandler } = require('../middlewares/errors');
 const { obterIp, gravarLogAcesso, gravarLogSeguranca } = require('../services/logs');
+const { criarNotificacao } = require('../services/notificacoes');
 const {
     validar, registarSchema, loginSchema, login2FASchema,
     recuperarSenhaSchema, resetPasswordSchema, atualizarPerfilSchema
@@ -24,11 +25,29 @@ router.post('/registar', limiterAuth, validar(registarSchema), asyncHandler(asyn
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Professores nascem inativos: só entram depois de o admin aprovar a conta
+    // (perfil com acesso a dados pessoais dos alunos).
+    const ativo = perfil !== 'professor';
+
     const novoUtilizador = await pool.query(
         `INSERT INTO utilizadores (nome, email, password_hash, perfil, data_registo, ativo)
-         VALUES ($1, $2, $3, $4, NOW(), true) RETURNING id, nome, email, perfil`,
-        [nome, email, passwordHash, perfil]
+         VALUES ($1, $2, $3, $4, NOW(), $5) RETURNING id, nome, email, perfil`,
+        [nome, email, passwordHash, perfil, ativo]
     );
+
+    if (perfil === 'professor') {
+        await criarNotificacao({
+            perfil_alvo: 'admin',
+            icone: '🧑‍🏫', cor: '#f59e0b',
+            titulo: 'Professor a Aguardar Aprovação',
+            mensagem: `${nome} registou-se como professor e aguarda validação da conta.`,
+            acao: 'admin_aprovacoes'
+        });
+        return res.status(201).json({
+            mensagem: 'Conta criada! Um administrador vai validar o teu perfil de professor antes de poderes entrar.',
+            utilizador: novoUtilizador.rows[0]
+        });
+    }
 
     res.status(201).json({ mensagem: 'Conta criada com sucesso!', utilizador: novoUtilizador.rows[0] });
 }, 'Erro interno ao criar conta.'));
@@ -46,6 +65,11 @@ router.post('/login', limiterAuth, validar(loginSchema), asyncHandler(async (req
     if (!passwordValida) {
         await gravarLogSeguranca('login_falha', email, null, ip);
         return res.status(401).json({ erro: 'Email ou palavra-passe incorretos.' });
+    }
+
+    // Contas de professor por aprovar não recebem código 2FA nem entram.
+    if ((utilizador.perfil || '').toLowerCase().trim() === 'professor' && utilizador.ativo === false) {
+        return res.status(403).json({ erro: 'A tua conta de professor ainda aguarda aprovação do administrador.' });
     }
 
     // crypto.randomInt: gerador criptograficamente seguro (Math.random é previsível).

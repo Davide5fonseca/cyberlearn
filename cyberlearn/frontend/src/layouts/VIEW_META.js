@@ -18,6 +18,7 @@ export const VIEW_PATHS = {
   admin_dashboard: '/admin',
   admin_professores: '/admin/professores',
   admin_aprovacoes: '/admin/aprovacoes',
+  admin_seguranca: '/admin/seguranca',
 };
 
 // Caminho → nome de vista (para o estado ativo da Sidebar).
@@ -33,7 +34,8 @@ export const VIEW_META = {
   professor_cursos:    { titulo: 'Conteúdos Educativos', subtitulo: 'Cria, edita e apaga conteúdos educativos.' },
   admin_dashboard:     { saudacao: true,  subtitulo: 'Aqui está a atividade dos professores.' },
   admin_professores:   { titulo: 'Gestão de Professores', subtitulo: 'Consulta perfis e remove professores do sistema.' },
-  admin_aprovacoes:    { titulo: 'Aprovações de Conteúdos', subtitulo: 'Aprova ou rejeita os cursos e quizzes pendentes.' },
+  admin_aprovacoes:    { titulo: 'Aprovações', subtitulo: 'Aprova ou rejeita professores, cursos e quizzes pendentes.' },
+  admin_seguranca:     { titulo: 'Registos de Segurança', subtitulo: 'Auditoria de logins, falhas de password e de 2FA.' },
   cursos:              { titulo: 'Catálogo de Cursos', subtitulo: 'Explora os novos módulos.' },
   quizzes:             { titulo: 'Quizzes', subtitulo: 'Testa os teus conhecimentos.' },
   profile:             { titulo: 'O Teu Perfil', subtitulo: 'Gere a tua conta e segurança.' },

@@ -4,7 +4,7 @@ import { useUI } from './ui/UIProvider';
 
 export default function AdminAprovacoes({ theme }) {
   const { notify, confirm } = useUI();
-  const [pendentes, setPendentes] = useState({ cursos: [], quizzes: [] });
+  const [pendentes, setPendentes] = useState({ cursos: [], quizzes: [], professores: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,7 +15,10 @@ export default function AdminAprovacoes({ theme }) {
     setLoading(true);
     try {
       const res = await apiFetch('/admin/pendentes');
-      if (res.ok) setPendentes(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setPendentes({ cursos: data.cursos || [], quizzes: data.quizzes || [], professores: data.professores || [] });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -23,12 +26,14 @@ export default function AdminAprovacoes({ theme }) {
     }
   };
 
+  const LABELS = { quiz: 'Quiz', curso: 'Curso', professor: 'Professor' };
+
   const handleAprovar = async (tipo, identificador) => {
     try {
-      // Cursos e quizzes são identificados por id numérico (grupo_id nos quizzes).
+      // Cursos, quizzes e professores são identificados por id numérico.
       const res = await apiFetch(`/admin/aprovar/${tipo}/${identificador}`, { method: 'PUT' });
 
-      if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} aprovado com sucesso!`, 'success'); buscarPendentes(); }
+      if (res.ok) { notify(`${LABELS[tipo]} aprovado com sucesso!`, 'success'); buscarPendentes(); }
       else notify('Não foi possível aprovar.', 'error');
     } catch (err) {
       console.error(err);
@@ -41,7 +46,7 @@ export default function AdminAprovacoes({ theme }) {
     try {
       const res = await apiFetch(`/admin/rejeitar/${tipo}/${identificador}`, { method: 'DELETE' });
 
-      if (res.ok) { notify(`${tipo === 'quiz' ? 'Quiz' : 'Curso'} rejeitado e removido.`, 'success'); buscarPendentes(); }
+      if (res.ok) { notify(`${LABELS[tipo]} rejeitado e removido.`, 'success'); buscarPendentes(); }
       else notify('Não foi possível rejeitar.', 'error');
     } catch (err) {
       console.error(err);
@@ -62,6 +67,48 @@ export default function AdminAprovacoes({ theme }) {
 
   return (
     <div style={styles.container}>
+      {/* SECÇÃO PROFESSORES */}
+      <div style={styles.card}>
+        <h2 style={styles.sectionTitle}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.success || '#10b981'} strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+          Professores Pendentes ({pendentes.professores.length})
+        </h2>
+        {pendentes.professores.length === 0 ? (
+          <div style={{ backgroundColor: theme.inputBg, padding: '20px', borderRadius: '12px', textAlign: 'center', color: theme.textSub, fontSize: '14px', border: `1px dashed ${theme.inputBorder}` }}>
+            Nenhum registo de professor a aguardar validação.
+          </div>
+        ) : (
+          pendentes.professores.map(prof => (
+            <div key={prof.id} style={styles.itemRow} onMouseEnter={(e) => e.currentTarget.style.borderColor = `${theme.success}50`} onMouseLeave={(e) => e.currentTarget.style.borderColor = `${theme.inputBorder}50`}>
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: theme.textMain }}>{prof.nome}</h3>
+                <p style={{ margin: 0, fontSize: '12px', color: theme.textSub }}>{prof.email} • Registo: {prof.data_registo}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  style={styles.btnRejeitar}
+                  onClick={() => handleRejeitar('professor', prof.id)}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}15`}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  Rejeitar
+                </button>
+                <button
+                  style={styles.btnAprovar}
+                  onClick={() => handleAprovar('professor', prof.id)}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Aprovar Conta
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* SECÇÃO CURSOS */}
       <div style={styles.card}>
         <h2 style={styles.sectionTitle}>

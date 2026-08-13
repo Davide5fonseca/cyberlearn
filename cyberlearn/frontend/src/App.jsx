@@ -12,6 +12,7 @@ import ProfessorCursos from './components/ProfessorCursos';
 import AdminDashboard from './components/AdminDashboard';
 import AdminProfessores from './components/AdminProfessores';
 import AdminAprovacoes from './components/AdminAprovacoes';
+import AdminLogsSeguranca from './components/AdminLogsSeguranca';
 import { useAuth } from './context/AuthContext';
 import { HOME_POR_PERFIL } from './layouts/VIEW_META';
 
@@ -92,6 +93,11 @@ function AdminAprovacoesPage() {
   return <AdminAprovacoes theme={theme} />;
 }
 
+function AdminLogsSegurancaPage() {
+  const { theme } = useOutletContext();
+  return <AdminLogsSeguranca theme={theme} />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -116,6 +122,7 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute perfis={['admin']}><AdminDashboardPage /></ProtectedRoute>} />
         <Route path="/admin/professores" element={<ProtectedRoute perfis={['admin']}><AdminProfessoresPage /></ProtectedRoute>} />
         <Route path="/admin/aprovacoes" element={<ProtectedRoute perfis={['admin']}><AdminAprovacoesPage /></ProtectedRoute>} />
+        <Route path="/admin/seguranca" element={<ProtectedRoute perfis={['admin']}><AdminLogsSegurancaPage /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -55,4 +55,17 @@ const enviarCodigoRecuperacao = (email, codigo) => transporter.sendMail({
     )
 });
 
-module.exports = { transporter, enviarCodigo2FA, enviarCodigoRecuperacao };
+const enviarBoasVindasProfessor = (professor) => transporter.sendMail({
+    from: `"CyberLearn" <${process.env.EMAIL_USER}>`,
+    to: professor.email,
+    subject: 'CyberLearn - Conta de Professor Aprovada',
+    html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 10px; text-align: center;">
+            <h2 style="color: #171f2f;">Bem-vindo ao CyberLearn! 🎓</h2>
+            <p style="color: #333; font-size: 16px;">Olá ${professor.nome},</p>
+            <p style="color: #333; font-size: 16px;">A tua conta de professor foi aprovada pelo administrador. Já podes iniciar sessão e começar a criar cursos e avaliações.</p>
+        </div>
+    `
+});
+
+module.exports = { transporter, enviarCodigo2FA, enviarCodigoRecuperacao, enviarBoasVindasProfessor };
