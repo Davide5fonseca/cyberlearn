@@ -4,7 +4,9 @@
   "scripts": {
     "server": "npm run dev --prefix cyberlearn/server",
     "frontend": "npm run dev --prefix cyberlearn/frontend",
-    "dev": "concurrently \"npm run server\" \"npm run frontend\""
+    "dev": "concurrently \"npm run server\" \"npm run frontend\"",
+    "test": "npm test --prefix cyberlearn/server && npm test --prefix cyberlearn/frontend",
+    "lint": "npm run lint --prefix cyberlearn/frontend"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
