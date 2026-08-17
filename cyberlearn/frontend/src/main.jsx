@@ -6,6 +6,7 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { I18nProvider } from './i18n/index.js'
 import { UIProvider } from './components/ui/UIProvider.jsx'
 
 // Limpeza de chaves antigas: a cache de avatares nunca era lida nem removida
@@ -20,13 +21,15 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <UIProvider>
-          <ThemeProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </ThemeProvider>
-        </UIProvider>
+        <I18nProvider>
+          <UIProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ThemeProvider>
+          </UIProvider>
+        </I18nProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,

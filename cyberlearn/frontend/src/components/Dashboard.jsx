@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
+import { useTranslation } from '../i18n';
 import { StatCard } from './ui/primitives';
 
 export default function Dashboard({ theme, user }) {
+  const t = useTranslation();
   const [trofeus, setTrofeus] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [classificacao, setClassificacao] = useState([]);
   const [atividades, setAtividades] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Guarda a chave i18n do erro (traduzida no render, para reagir à mudança de idioma)
+  const [erro, setErro] = useState(null);
 
   // Calendário
   const hoje = new Date();
@@ -28,6 +32,7 @@ export default function Dashboard({ theme, user }) {
 
   const buscarDadosReais = async () => {
     setLoading(true);
+    setErro(null);
     try {
       const [resTrofeus, resStats, resClass, resAtiv] = await Promise.all([
         apiFetch(`/conquistas/${user.id}`),
@@ -37,10 +42,12 @@ export default function Dashboard({ theme, user }) {
       ]);
       if (resTrofeus.ok) setTrofeus(await resTrofeus.json());
       if (resStats.ok)   setDashboardData(await resStats.json());
+      else               setErro('aluno.comum.erroCarregar'); // sem estatísticas não há Dashboard
       if (resClass.ok)   { const d = await resClass.json(); if (Array.isArray(d)) setClassificacao(d); }
       if (resAtiv.ok)    { const d = await resAtiv.json();  if (Array.isArray(d)) setAtividades(d); }
     } catch (err) {
       console.error('Erro a buscar dados do Dashboard', err);
+      setErro('aluno.comum.erroCarregar');
     } finally {
       setLoading(false);
     }
@@ -48,11 +55,11 @@ export default function Dashboard({ theme, user }) {
 
   const getRank = (xp) => {
     const p = xp || 0;
-    if (p >= 2500) return { titulo: 'CISO',           cor: '#ef4444' };
-    if (p >= 1200) return { titulo: 'Ethical Hacker', cor: '#8b5cf6' };
-    if (p >=  600) return { titulo: 'Analista Júnior', cor: '#3b82f6' };
-    if (p >=  250) return { titulo: 'Explorador',     cor: '#10b981' };
-    return               { titulo: 'Script Kiddie',   cor: theme.textSub || '#888' };
+    if (p >= 2500) return { titulo: t('aluno.dashboard.rank.ciso'),           cor: '#ef4444' };
+    if (p >= 1200) return { titulo: t('aluno.dashboard.rank.ethicalHacker'), cor: '#8b5cf6' };
+    if (p >=  600) return { titulo: t('aluno.dashboard.rank.analistaJunior'), cor: '#3b82f6' };
+    if (p >=  250) return { titulo: t('aluno.dashboard.rank.explorador'),     cor: '#10b981' };
+    return               { titulo: t('aluno.dashboard.rank.scriptKiddie'),   cor: theme.textSub || '#888' };
   };
 
   // ── Calendário ─────────────────────────────────────────────────────
@@ -91,6 +98,19 @@ export default function Dashboard({ theme, user }) {
     if (pos === 1) return { bg: 'linear-gradient(135deg,#cbd5e1,#94a3b8)', icon: '🥈', label: '2º' };
     return               { bg: 'linear-gradient(135deg,#d97706,#b45309)', icon: '🥉', label: '3º' };
   };
+
+  // Falha de rede/servidor: mostra erro com retry em vez de spinner infinito.
+  if (erro && !loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 20px', backgroundColor: theme.cardBg, borderRadius: '16px', border: `2px dashed ${theme.inputBorder}` }}>
+        <div style={{ fontSize: '32px', marginBottom: '10px' }} aria-hidden="true">⚠️</div>
+        <p style={{ color: theme.textMain, fontWeight: 'bold', margin: '0 0 16px 0' }}>{t(erro)}</p>
+        <button type="button" className="cl-btn cl-btn-primary" onClick={buscarDadosReais}>
+          {t('aluno.comum.tentarNovamente')}
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !dashboardData) {
     return (

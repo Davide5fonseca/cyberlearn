@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { apiFetch } from '../api';
 import { useUI } from './ui/UIProvider';
+import { useTranslation } from '../i18n';
 
 export default function ProfessorCursos({ theme, user }) {
   const { notify, confirm } = useUI();
+  const t = useTranslation();
   const [activeTab, setActiveTab] = useState('gerirCursos');
   
   const [cursosReais, setCursosReais] = useState([]); 
@@ -42,8 +44,10 @@ export default function ProfessorCursos({ theme, user }) {
       if (res.ok) {
         const data = await res.json();
         setCursosReais(data);
+      } else {
+        console.error('Erro ao buscar cursos do professor:', res.status);
       }
-    } catch (err) { console.error(err); } 
+    } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
@@ -62,6 +66,8 @@ export default function ProfessorCursos({ theme, user }) {
           grouped[q.grupo_id].perguntas.push(q);
         });
         setQuizzesReais(Object.values(grouped));
+      } else {
+        console.error('Erro ao buscar quizzes do professor:', res.status);
       }
     } catch (err) { console.error(err); }
   };
@@ -109,33 +115,36 @@ export default function ProfessorCursos({ theme, user }) {
 
   const handleDeleteCurso = async (e, cursoId) => {
     e.stopPropagation();
-    if (!(await confirm({ title: 'Apagar curso', message: "Tens a certeza que queres APAGAR este curso para sempre? Esta ação apagará também os quizzes associados.", confirmLabel: 'Apagar', danger: true }))) return;
+    if (!(await confirm({ title: t('professor.cursos.apagarTitulo'), message: t('professor.cursos.apagarMensagem'), confirmLabel: t('professor.comum.apagar'), danger: true }))) return;
     try {
       const response = await apiFetch(`/cursos/${cursoId}`, { method: 'DELETE' });
       if (response.ok) {
-        notify("Curso apagado com sucesso.", 'success');
+        notify(t('professor.cursos.apagadoSucesso'), 'success');
         setCursosReais(cursosReais.filter(curso => curso.id !== cursoId));
         buscarQuizzes();
-      } else { notify('Não foi possível apagar o curso.', 'error'); }
-    } catch { notify("Erro de ligação.", 'error'); }
+      } else { notify(t('professor.cursos.apagarErro'), 'error'); }
+    } catch { notify(t('professor.comum.erroLigacao'), 'error'); }
   };
 
   const handleDeleteQuiz = async (e, quiz) => {
     e.stopPropagation();
-    if (!(await confirm({ title: 'Apagar avaliação', message: `Tens a certeza que queres APAGAR a avaliação "${quiz.titulo}"?`, confirmLabel: 'Apagar', danger: true }))) return;
+    if (!(await confirm({ title: t('professor.quizzes.apagarTitulo'), message: t('professor.quizzes.apagarMensagem').replace('{titulo}', quiz.titulo), confirmLabel: t('professor.comum.apagar'), danger: true }))) return;
     try {
       const response = await apiFetch(`/quizzes/${quiz.grupoId}`, { method: 'DELETE' });
       if (response.ok) {
-        notify("Quiz apagado com sucesso.", 'success');
+        notify(t('professor.quizzes.apagadoSucesso'), 'success');
         setQuizzesReais(quizzesReais.filter(q => q.grupoId !== quiz.grupoId));
-      } else { notify('Não foi possível apagar o quiz.', 'error'); }
-    } catch { notify("Erro de ligação.", 'error'); }
+      } else { notify(t('professor.quizzes.apagarErro'), 'error'); }
+    } catch { notify(t('professor.comum.erroLigacao'), 'error'); }
   };
 
   const handleCursoChange = (e) => setCursoData({ ...cursoData, [e.target.name]: e.target.value });
   const handleLicaoTextoChange = (index, value) => { const newLicoes = [...licoes]; newLicoes[index] = value; setLicoes(newLicoes); };
   const handleQuizMetaChange = (e) => setQuizMeta({ ...quizMeta, [e.target.name]: e.target.value });
-  const handlePerguntaChange = (index, field, value) => { const novasPerguntas = [...perguntasQuiz]; novasPerguntas[index][field] = value; setPerguntasQuiz(novasPerguntas); };
+  // Atualização imutável: nunca mutar o objeto da pergunta que está no estado.
+  const handlePerguntaChange = (index, field, value) => {
+    setPerguntasQuiz(prev => prev.map((q, i) => i === index ? { ...q, [field]: value } : q));
+  };
   
   const handleNumeroLicoesChange = (e) => {
     const num = parseInt(e.target.value);
@@ -173,7 +182,7 @@ export default function ProfessorCursos({ theme, user }) {
 
   const insertTemplate = async (index) => {
     const templateHTML = `<h2>O que é [Tema do Curso]?</h2>\n\n<p>Uma breve explicação sobre o tema principal do curso.</p>\n\n<div style="padding: 15px; background-color: #1e293b; border-left: 4px solid #3b82f6; border-radius: 4px; margin: 20px 0;">\n  <h4 style="color: #3b82f6; margin-top: 0;">ℹ️ Dica de Segurança</h4>\n  <p style="margin-bottom: 0;">Escreve aqui um aviso importante para o aluno.</p>\n</div>\n\n<h3>Sinais Vermelhos a procurar:</h3>\n<ul>\n  <li><strong>Ponto 1:</strong> Explicação do ponto 1.</li>\n  <li><strong>Ponto 2:</strong> Explicação do ponto 2.</li>\n</ul>`;
-    if (licoes[index].length > 0 && !(await confirm("Isto vai substituir o texto desta lição. Continuar?"))) return;
+    if (licoes[index].length > 0 && !(await confirm(t('professor.formCurso.confirmTemplate')))) return;
     handleLicaoTextoChange(index, templateHTML);
   };
 
@@ -189,20 +198,24 @@ export default function ProfessorCursos({ theme, user }) {
         method: method, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...cursoData, conteudo_licao: conteudoFinal, professor_id: user.id })
       });
-      const data = await res.json();
+      // Lê o corpo de forma tolerante: o servidor pode responder sem JSON válido.
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        notify(data.mensagem || 'Curso guardado!', 'success');
+        notify(data.mensagem || t('professor.formCurso.guardadoSucesso'), 'success');
         goNovoCurso();
         setActiveTab('gerirCursos');
-      } else notify(data.erro || 'Não foi possível guardar o curso.', 'error');
-    } catch { notify("Erro de ligação.", 'error'); }
+      } else {
+        console.error('Erro ao guardar curso:', res.status, data);
+        notify(data.erro || t('professor.formCurso.guardarErro'), 'error');
+      }
+    } catch { notify(t('professor.comum.erroLigacao'), 'error'); }
   };
 
   const handleSubmitQuiz = async (e) => { 
     e.preventDefault(); 
     const cursoEncontrado = cursosReais.find(c => c.titulo.toLowerCase().trim() === quizMeta.nome_curso.toLowerCase().trim());
     if (!cursoEncontrado) {
-        notify("O curso que escreveste não foi encontrado. Garante que o nome está igual ao que criaste.", 'error');
+        notify(t('professor.formQuiz.cursoNaoEncontrado'), 'error');
         return;
     }
 
@@ -221,14 +234,14 @@ export default function ProfessorCursos({ theme, user }) {
 
       // Reporta o resultado real: não declarar sucesso se algumas perguntas falharam.
       if (perguntasGuardadas === perguntasQuiz.length) {
-        notify(`Avaliação com ${perguntasGuardadas} pergunta(s) guardada com sucesso!`, 'success');
+        notify(t('professor.formQuiz.guardadoSucesso').replace('{n}', perguntasGuardadas), 'success');
       } else {
-        notify(`Apenas ${perguntasGuardadas} de ${perguntasQuiz.length} perguntas foram guardadas. Verifica a avaliação e tenta guardar as restantes.`, 'warning');
+        notify(t('professor.formQuiz.guardadoParcial').replace('{n}', perguntasGuardadas).replace('{total}', perguntasQuiz.length), 'warning');
       }
       goNovoQuiz();
       setActiveTab('gerirCursos');
 
-    } catch { notify("Erro ao guardar quiz.", 'error'); }
+    } catch { notify(t('professor.formQuiz.guardarErro'), 'error'); }
   };
 
   const styles = {
@@ -275,9 +288,9 @@ export default function ProfessorCursos({ theme, user }) {
 
     return (
       <div style={styles.container}>
-        <button style={styles.backBtn} onClick={() => setViewingCurso(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          Voltar aos Conteúdos
+        <button type="button" style={styles.backBtn} onClick={() => setViewingCurso(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          {t('professor.comum.voltarConteudos')}
         </button>
 
         <style>
@@ -293,22 +306,22 @@ export default function ProfessorCursos({ theme, user }) {
           <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}60`, paddingBottom: '20px', flexWrap: 'wrap', gap: '15px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
               <div style={{backgroundColor: `${theme.primary}20`, padding: '15px', borderRadius: '12px', color: theme.primary}}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
               </div>
               <div>
                 <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>{viewingCurso.titulo}</h1>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <span style={styles.levelBadge(viewingCurso.nivel)}>{viewingCurso.nivel}</span>
                   <span style={styles.statusBadge(viewingCurso.aprovado)}>
-                    {viewingCurso.aprovado ? "🟢 Online" : "⏳ Pendente"}
+                    {viewingCurso.aprovado ? t('professor.comum.onlineBadge') : t('professor.comum.pendenteBadge')}
                   </span>
-                  <span style={{fontSize: '12px', color: theme.textSub, fontWeight: 'bold'}}>{conteudosLicao.length} Lições</span>
+                  <span style={{fontSize: '12px', color: theme.textSub, fontWeight: 'bold'}}>{t('professor.cursos.licoesContagem').replace('{n}', conteudosLicao.length)}</span>
                 </div>
               </div>
             </div>
-            <button onClick={handleEditCurso} style={{...styles.submitButton, margin: 0}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              Editar Curso
+            <button type="button" onClick={handleEditCurso} style={{...styles.submitButton, margin: 0}}>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              {t('professor.cursos.editar')}
             </button>
           </div>
 
@@ -319,7 +332,7 @@ export default function ProfessorCursos({ theme, user }) {
             return (
               <div key={idx} style={{marginBottom: '30px', padding: '25px', backgroundColor: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.inputBorder}40`}}>
                 <h3 style={{margin: '0 0 20px 0', color: theme.primary, borderBottom: `2px solid ${theme.primary}30`, paddingBottom: '10px', display: 'inline-block'}}>
-                  Lição {idx + 1}
+                  {t('professor.cursos.licaoN').replace('{n}', idx + 1)}
                 </h3>
                 <div className="licao-preview" style={{fontSize: '14px', lineHeight: '1.8'}} dangerouslySetInnerHTML={{ __html: htmlLimpo }} />
               </div>
@@ -343,8 +356,8 @@ export default function ProfessorCursos({ theme, user }) {
            </span>
            <span style={{ color: theme.textMain, fontSize: '14px', fontWeight: isCorrect ? 'bold' : 'normal' }}>{texto}</span>
            {isCorrect && <span style={{ marginLeft: 'auto', color: theme.success, fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-             Correta
+             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+             {t('professor.quizzes.correta')}
            </span>}
         </div>
       );
@@ -352,32 +365,32 @@ export default function ProfessorCursos({ theme, user }) {
 
     return (
       <div style={styles.container}>
-        <button style={styles.backBtn} onClick={() => setViewingQuiz(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          Voltar aos Conteúdos
+        <button type="button" style={styles.backBtn} onClick={() => setViewingQuiz(null)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          {t('professor.comum.voltarConteudos')}
         </button>
 
         <div style={styles.card}>
           <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px', borderBottom: `1px solid ${theme.inputBorder}60`, paddingBottom: '20px', flexWrap: 'wrap', gap: '15px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
               <div style={{backgroundColor: `${theme.warning}20`, padding: '15px', borderRadius: '12px', color: theme.warning}}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
               </div>
               <div>
-                <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>Gabarito: {viewingQuiz.titulo}</h1>
+                <h1 style={{margin: '0 0 5px 0', fontSize: '24px', color: theme.textMain}}>{t('professor.quizzes.gabarito').replace('{titulo}', viewingQuiz.titulo)}</h1>
                 <p style={{margin: 0, color: theme.textSub, fontSize: '13px', fontWeight: 'bold'}}>
-                  Associado ao Curso: <span style={{color: theme.primary}}>{viewingQuiz.nome_curso}</span> | {viewingQuiz.perguntas.length} Perguntas
+                  {t('professor.quizzes.associadoAoCurso')} <span style={{color: theme.primary}}>{viewingQuiz.nome_curso}</span> | {viewingQuiz.perguntas.length} {viewingQuiz.perguntas.length === 1 ? t('professor.quizzes.perguntaSingular') : t('professor.quizzes.perguntaPlural')}
                   <span style={{...styles.statusBadge(viewingQuiz.aprovado), marginLeft: '10px'}}>
-                    {viewingQuiz.aprovado ? "🟢 Online" : "⏳ Pendente"}
+                    {viewingQuiz.aprovado ? t('professor.comum.onlineBadge') : t('professor.comum.pendenteBadge')}
                   </span>
                 </p>
               </div>
             </div>
 
             {/* BOTÃO EDITAR QUIZ */}
-            <button onClick={handleEditQuiz} style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`, margin: 0}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              Editar Quiz
+            <button type="button" onClick={handleEditQuiz} style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`, margin: 0}}>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              {t('professor.quizzes.editar')}
             </button>
           </div>
 
@@ -408,17 +421,17 @@ export default function ProfessorCursos({ theme, user }) {
     <div style={styles.container}>
       <div style={{ overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '5px' }}>
         <div style={styles.tabsContainer}>
-          <button style={styles.tabButton(activeTab === 'gerirCursos')} onClick={() => setActiveTab('gerirCursos')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> 
-            Contéudos Publicados
+          <button type="button" style={styles.tabButton(activeTab === 'gerirCursos')} onClick={() => setActiveTab('gerirCursos')}>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            {t('professor.tabs.conteudos')}
           </button>
-          <button style={styles.tabButton(activeTab === 'createCourse')} onClick={goNovoCurso}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-            {editingCursoId ? "Editar Curso" : "Novo Curso"}
+          <button type="button" style={styles.tabButton(activeTab === 'createCourse')} onClick={goNovoCurso}>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            {editingCursoId ? t('professor.tabs.editarCurso') : t('professor.tabs.novoCurso')}
           </button>
-          <button style={styles.tabButton(activeTab === 'createQuiz')} onClick={goNovoQuiz}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            {editingQuizTitulo ? "Editar Quiz" : "Novo Quiz"}
+          <button type="button" style={styles.tabButton(activeTab === 'createQuiz')} onClick={goNovoQuiz}>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            {editingQuizTitulo ? t('professor.tabs.editarQuiz') : t('professor.tabs.novoQuiz')}
           </button>
         </div>
       </div>
@@ -430,44 +443,44 @@ export default function ProfessorCursos({ theme, user }) {
           <div style={styles.card}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
               <div>
-                <h2 style={styles.sectionTitle}>Os Teus Cursos Publicados</h2>
-                <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>Visão geral dos conteúdos disponibilizados aos alunos.</p>
+                <h2 style={styles.sectionTitle}>{t('professor.cursos.titulo')}</h2>
+                <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>{t('professor.cursos.subtitulo')}</p>
               </div>
-              <button style={styles.submitButton} onClick={goNovoCurso}>+ Adicionar Curso</button>
+              <button type="button" style={styles.submitButton} onClick={goNovoCurso}>{t('professor.cursos.adicionar')}</button>
             </div>
-            
+
             {loading ? (
-              <div style={{textAlign: 'center', padding: '30px 0', color: theme.textSub}}>A carregar dados...</div>
+              <div style={{textAlign: 'center', padding: '30px 0', color: theme.textSub}}>{t('professor.comum.aCarregar')}</div>
             ) : cursosReais.length === 0 ? (
               <div style={{textAlign: 'center', padding: '40px 20px', border: `2px dashed ${theme.inputBorder}`, borderRadius: '12px', backgroundColor: theme.inputBg}}>
-                 <h3 style={{color: theme.textMain, margin: '0 0 5px 0', fontSize: '16px'}}>Ainda não tens cursos</h3>
-                 <p style={{color: theme.textSub, margin: 0, fontSize: '13px'}}>Começa a partilhar conhecimento criando o teu primeiro curso.</p>
+                 <h3 style={{color: theme.textMain, margin: '0 0 5px 0', fontSize: '16px'}}>{t('professor.cursos.vazioTitulo')}</h3>
+                 <p style={{color: theme.textSub, margin: 0, fontSize: '13px'}}>{t('professor.cursos.vazioTexto')}</p>
               </div>
             ) : (
               <div style={{overflowX: 'auto'}}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Título do Curso</th>
-                      <th style={styles.th}>Dificuldade</th>
-                      <th style={styles.th}>Estado</th>
-                      <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
+                      <th style={styles.th}>{t('professor.cursos.thTitulo')}</th>
+                      <th style={styles.th}>{t('professor.cursos.thDificuldade')}</th>
+                      <th style={styles.th}>{t('professor.comum.estado')}</th>
+                      <th style={{...styles.th, textAlign: 'right'}}>{t('professor.comum.acoes')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cursosReais.map(curso => (
                       <tr key={curso.id} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingCurso(curso)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{curso.titulo}</td>
-                        <td style={styles.td}><span style={styles.levelBadge(curso.nivel)}>{curso.nivel || 'Iniciante'}</span></td>
+                        <td style={styles.td}><span style={styles.levelBadge(curso.nivel)}>{curso.nivel || t('professor.cursos.nivelPadrao')}</span></td>
                         <td style={styles.td}>
                           <span style={styles.statusBadge(curso.aprovado)}>
-                            {curso.aprovado ? 'Online' : 'Pendente'}
+                            {curso.aprovado ? t('professor.comum.online') : t('professor.comum.pendente')}
                           </span>
                         </td>
                         <td style={{...styles.td, textAlign: 'right'}}>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
-                            <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingCurso(curso); }}>Ver Detalhes</button>
-                            <button style={styles.deleteButton} onClick={(e) => handleDeleteCurso(e, curso.id)}>Apagar</button>
+                            <button type="button" style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingCurso(curso); }}>{t('professor.comum.verDetalhes')}</button>
+                            <button type="button" style={styles.deleteButton} onClick={(e) => handleDeleteCurso(e, curso.id)}>{t('professor.comum.apagar')}</button>
                           </div>
                         </td>
                       </tr>
@@ -482,29 +495,29 @@ export default function ProfessorCursos({ theme, user }) {
           <div style={{...styles.card, marginTop: '20px'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
               <div>
-                <h2 style={styles.sectionTitle}>Os teus Quizzes publicados</h2>
-                <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>Gestão de testes associados aos teus cursos.</p>
+                <h2 style={styles.sectionTitle}>{t('professor.quizzes.titulo')}</h2>
+                <p style={{color: theme.textSub, fontSize: '13px', margin: 0}}>{t('professor.quizzes.subtitulo')}</p>
               </div>
-              <button style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={goNovoQuiz}>+ Adicionar Quiz</button>
+              <button type="button" style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}} onClick={goNovoQuiz}>{t('professor.quizzes.adicionar')}</button>
             </div>
-            
+
             {loading ? (
-              <div style={{textAlign: 'center', padding: '30px 0', color: theme.textSub}}>A carregar dados...</div>
+              <div style={{textAlign: 'center', padding: '30px 0', color: theme.textSub}}>{t('professor.comum.aCarregar')}</div>
             ) : quizzesReais.length === 0 ? (
               <div style={{textAlign: 'center', padding: '40px 20px', border: `2px dashed ${theme.inputBorder}`, borderRadius: '12px', backgroundColor: theme.inputBg}}>
-                 <h3 style={{color: theme.textMain, margin: '0 0 5px 0', fontSize: '16px'}}>Ainda não tens avaliações</h3>
-                 <p style={{color: theme.textSub, margin: 0, fontSize: '13px'}}>Cria um quiz para testar os conhecimentos dos teus alunos.</p>
+                 <h3 style={{color: theme.textMain, margin: '0 0 5px 0', fontSize: '16px'}}>{t('professor.quizzes.vazioTitulo')}</h3>
+                 <p style={{color: theme.textSub, margin: 0, fontSize: '13px'}}>{t('professor.quizzes.vazioTexto')}</p>
               </div>
             ) : (
               <div style={{overflowX: 'auto'}}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Título do Quiz</th>
-                      <th style={styles.th}>Associado ao Curso</th>
-                      <th style={styles.th}>Total de Perguntas</th>
-                      <th style={styles.th}>Estado</th>
-                      <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
+                      <th style={styles.th}>{t('professor.quizzes.thTitulo')}</th>
+                      <th style={styles.th}>{t('professor.quizzes.thCurso')}</th>
+                      <th style={styles.th}>{t('professor.quizzes.thPerguntas')}</th>
+                      <th style={styles.th}>{t('professor.comum.estado')}</th>
+                      <th style={{...styles.th, textAlign: 'right'}}>{t('professor.comum.acoes')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -512,16 +525,16 @@ export default function ProfessorCursos({ theme, user }) {
                       <tr key={quiz.grupoId} style={{transition: 'background-color 0.2s', cursor: 'pointer', ':hover': { backgroundColor: theme.inputBg }}} onClick={() => setViewingQuiz(quiz)}>
                         <td style={{...styles.td, fontWeight: 'bold'}}>{quiz.titulo}</td>
                         <td style={styles.td}><span style={{color: theme.primary, fontWeight: '600'}}>{quiz.nome_curso}</span></td>
-                        <td style={styles.td}>{quiz.perguntas.length} {quiz.perguntas.length === 1 ? 'Pergunta' : 'Perguntas'}</td>
+                        <td style={styles.td}>{quiz.perguntas.length} {quiz.perguntas.length === 1 ? t('professor.quizzes.perguntaSingular') : t('professor.quizzes.perguntaPlural')}</td>
                         <td style={styles.td}>
                           <span style={styles.statusBadge(quiz.aprovado)}>
-                            {quiz.aprovado ? 'Online' : 'Pendente'}
+                            {quiz.aprovado ? t('professor.comum.online') : t('professor.comum.pendente')}
                           </span>
                         </td>
                         <td style={{...styles.td, textAlign: 'right'}}>
                           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px'}}>
-                            <button style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingQuiz(quiz); }}>Ver Detalhes</button>
-                            <button style={styles.deleteButton} onClick={(e) => handleDeleteQuiz(e, quiz)}>Apagar</button>
+                            <button type="button" style={styles.viewButton} onClick={(e) => { e.stopPropagation(); setViewingQuiz(quiz); }}>{t('professor.comum.verDetalhes')}</button>
+                            <button type="button" style={styles.deleteButton} onClick={(e) => handleDeleteQuiz(e, quiz)}>{t('professor.comum.apagar')}</button>
                           </div>
                         </td>
                       </tr>
@@ -536,26 +549,26 @@ export default function ProfessorCursos({ theme, user }) {
 
       {activeTab === 'createCourse' && (
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>{editingCursoId ? "Editar Curso" : "Construir Novo Curso"}</h2>
-          <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>Preenche os detalhes e usa HTML para desenhar lições avançadas.</p>
-          
+          <h2 style={styles.sectionTitle}>{editingCursoId ? t('professor.tabs.editarCurso') : t('professor.formCurso.tituloNovo')}</h2>
+          <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>{t('professor.formCurso.subtitulo')}</p>
+
           <form onSubmit={handleSubmitCurso}>
             <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px'}}>
               <div style={{...styles.inputWrapper, flex: '1 1 250px', marginBottom: 0}}>
-                <label style={styles.label}>Título do Curso</label>
-                <input style={styles.input} type="text" name="titulo" value={cursoData.titulo} onChange={handleCursoChange} placeholder="Ex: Fundamentos de Cibersegurança" required />
+                <label htmlFor="curso-titulo" style={styles.label}>{t('professor.formCurso.labelTitulo')}</label>
+                <input id="curso-titulo" style={styles.input} type="text" name="titulo" value={cursoData.titulo} onChange={handleCursoChange} placeholder={t('professor.formCurso.placeholderTitulo')} required />
               </div>
               <div style={{...styles.inputWrapper, flex: '1 1 150px', marginBottom: 0}}>
-                <label style={styles.label}>Nível de Dificuldade</label>
-                <select style={styles.input} name="nivel" value={cursoData.nivel} onChange={handleCursoChange}>
-                  <option value="iniciante">Iniciante</option>
-                  <option value="intermedio">Intermédio</option>
-                  <option value="avancado">Avançado</option>
+                <label htmlFor="curso-nivel" style={styles.label}>{t('professor.formCurso.labelNivel')}</label>
+                <select id="curso-nivel" style={styles.input} name="nivel" value={cursoData.nivel} onChange={handleCursoChange}>
+                  <option value="iniciante">{t('professor.formCurso.nivelIniciante')}</option>
+                  <option value="intermedio">{t('professor.formCurso.nivelIntermedio')}</option>
+                  <option value="avancado">{t('professor.formCurso.nivelAvancado')}</option>
                 </select>
               </div>
               <div style={{...styles.inputWrapper, flex: '1 1 100px', marginBottom: 0}}>
-                <label style={styles.label}>Nº de Lições</label>
-                <select style={{...styles.input, borderColor: theme.primary, fontWeight: 'bold'}} value={numeroLicoes} onChange={handleNumeroLicoesChange}>
+                <label htmlFor="curso-num-licoes" style={styles.label}>{t('professor.formCurso.labelNumLicoes')}</label>
+                <select id="curso-num-licoes" style={{...styles.input, borderColor: theme.primary, fontWeight: 'bold'}} value={numeroLicoes} onChange={handleNumeroLicoesChange}>
                   {[1,2,3,4,5,6,7,8,9,10].map(num => (
                     <option key={num} value={num}>{num}</option>
                   ))}
@@ -565,52 +578,53 @@ export default function ProfessorCursos({ theme, user }) {
             
             <div style={{backgroundColor: theme.inputBg, padding: '20px', borderRadius: '10px', border: `1px solid ${theme.inputBorder}60`, marginBottom: '20px'}}>
               <div style={{...styles.inputWrapper, marginBottom: 0}}>
-                <label style={styles.label}>Descrição Rápida (Aparece no Catálogo)</label>
-                <textarea style={{...styles.textarea, minHeight: '60px'}} name="descricao" value={cursoData.descricao} onChange={handleCursoChange} placeholder="Escreve um pequeno resumo que cative os alunos..." required></textarea>
+                <label htmlFor="curso-descricao" style={styles.label}>{t('professor.formCurso.labelDescricao')}</label>
+                <textarea id="curso-descricao" style={{...styles.textarea, minHeight: '60px'}} name="descricao" value={cursoData.descricao} onChange={handleCursoChange} placeholder={t('professor.formCurso.placeholderDescricao')} required></textarea>
               </div>
             </div>
 
             {licoes.map((licaoTexto, index) => (
               <div key={index} style={{backgroundColor: theme.inputBg, padding: '20px', borderRadius: '10px', border: `1px solid ${theme.primary}40`, marginBottom: '20px'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                  <h3 style={{margin: 0, color: theme.primary, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <div style={{backgroundColor: theme.primary, color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px'}}>{index + 1}</div>
-                    Conteúdo da Lição {index + 1}
+                  <h3 id={`conteudoLicao_${index}_label`} style={{margin: 0, color: theme.primary, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <span aria-hidden="true" style={{backgroundColor: theme.primary, color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px'}}>{index + 1}</span>
+                    {t('professor.formCurso.conteudoLicao').replace('{n}', index + 1)}
                   </h3>
-                  
-                  <button 
-                    type="button" 
-                    style={{...styles.editorBtn, backgroundColor: theme.primary, color: 'white', border: 'none'}} 
+
+                  <button
+                    type="button"
+                    style={{...styles.editorBtn, backgroundColor: theme.primary, color: 'white', border: 'none'}}
                     onClick={() => insertTemplate(index)}
                     onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
                   >
-                    📝 Carregar Layout Base
+                    {t('professor.formCurso.layoutBase')}
                   </button>
                 </div>
-                
+
                 <div style={styles.editorToolbar}>
-                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<h2>', '</h2>')}>Título H2</button>
-                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<h3>', '</h3>')}>Título H3</button>
-                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<strong>', '</strong>')}>Negrito</button>
-                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<p>', '</p>')}>Parágrafo</button>
-                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<ul>\n  <li>', '</li>\n</ul>')}>Lista</button>
-                  <button type="button" style={{...styles.editorBtn, color: theme.warning, borderColor: `${theme.warning}50`}} onClick={() => insertFormatting(index, `<div style="padding: 15px; background-color: ${theme.cardBg}; border-left: 4px solid ${theme.primary}; border-radius: 4px; margin: 20px 0;">\n  <h4 style="color: ${theme.primary}; margin-top: 0;">ℹ️ Dica de Segurança</h4>\n  <p style="margin-bottom: 0;">`, '</p>\n</div>')}>Caixa de Dica</button>
+                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<h2>', '</h2>')}>{t('professor.formCurso.h2')}</button>
+                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<h3>', '</h3>')}>{t('professor.formCurso.h3')}</button>
+                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<strong>', '</strong>')}>{t('professor.formCurso.negrito')}</button>
+                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<p>', '</p>')}>{t('professor.formCurso.paragrafo')}</button>
+                  <button type="button" style={styles.editorBtn} onClick={() => insertFormatting(index, '<ul>\n  <li>', '</li>\n</ul>')}>{t('professor.formCurso.lista')}</button>
+                  <button type="button" style={{...styles.editorBtn, color: theme.warning, borderColor: `${theme.warning}50`}} onClick={() => insertFormatting(index, `<div style="padding: 15px; background-color: ${theme.cardBg}; border-left: 4px solid ${theme.primary}; border-radius: 4px; margin: 20px 0;">\n  <h4 style="color: ${theme.primary}; margin-top: 0;">ℹ️ Dica de Segurança</h4>\n  <p style="margin-bottom: 0;">`, '</p>\n</div>')}>{t('professor.formCurso.caixaDica')}</button>
                 </div>
-                
-                <textarea 
+
+                <textarea
                   id={`conteudoLicao_${index}`}
-                  style={{...styles.textarea, minHeight: '200px', fontFamily: 'monospace', fontSize: '13px', border: `1px dashed ${theme.inputBorder}`}} 
-                  value={licaoTexto} 
-                  onChange={(e) => handleLicaoTextoChange(index, e.target.value)} 
-                  placeholder="Escreve aqui a tua lição. Podes usar HTML como <h2>, <p> e <ul> para criar listas ou formatar o texto tal como na plataforma."
+                  aria-labelledby={`conteudoLicao_${index}_label`}
+                  style={{...styles.textarea, minHeight: '200px', fontFamily: 'monospace', fontSize: '13px', border: `1px dashed ${theme.inputBorder}`}}
+                  value={licaoTexto}
+                  onChange={(e) => handleLicaoTextoChange(index, e.target.value)}
+                  placeholder={t('professor.formCurso.placeholderLicao')}
                   required
                 ></textarea>
               </div>
             ))}
 
             <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '30px'}}>
-              <button type="submit" style={styles.submitButton}>{editingCursoId ? "Guardar Alterações" : "Guardar Curso"}</button>
+              <button type="submit" style={styles.submitButton}>{editingCursoId ? t('professor.comum.guardarAlteracoes') : t('professor.formCurso.guardar')}</button>
             </div>
           </form>
         </div>
@@ -618,25 +632,25 @@ export default function ProfessorCursos({ theme, user }) {
 
       {activeTab === 'createQuiz' && (
         <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>{editingQuizTitulo ? "Editar Avaliação" : "Criar Avaliação"}</h2>
-          <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>Gera um teste para avaliar os conhecimentos dos alunos.</p>
+          <h2 style={styles.sectionTitle}>{editingQuizTitulo ? t('professor.formQuiz.tituloEditar') : t('professor.formQuiz.tituloNovo')}</h2>
+          <p style={{color: theme.textSub, fontSize: '13px', marginBottom: '20px'}}>{t('professor.formQuiz.subtitulo')}</p>
 
           <form onSubmit={handleSubmitQuiz}>
             <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', backgroundColor: theme.inputBg, padding: '20px', borderRadius: '10px', border: `1px solid ${theme.inputBorder}60`, marginBottom: '20px'}}>
               <div style={{...styles.inputWrapper, flex: '1 1 200px', marginBottom: 0}}>
-                <label style={styles.label}>Título do Quiz</label>
-                <input style={styles.input} type="text" name="titulo" value={quizMeta.titulo} onChange={handleQuizMetaChange} placeholder="Ex: Avaliação Final de Redes" required />
+                <label htmlFor="quiz-titulo" style={styles.label}>{t('professor.formQuiz.labelTitulo')}</label>
+                <input id="quiz-titulo" style={styles.input} type="text" name="titulo" value={quizMeta.titulo} onChange={handleQuizMetaChange} placeholder={t('professor.formQuiz.placeholderTitulo')} required />
               </div>
               <div style={{...styles.inputWrapper, flex: '1 1 200px', marginBottom: 0}}>
-                <label style={styles.label}>Escreve o Nome do Curso Associado</label>
-                <input style={styles.input} type="text" list="cursos-list" name="nome_curso" value={quizMeta.nome_curso} onChange={handleQuizMetaChange} placeholder="Ex: Introdução ao Phishing" required autoComplete="off" />
+                <label htmlFor="quiz-nome-curso" style={styles.label}>{t('professor.formQuiz.labelCurso')}</label>
+                <input id="quiz-nome-curso" style={styles.input} type="text" list="cursos-list" name="nome_curso" value={quizMeta.nome_curso} onChange={handleQuizMetaChange} placeholder={t('professor.formQuiz.placeholderCurso')} required autoComplete="off" />
                 <datalist id="cursos-list">
                   {cursosReais.map(curso => (<option key={curso.id} value={curso.titulo} />))}
                 </datalist>
               </div>
               <div style={{...styles.inputWrapper, flex: '1 1 100px', marginBottom: 0}}>
-                <label style={styles.label}>Nº de Perguntas</label>
-                <select style={{...styles.input, borderColor: theme.warning, fontWeight: 'bold'}} value={numeroPerguntas} onChange={handleNumeroPerguntasChange}>
+                <label htmlFor="quiz-num-perguntas" style={styles.label}>{t('professor.formQuiz.labelNumPerguntas')}</label>
+                <select id="quiz-num-perguntas" style={{...styles.input, borderColor: theme.warning, fontWeight: 'bold'}} value={numeroPerguntas} onChange={handleNumeroPerguntasChange}>
                   {[1,2,3,4,5,6,7,8,9,10,15,20].map(num => (
                     <option key={num} value={num}>{num}</option>
                   ))}
@@ -646,35 +660,35 @@ export default function ProfessorCursos({ theme, user }) {
             
             {perguntasQuiz.map((q, index) => (
               <div key={index} style={{ padding: '20px', borderRadius: '10px', border: `2px dashed ${theme.warning}50`, marginBottom: '20px', backgroundColor: theme.inputBg }}>
-                <h4 style={{color: theme.warning, margin: '0 0 15px 0', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                  <div style={{backgroundColor: theme.warning, color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold'}}>{index + 1}</div>
-                  Estrutura da Pergunta {index + 1}
+                <h4 id={`pergunta_${index}_label`} style={{color: theme.warning, margin: '0 0 15px 0', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <span aria-hidden="true" style={{backgroundColor: theme.warning, color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold'}}>{index + 1}</span>
+                  {t('professor.formQuiz.estruturaPergunta').replace('{n}', index + 1)}
                 </h4>
-                
-                <input style={{...styles.input, marginBottom: '20px'}} type="text" value={q.pergunta} onChange={(e) => handlePerguntaChange(index, 'pergunta', e.target.value)} placeholder="Ex: Qual destas opções é um ataque de Phishing?" required />
-                
+
+                <input id={`pergunta_${index}`} aria-labelledby={`pergunta_${index}_label`} style={{...styles.input, marginBottom: '20px'}} type="text" value={q.pergunta} onChange={(e) => handlePerguntaChange(index, 'pergunta', e.target.value)} placeholder={t('professor.formQuiz.placeholderPergunta')} required />
+
                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px'}}>
                   <div style={{position: 'relative'}}>
-                    <span style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>A.</span>
-                    <input style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_a} onChange={(e) => handlePerguntaChange(index, 'opcao_a', e.target.value)} placeholder="Opção A" required />
+                    <span aria-hidden="true" style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>A.</span>
+                    <input id={`pergunta_${index}_opcao_a`} aria-label={t('professor.formQuiz.opcaoA')} style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_a} onChange={(e) => handlePerguntaChange(index, 'opcao_a', e.target.value)} placeholder={t('professor.formQuiz.opcaoA')} required />
                   </div>
                   <div style={{position: 'relative'}}>
-                    <span style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>B.</span>
-                    <input style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_b} onChange={(e) => handlePerguntaChange(index, 'opcao_b', e.target.value)} placeholder="Opção B" required />
+                    <span aria-hidden="true" style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>B.</span>
+                    <input id={`pergunta_${index}_opcao_b`} aria-label={t('professor.formQuiz.opcaoB')} style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_b} onChange={(e) => handlePerguntaChange(index, 'opcao_b', e.target.value)} placeholder={t('professor.formQuiz.opcaoB')} required />
                   </div>
                   <div style={{position: 'relative'}}>
-                    <span style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>C.</span>
-                    <input style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_c} onChange={(e) => handlePerguntaChange(index, 'opcao_c', e.target.value)} placeholder="Opção C (Opcional)" />
+                    <span aria-hidden="true" style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>C.</span>
+                    <input id={`pergunta_${index}_opcao_c`} aria-label={t('professor.formQuiz.opcaoC')} style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_c} onChange={(e) => handlePerguntaChange(index, 'opcao_c', e.target.value)} placeholder={t('professor.formQuiz.opcaoC')} />
                   </div>
                   <div style={{position: 'relative'}}>
-                    <span style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>D.</span>
-                    <input style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_d} onChange={(e) => handlePerguntaChange(index, 'opcao_d', e.target.value)} placeholder="Opção D (Opcional)" />
+                    <span aria-hidden="true" style={{position: 'absolute', top: '13px', left: '14px', fontWeight: 'bold', color: theme.textSub, fontSize: '14px'}}>D.</span>
+                    <input id={`pergunta_${index}_opcao_d`} aria-label={t('professor.formQuiz.opcaoD')} style={{...styles.input, paddingLeft: '40px'}} type="text" value={q.opcao_d} onChange={(e) => handlePerguntaChange(index, 'opcao_d', e.target.value)} placeholder={t('professor.formQuiz.opcaoD')} />
                   </div>
                 </div>
 
                 <div style={{marginTop: '20px', padding: '12px 18px', backgroundColor: `${theme.warning}15`, borderRadius: '8px', display: 'inline-block'}}>
-                  <label style={{...styles.label, display: 'inline', marginRight: '12px', color: theme.warning}}>Opção Certa:</label>
-                  <select style={{...styles.input, width: 'auto', padding: '8px 16px', display: 'inline-block', borderColor: theme.warning, color: theme.textMain, fontWeight: 'bold'}} value={q.resposta_correta} onChange={(e) => handlePerguntaChange(index, 'resposta_correta', e.target.value)} required>
+                  <label htmlFor={`pergunta_${index}_resposta`} style={{...styles.label, display: 'inline', marginRight: '12px', color: theme.warning}}>{t('professor.formQuiz.opcaoCerta')}</label>
+                  <select id={`pergunta_${index}_resposta`} style={{...styles.input, width: 'auto', padding: '8px 16px', display: 'inline-block', borderColor: theme.warning, color: theme.textMain, fontWeight: 'bold'}} value={q.resposta_correta} onChange={(e) => handlePerguntaChange(index, 'resposta_correta', e.target.value)} required>
                     <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
                   </select>
                 </div>
@@ -682,7 +696,7 @@ export default function ProfessorCursos({ theme, user }) {
             ))}
 
             <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}}>{editingQuizTitulo ? "Guardar Alterações" : "Guardar Quiz"}</button>
+              <button type="submit" style={{...styles.submitButton, backgroundColor: theme.warning, backgroundImage: 'none', boxShadow: `0 4px 10px ${theme.warning}50`}}>{editingQuizTitulo ? t('professor.comum.guardarAlteracoes') : t('professor.formQuiz.guardar')}</button>
             </div>
           </form>
         </div>

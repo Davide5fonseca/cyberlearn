@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import DOMPurify from 'dompurify';
+import { useTranslation } from '../i18n';
 
 export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
+  const t = useTranslation();
   // Estado para saber em que lição o aluno está (começa na 0)
   const [currentLicaoIndex, setCurrentLicaoIndex] = useState(0);
   
@@ -25,9 +27,9 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
     return (
       <div style={styles.container}>
         <div style={{...styles.contentCard, textAlign: 'center', padding: '60px'}}>
-           <h2 style={{color: theme.textMain}}>Nenhum curso selecionado.</h2>
-           <p style={{color: theme.textSub}}>Por favor, volta ao catálogo e escolhe um curso.</p>
-           <button onClick={() => setView('cursos')} style={{...styles.nextBtn, margin: '20px auto 0 auto'}}>Voltar aos Cursos</button>
+           <h2 style={{color: theme.textMain}}>{t('aluno.licao.semCursoTitulo')}</h2>
+           <p style={{color: theme.textSub}}>{t('aluno.licao.semCursoTexto')}</p>
+           <button onClick={() => setView('cursos')} style={{...styles.nextBtn, margin: '20px auto 0 auto'}}>{t('aluno.licao.voltarCursos')}</button>
         </div>
       </div>
     );
@@ -42,7 +44,7 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
   }
 
   const totalLicoes = conteudosDasLicoes.length;
-  let licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || "O professor ainda não adicionou conteúdo a esta lição.";
+  let licaoAtualHTML = conteudosDasLicoes[currentLicaoIndex] || t('aluno.licao.semConteudo');
 
   // Remove cores inline (estética: o tema controla as cores)...
   licaoAtualHTML = licaoAtualHTML
@@ -75,10 +77,10 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
     return (
       <div style={styles.container}>
         <div style={{...styles.contentCard, textAlign: 'center', padding: '60px 40px'}}>
-           <div style={{ fontSize: '70px', marginBottom: '20px', animation: 'bounce 1s infinite alternate' }}>🎉</div>
-           <h2 style={{color: theme.textMain, fontSize: '32px', marginBottom: '15px'}}>Parabéns!</h2>
+           <div style={{ fontSize: '70px', marginBottom: '20px', animation: 'bounce 1s infinite alternate' }} aria-hidden="true">🎉</div>
+           <h2 style={{color: theme.textMain, fontSize: '32px', marginBottom: '15px'}}>{t('aluno.licao.parabens')}</h2>
            <p style={{color: theme.textSub, fontSize: '16px', marginBottom: '40px', lineHeight: '1.6'}}>
-             Concluíste a leitura do curso <strong>"{curso.titulo}"</strong>.<br/>Estás pronto para colocar os teus conhecimentos à prova?
+             {t('aluno.licao.concluiste')} <strong>"{curso.titulo}"</strong>.<br/>{t('aluno.licao.prontoQuiz')}
            </p>
 
            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -88,8 +90,8 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                Reler Curso
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                {t('aluno.licao.reler')}
               </button>
 
               <button 
@@ -102,8 +104,8 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                Fazer o Quiz
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                {t('aluno.licao.fazerQuiz')}
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               </button>
            </div>
         </div>
@@ -129,22 +131,22 @@ export default function Licao({ setView, theme, curso, setTargetQuizCourse }) {
       <div style={styles.contentCard}>
         <div style={styles.headerBadges}>
           <span style={styles.badge}>{curso.titulo}</span>
-          <span style={styles.subBadge}>Lição {currentLicaoIndex + 1} de {totalLicoes}</span>
+          <span style={styles.subBadge}>{t('aluno.licao.licao')} {currentLicaoIndex + 1} {t('aluno.licao.de')} {totalLicoes}</span>
         </div>
         
         <h1 style={styles.title}>
-          {totalLicoes > 1 ? `Parte ${currentLicaoIndex + 1}` : curso.titulo}
+          {totalLicoes > 1 ? `${t('aluno.licao.parte')} ${currentLicaoIndex + 1}` : curso.titulo}
         </h1>
         
         <div className="licao-html-dinamico" style={styles.text} dangerouslySetInnerHTML={{ __html: licaoAtualHTML }} />
 
         <div style={styles.footer}>
           <button style={styles.backBtn} onClick={handlePrev} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}>
-            {currentLicaoIndex === 0 ? "Abandonar Lição" : "Lição Anterior"}
+            {currentLicaoIndex === 0 ? t('aluno.licao.abandonar') : t('aluno.licao.anterior')}
           </button>
           <button style={styles.nextBtn} onClick={handleNext} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-            {currentLicaoIndex === totalLicoes - 1 ? "CONCLUIR CURSO" : "PRÓXIMA LIÇÃO"}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            {currentLicaoIndex === totalLicoes - 1 ? t('aluno.licao.concluir') : t('aluno.licao.proxima')}
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </button>
         </div>
       </div>

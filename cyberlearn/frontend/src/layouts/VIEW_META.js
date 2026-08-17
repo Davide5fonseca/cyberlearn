@@ -26,19 +26,20 @@ export const PATH_VIEWS = Object.fromEntries(
   Object.entries(VIEW_PATHS).map(([vista, caminho]) => [caminho, vista])
 );
 
-// Título/subtítulo do cabeçalho por vista. `saudacao: true` antepõe "Olá, <nome>".
+// Título/subtítulo do cabeçalho por vista, como CHAVES i18n (traduzidas no
+// AppLayout com t()). `saudacao: true` antepõe "Olá, <nome>".
 export const VIEW_META = {
-  dashboard:           { saudacao: true,  subtitulo: 'Bem-vindo ao teu centro de estudo.' },
-  professor_dashboard: { saudacao: true,  subtitulo: 'Aqui está a atividade dos alunos.' },
-  professor_alunos:    { titulo: 'Gestão de Alunos', subtitulo: 'Acompanha o progresso e as notas dos teus alunos.' },
-  professor_cursos:    { titulo: 'Conteúdos Educativos', subtitulo: 'Cria, edita e apaga conteúdos educativos.' },
-  admin_dashboard:     { saudacao: true,  subtitulo: 'Aqui está a atividade dos professores.' },
-  admin_professores:   { titulo: 'Gestão de Professores', subtitulo: 'Consulta perfis e remove professores do sistema.' },
-  admin_aprovacoes:    { titulo: 'Aprovações', subtitulo: 'Aprova ou rejeita professores, cursos e quizzes pendentes.' },
-  admin_seguranca:     { titulo: 'Registos de Segurança', subtitulo: 'Auditoria de logins, falhas de password e de 2FA.' },
-  cursos:              { titulo: 'Catálogo de Cursos', subtitulo: 'Explora os novos módulos.' },
-  quizzes:             { titulo: 'Quizzes', subtitulo: 'Testa os teus conhecimentos.' },
-  profile:             { titulo: 'O Teu Perfil', subtitulo: 'Gere a tua conta e segurança.' },
+  dashboard:           { saudacao: true, sub: 'meta.dashboard.sub' },
+  professor_dashboard: { saudacao: true, sub: 'meta.professor_dashboard.sub' },
+  professor_alunos:    { titulo: 'meta.professor_alunos.titulo', sub: 'meta.professor_alunos.sub' },
+  professor_cursos:    { titulo: 'meta.professor_cursos.titulo', sub: 'meta.professor_cursos.sub' },
+  admin_dashboard:     { saudacao: true, sub: 'meta.admin_dashboard.sub' },
+  admin_professores:   { titulo: 'meta.admin_professores.titulo', sub: 'meta.admin_professores.sub' },
+  admin_aprovacoes:    { titulo: 'meta.admin_aprovacoes.titulo', sub: 'meta.admin_aprovacoes.sub' },
+  admin_seguranca:     { titulo: 'meta.admin_seguranca.titulo', sub: 'meta.admin_seguranca.sub' },
+  cursos:              { titulo: 'meta.cursos.titulo', sub: 'meta.cursos.sub' },
+  quizzes:             { titulo: 'meta.quizzes.titulo', sub: 'meta.quizzes.sub' },
+  profile:             { titulo: 'meta.profile.titulo', sub: 'meta.profile.sub' },
 };
 
 // Vista inicial de cada perfil após o login.

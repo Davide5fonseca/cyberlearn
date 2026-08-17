@@ -3,18 +3,39 @@
    ============================================================ */
 
 :root {
-  /* Paleta de referência (a UI em JS usa o objeto `theme`; estes tokens
-     servem para elementos globais: scrollbar, seleção, foco, etc.) */
+  /* Tokens do tema. O ThemeProvider marca <html data-theme="dark|light">;
+     o modo escuro é o default da marca. */
   --cl-bg: #070b14;
   --cl-surface: #0f172a;
-  --cl-border: #1e293b;
+  --cl-sidebar: #0b1120;
+  --cl-border: #243044;
+  --cl-input-bg: #16213a;
   --cl-text: #e2e8f0;
   --cl-text-sub: #94a3b8;
+  --cl-icon-bg: #16213a;
+  --cl-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+
   --cl-primary: #3b82f6;
   --cl-accent: #22d3ee;
+  --cl-danger: #ef4444;
+  --cl-warning: #f59e0b;
+  --cl-success: #10b981;
+  --cl-gradient: linear-gradient(135deg, #3b82f6 0%, #22d3ee 100%);
 
   --cl-font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --cl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+:root[data-theme='light'] {
+  --cl-bg: #f8fafc;
+  --cl-surface: #ffffff;
+  --cl-sidebar: #ffffff;
+  --cl-border: #e2e8f0;
+  --cl-input-bg: #f8fafc;
+  --cl-text: #0f172a;
+  --cl-text-sub: #64748b;
+  --cl-icon-bg: #f1f5f9;
+  --cl-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.10);
 }
 
 html, body, #root {
@@ -100,4 +121,81 @@ textarea::placeholder {
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.35); }
   50%      { box-shadow: 0 0 0 8px rgba(34, 211, 238, 0); }
+}
+
+/* ============================================================
+   Utilitários de componente (varrimento de UI): substituem os
+   objetos de estilo inline recriados a cada render.
+   ============================================================ */
+
+.cl-card {
+  background-color: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--cl-shadow);
+}
+
+.cl-input {
+  background-color: var(--cl-input-bg);
+  color: var(--cl-text);
+  border: 1px solid var(--cl-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+.cl-input:focus { border-color: var(--cl-primary); outline: none; }
+
+.cl-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s, filter 0.2s, background-color 0.2s;
+}
+.cl-btn:hover { filter: brightness(1.1); }
+.cl-btn:active { transform: scale(0.98); }
+.cl-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+.cl-btn-primary { color: #fff; background-color: var(--cl-primary); background-image: var(--cl-gradient); }
+.cl-btn-danger  { color: var(--cl-danger); background: transparent; border: 1px solid var(--cl-danger); }
+.cl-btn-ghost   { color: var(--cl-text); background-color: var(--cl-input-bg); border: 1px solid var(--cl-border); }
+
+.cl-table-wrap { overflow-x: auto; }
+.cl-table { width: 100%; border-collapse: collapse; text-align: left; color: var(--cl-text); font-size: 13px; }
+.cl-table th {
+  padding: 10px 12px;
+  color: var(--cl-text-sub);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--cl-border);
+}
+.cl-table td { padding: 12px; border-bottom: 1px solid color-mix(in srgb, var(--cl-border) 40%, transparent); }
+.cl-table tbody tr:hover { background-color: color-mix(in srgb, var(--cl-input-bg) 60%, transparent); }
+
+.cl-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Breakpoint único da app (o mesmo 850px do useIsMobile) */
+.cl-mobile-only { display: none; }
+@media (max-width: 850px) {
+  .cl-mobile-only { display: initial; }
+  .cl-desktop-only { display: none; }
 }

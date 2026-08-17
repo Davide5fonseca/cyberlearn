@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { VIEW_PATHS, PATH_VIEWS, VIEW_META } from './VIEW_META';
 
@@ -12,6 +13,7 @@ import { VIEW_PATHS, PATH_VIEWS, VIEW_META } from './VIEW_META';
 export default function AppLayout() {
   const { user, perfil, logout } = useAuth();
   const { theme, isDarkMode, setIsDarkMode } = useTheme();
+  const { t, lang, setLang } = useI18n();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,7 +37,8 @@ export default function AppLayout() {
 
   const meta = VIEW_META[view];
   const primeiroNome = user?.nome?.split(' ')[0] ?? '';
-  const titulo = meta?.saudacao ? `Olá, ${primeiroNome}` : meta?.titulo || '';
+  const titulo = meta?.saudacao ? `${t('layout.ola')}, ${primeiroNome}` : meta?.titulo ? t(meta.titulo) : '';
+  const subtitulo = meta?.sub ? t(meta.sub) : '';
 
   const outletContext = {
     theme, user, perfil, setView, isMobile,
@@ -57,15 +60,25 @@ export default function AppLayout() {
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '20px', gap: isMobile ? '15px' : '0' }}>
             <div style={{ width: '100%' }}>
               <h1 style={{ fontSize: isMobile ? '18px' : '20px', color: theme.textMain, margin: 0, fontWeight: 'bold' }}>{titulo}</h1>
-              <p style={{ color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px' }}>{meta?.subtitulo}</p>
+              <p style={{ color: theme.textSub, margin: '2px 0 0 0', fontSize: '12px' }}>{subtitulo}</p>
             </div>
 
             <div style={{ display: 'flex', gap: '14px', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
               <button
                 type="button"
+                onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
+                title={t('layout.idioma')}
+                aria-label={t('layout.idioma')}
+                style={{ backgroundColor: theme.iconBg, minWidth: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s', border: 'none', padding: '0 8px', fontWeight: 'bold', fontSize: '12px', letterSpacing: '0.5px' }}
+              >
+                {lang === 'pt' ? 'EN' : 'PT'}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                title={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-                aria-label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+                title={isDarkMode ? t('layout.temaClaro') : t('layout.temaEscuro')}
+                aria-label={isDarkMode ? t('layout.temaClaro') : t('layout.temaEscuro')}
                 aria-pressed={isDarkMode}
                 style={{ backgroundColor: theme.iconBg, width: '38px', height: '38px', borderRadius: '50%', cursor: 'pointer', color: theme.textMain, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s', border: 'none', padding: 0 }}
               >
@@ -77,8 +90,8 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => navigate('/perfil')}
-                title="Aceder ao Perfil"
-                aria-label="Aceder ao perfil"
+                title={t('layout.perfil')}
+                aria-label={t('layout.perfil')}
                 style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: theme.primary, backgroundImage: theme.gradient, color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: `0 4px 10px ${theme.primary}50`, transition: 'transform 0.2s ease', overflow: 'hidden', border: 'none', padding: 0 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}

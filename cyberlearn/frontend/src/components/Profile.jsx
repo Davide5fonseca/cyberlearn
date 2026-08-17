@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from '../i18n';
 
-/* ── Força da palavra-passe ── */
+/* ── Força da palavra-passe ──
+   Devolve a CHAVE i18n do rótulo; a tradução é feita no render. */
 function getPasswordStrength(pwd) {
   if (!pwd) return null;
   let score = 0;
@@ -9,10 +11,10 @@ function getPasswordStrength(pwd) {
   if (/[A-Z]/.test(pwd)) score++;
   if (/[^a-zA-Z0-9]/.test(pwd)) score++;
   if (/[0-9]/.test(pwd)) score++;
-  if (score <= 1) return { score: 1, label: 'Fraca',    color: '#ff4d6d' };
-  if (score <= 2) return { score: 2, label: 'Razoável', color: '#ffa94d' };
-  if (score <= 3) return { score: 3, label: 'Boa',      color: '#74c0fc' };
-  return            { score: 4, label: 'Forte',    color: '#00c896' };
+  if (score <= 1) return { score: 1, labelKey: 'perfil.forcaFraca',    color: '#ff4d6d' };
+  if (score <= 2) return { score: 2, labelKey: 'perfil.forcaRazoavel', color: '#ffa94d' };
+  if (score <= 3) return { score: 3, labelKey: 'perfil.forcaBoa',      color: '#74c0fc' };
+  return            { score: 4, labelKey: 'perfil.forcaForte',   color: '#00c896' };
 }
 
 export default function Profile({
@@ -20,6 +22,7 @@ export default function Profile({
   theme, avatarImg, setAvatarImg,
   isReadOnly = false, viewedUser = null
 }) {
+  const t = useTranslation();
   const fileInputRef = useRef(null);
   const [showAtual, setShowAtual]         = useState(false);
   const [showNova, setShowNova]           = useState(false);
@@ -31,7 +34,7 @@ export default function Profile({
   const dbAvatar = activeUser?.avatar || activeUser?.avatar_url;
   const currentAvatar = isReadOnly ? dbAvatar : (avatarImg || dbAvatar);
 
-  let dataRegistoFormatada = 'Desconhecida';
+  let dataRegistoFormatada = t('perfil.dataDesconhecida');
   if (activeUser?.data_registo) {
     if (typeof activeUser.data_registo === 'string' && activeUser.data_registo.includes('/')) {
       dataRegistoFormatada = activeUser.data_registo;
@@ -39,7 +42,7 @@ export default function Profile({
       dataRegistoFormatada = new Date(activeUser.data_registo).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
     }
   }
-  
+
   const userRole = activeUser?.tipo?.toLowerCase().trim() || activeUser?.perfil?.toLowerCase().trim() || '';
   const isAluno = userRole === 'aluno';
   const isProfessor = userRole === 'professor';
@@ -91,42 +94,51 @@ export default function Profile({
     }
   };
 
+  // Conteúdo do avatar (imagem ou inicial) — partilhado entre o modo editável e o modo só de leitura
+  const avatarContent = currentAvatar
+    ? <img src={currentAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    : (activeUser ? activeUser.nome.charAt(0).toUpperCase() : 'U');
+
   return (
     <div style={styles.container}>
       {/* 1. CABEÇALHO */}
       <div style={styles.headerCard}>
         <div style={styles.dateBadge}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          Membro desde {dataRegistoFormatada}
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          {t('perfil.membroDesde')} {dataRegistoFormatada}
         </div>
 
         {/* AVATAR COM UPLOAD AO CLICAR (apenas se não for modo leitura) */}
-        <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} ref={fileInputRef} style={{ display: 'none' }} />
-        <div
-          style={{ ...styles.avatar, position: 'relative', cursor: isReadOnly ? 'default' : 'pointer' }}
-          onClick={() => { if (!isReadOnly) fileInputRef.current?.click(); }}
-          title={isReadOnly ? '' : 'Clica para alterar a fotografia'}
-          onMouseEnter={(e) => { if (!isReadOnly) e.currentTarget.querySelector('.avatar-overlay').style.opacity = '1'; }}
-          onMouseLeave={(e) => { if (!isReadOnly) e.currentTarget.querySelector('.avatar-overlay').style.opacity = '0'; }}
-        >
-          {currentAvatar ? <img src={currentAvatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (activeUser ? activeUser.nome.charAt(0).toUpperCase() : 'U')}
-          {!isReadOnly && (
+        <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleImageUpload} ref={fileInputRef} style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
+        {isReadOnly ? (
+          <div style={styles.avatar}>{avatarContent}</div>
+        ) : (
+          <button
+            type="button"
+            style={{ ...styles.avatar, position: 'relative', cursor: 'pointer', border: 'none', padding: 0, fontFamily: 'inherit' }}
+            onClick={() => fileInputRef.current?.click()}
+            title={t('perfil.alterarFoto')}
+            aria-label={t('perfil.alterarFoto')}
+            onMouseEnter={(e) => { e.currentTarget.querySelector('.avatar-overlay').style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.querySelector('.avatar-overlay').style.opacity = '0'; }}
+          >
+            {avatarContent}
             <div className="avatar-overlay" style={styles.uploadOverlay}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                 <circle cx="12" cy="13" r="4"></circle>
               </svg>
             </div>
-          )}
-        </div>
+          </button>
+        )}
 
         <div>
-          <h2 style={styles.name}>{activeUser ? activeUser.nome : 'Utilizador'}</h2>
+          <h2 style={styles.name}>{activeUser ? activeUser.nome : t('perfil.utilizador')}</h2>
           <p style={styles.email}>{activeUser ? activeUser.email : 'email@exemplo.com'}</p>
-          <span style={styles.roleBadge}>{activeUser ? (activeUser.perfil || activeUser.tipo) : 'Conta'}</span>
+          <span style={styles.roleBadge}>{activeUser ? (activeUser.perfil || activeUser.tipo) : t('perfil.conta')}</span>
           {!isReadOnly && currentAvatar && (
             <button type="button" onClick={handleRemoveImage} style={{ display: 'block', marginTop: '8px', background: 'none', border: 'none', color: theme.danger, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-              Remover fotografia
+              {t('perfil.removerFoto')}
             </button>
           )}
         </div>
@@ -136,17 +148,17 @@ export default function Profile({
         {/* 2. DADOS PESSOAIS */}
         <div style={styles.card}>
           <h3 style={styles.sectionTitle}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            Dados Pessoais
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            {t('perfil.dadosPessoais')}
           </h3>
           <div style={styles.grid}>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Nome Completo</label>
-              <input style={styles.input} type="text" name="nome" value={isReadOnly ? activeUser?.nome : profileData.nome} onChange={handleProfileChange} readOnly={isReadOnly} required />
+              <label style={styles.label} htmlFor="perfil-nome">{t('perfil.nomeCompleto')}</label>
+              <input id="perfil-nome" style={styles.input} type="text" name="nome" value={isReadOnly ? activeUser?.nome : profileData.nome} onChange={handleProfileChange} readOnly={isReadOnly} required />
             </div>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Endereço de E-mail</label>
-              <input style={{...styles.input, opacity: 0.6, cursor: 'not-allowed'}} type="email" value={activeUser ? activeUser.email : ''} readOnly title="O e-mail não pode ser alterado por motivos de segurança." />
+              <label style={styles.label} htmlFor="perfil-email">{t('perfil.email')}</label>
+              <input id="perfil-email" style={{...styles.input, opacity: 0.6, cursor: 'not-allowed'}} type="email" value={activeUser ? activeUser.email : ''} readOnly title={t('perfil.emailBloqueado')} />
             </div>
           </div>
         </div>
@@ -155,41 +167,41 @@ export default function Profile({
         {isAluno && (
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Perfil Académico
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              {t('perfil.perfilAcademico')}
             </h3>
 
             <div style={styles.grid}>
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Nível de Experiência</label>
-                <select style={styles.select} name="nivelExperiencia" value={isReadOnly ? activeUser?.nivelExperiencia : profileData.nivelExperiencia || 'iniciante'} onChange={handleProfileChange} disabled={isReadOnly}>
-                  <option value="iniciante">Iniciante / Curioso</option>
-                  <option value="intermedio">Intermédio (Algum Conhecimento)</option>
-                  <option value="avancado">Avançado (Profissional/Estudante de IT)</option>
+                <label style={styles.label} htmlFor="perfil-nivel">{t('perfil.nivelExperiencia')}</label>
+                <select id="perfil-nivel" style={styles.select} name="nivelExperiencia" value={isReadOnly ? activeUser?.nivelExperiencia : profileData.nivelExperiencia || 'iniciante'} onChange={handleProfileChange} disabled={isReadOnly}>
+                  <option value="iniciante">{t('perfil.nivelIniciante')}</option>
+                  <option value="intermedio">{t('perfil.nivelIntermedio')}</option>
+                  <option value="avancado">{t('perfil.nivelAvancado')}</option>
                 </select>
               </div>
               <div style={styles.inputGroup}>
-                <label style={styles.label}>Área de Maior Interesse</label>
-                <select style={styles.select} name="interesse" value={isReadOnly ? activeUser?.interesse : profileData.interesse || ''} onChange={handleProfileChange} disabled={isReadOnly}>
-                  <option value="">Seleciona uma área...</option>
-                  <option value="Pentesting">Pentesting / Testes de Intrusão</option>
-                  <option value="Forense Digital">Forense Digital</option>
-                  <option value="Defesa e Blue Team">Defesa e Blue Team</option>
-                  <option value="Engenharia Social">Engenharia Social / Phishing</option>
-                  <option value="Segurança de Redes">Segurança de Redes</option>
-                  <option value="Desenvolvimento Seguro">Desenvolvimento Seguro (DevSecOps)</option>
-                  <option value="Criptografia">Criptografia</option>
-                  <option value="CTF / Competições">CTF / Competições</option>
-                  <option value="Cloud Security">Cloud Security</option>
-                  <option value="Malware Analysis">Análise de Malware</option>
-                  <option value="Outro">Outro</option>
+                <label style={styles.label} htmlFor="perfil-interesse">{t('perfil.areaInteresse')}</label>
+                <select id="perfil-interesse" style={styles.select} name="interesse" value={isReadOnly ? activeUser?.interesse : profileData.interesse || ''} onChange={handleProfileChange} disabled={isReadOnly}>
+                  <option value="">{t('perfil.selecionaArea')}</option>
+                  <option value="Pentesting">{t('perfil.intPentesting')}</option>
+                  <option value="Forense Digital">{t('perfil.intForense')}</option>
+                  <option value="Defesa e Blue Team">{t('perfil.intBlueTeam')}</option>
+                  <option value="Engenharia Social">{t('perfil.intEngSocial')}</option>
+                  <option value="Segurança de Redes">{t('perfil.intRedes')}</option>
+                  <option value="Desenvolvimento Seguro">{t('perfil.intDevSecOps')}</option>
+                  <option value="Criptografia">{t('perfil.intCripto')}</option>
+                  <option value="CTF / Competições">{t('perfil.intCtf')}</option>
+                  <option value="Cloud Security">{t('perfil.intCloud')}</option>
+                  <option value="Malware Analysis">{t('perfil.intMalware')}</option>
+                  <option value="Outro">{t('perfil.intOutro')}</option>
                 </select>
               </div>
             </div>
 
             <div style={{...styles.inputGroup, marginTop: '20px'}}>
-              <label style={styles.label}>Biografia e Objetivos</label>
-              <textarea style={styles.textarea} name="biografia" placeholder="Conta um pouco sobre a tua jornada na cibersegurança..." value={isReadOnly ? activeUser?.biografia : profileData.biografia || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
+              <label style={styles.label} htmlFor="perfil-biografia">{t('perfil.biografiaObjetivos')}</label>
+              <textarea id="perfil-biografia" style={styles.textarea} name="biografia" placeholder={t('perfil.biografiaPlaceholder')} value={isReadOnly ? activeUser?.biografia : profileData.biografia || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
             </div>
           </div>
         )}
@@ -198,19 +210,19 @@ export default function Profile({
         {isProfessor && (
           <div style={styles.card}>
             <h3 style={styles.sectionTitle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-              Apresentação do Professor
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+              {t('perfil.apresentacaoProf')}
             </h3>
             {!isReadOnly && (
               <div style={{ marginBottom: '20px' }}></div>
             )}
             <div style={{...styles.inputGroup, marginBottom: '20px'}}>
-              <label style={styles.label}>Biografia / Apresentação</label>
-              <textarea style={styles.textarea} name="biografiaProf" placeholder="Partilha a tua jornada..." value={isReadOnly ? activeUser?.biografiaProf : profileData.biografiaProf || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
+              <label style={styles.label} htmlFor="perfil-biografia-prof">{t('perfil.biografiaApresentacao')}</label>
+              <textarea id="perfil-biografia-prof" style={styles.textarea} name="biografiaProf" placeholder={t('perfil.biografiaProfPlaceholder')} value={isReadOnly ? activeUser?.biografiaProf : profileData.biografiaProf || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
             </div>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Metodologia de Ensino</label>
-              <textarea style={{...styles.textarea, minHeight: '80px'}} name="metodologia" placeholder="Abordagem nas aulas..." value={isReadOnly ? activeUser?.metodologia : profileData.metodologia || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
+              <label style={styles.label} htmlFor="perfil-metodologia">{t('perfil.metodologia')}</label>
+              <textarea id="perfil-metodologia" style={{...styles.textarea, minHeight: '80px'}} name="metodologia" placeholder={t('perfil.metodologiaPlaceholder')} value={isReadOnly ? activeUser?.metodologia : profileData.metodologia || ''} onChange={handleProfileChange} readOnly={isReadOnly}></textarea>
             </div>
           </div>
         )}
@@ -227,6 +239,7 @@ export default function Profile({
             <button
               type="button"
               onClick={toggle}
+              aria-label={show ? t('perfil.ocultarSenha') : t('perfil.mostrarSenha')}
               style={{
                 position: 'absolute', right: '12px', top: '50%',
                 transform: 'translateY(-50%)',
@@ -235,8 +248,8 @@ export default function Profile({
               }}
             >
               {show
-                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                ? <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                : <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               }
             </button>
           );
@@ -244,23 +257,24 @@ export default function Profile({
           return (
             <div style={styles.card}>
               <h3 style={styles.sectionTitle}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                Segurança — Alterar Palavra-passe
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={theme.warning} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                {t('perfil.segurancaTitulo')}
               </h3>
               <p style={{ color: theme.textSub, fontSize: '13px', margin: '0 0 20px 0' }}>
-                Para alterar a palavra-passe, preenche os campos abaixo. Deixa em branco se não queres alterar.
+                {t('perfil.segurancaSub')}
               </p>
 
               <div style={styles.grid}>
                 {/* Palavra-passe Atual */}
                 <div style={styles.inputGroup}>
-                  <label style={styles.label}>Palavra-passe Atual</label>
+                  <label style={styles.label} htmlFor="perfil-senha-atual">{t('perfil.senhaAtual')}</label>
                   <div style={{ position: 'relative' }}>
                     <input
+                      id="perfil-senha-atual"
                       style={{ ...styles.input, paddingRight: '42px' }}
                       type={showAtual ? 'text' : 'password'}
                       name="senhaAtual"
-                      placeholder="Palavra-passe atual"
+                      placeholder={t('perfil.senhaAtualPlaceholder')}
                       value={profileData.senhaAtual || ''}
                       onChange={handleProfileChange}
                       autoComplete="current-password"
@@ -271,13 +285,14 @@ export default function Profile({
 
                 {/* Nova Palavra-passe + barra de força */}
                 <div style={styles.inputGroup}>
-                  <label style={styles.label}>Nova Palavra-passe</label>
+                  <label style={styles.label} htmlFor="perfil-nova-senha">{t('perfil.novaSenha')}</label>
                   <div style={{ position: 'relative' }}>
                     <input
+                      id="perfil-nova-senha"
                       style={{ ...styles.input, paddingRight: '42px' }}
                       type={showNova ? 'text' : 'password'}
                       name="novaSenha"
-                      placeholder="Nova palavra-passe"
+                      placeholder={t('perfil.novaSenhaPlaceholder')}
                       value={novaSenha}
                       onChange={handleProfileChange}
                       autoComplete="new-password"
@@ -299,10 +314,10 @@ export default function Profile({
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: strength.color, fontWeight: '700' }}>
-                          {strength.label}
+                          {t(strength.labelKey)}
                         </span>
                         <span style={{ fontSize: '11px', color: theme.textSub }}>
-                          Mín. 8 caract., 1 maiúscula e 1 especial
+                          {t('perfil.requisitosSenha')}
                         </span>
                       </div>
                     </div>
@@ -311,9 +326,10 @@ export default function Profile({
 
                 {/* Confirmar Nova Palavra-passe + indicador de match */}
                 <div style={styles.inputGroup}>
-                  <label style={styles.label}>Confirmar Nova Palavra-passe</label>
+                  <label style={styles.label} htmlFor="perfil-confirmar-senha">{t('perfil.confirmarSenha')}</label>
                   <div style={{ position: 'relative' }}>
                     <input
+                      id="perfil-confirmar-senha"
                       style={{
                         ...styles.input,
                         paddingRight: '42px',
@@ -326,7 +342,7 @@ export default function Profile({
                       }}
                       type={showConfirmar ? 'text' : 'password'}
                       name="confirmarNovaSenha"
-                      placeholder="Repete a nova palavra-passe"
+                      placeholder={t('perfil.confirmarSenhaPlaceholder')}
                       value={confirmarSenha}
                       onChange={handleProfileChange}
                       autoComplete="new-password"
@@ -339,13 +355,13 @@ export default function Profile({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                       {passwordsMatch ? (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          <span style={{ fontSize: '12px', color: '#00c896', fontWeight: '600' }}>As palavras-passe coincidem</span>
+                          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          <span style={{ fontSize: '12px', color: '#00c896', fontWeight: '600' }}>{t('perfil.senhasCoincidem')}</span>
                         </>
                       ) : (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff4d6d" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                          <span style={{ fontSize: '12px', color: '#ff4d6d', fontWeight: '600' }}>As palavras-passe não coincidem</span>
+                          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff4d6d" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          <span style={{ fontSize: '12px', color: '#ff4d6d', fontWeight: '600' }}>{t('perfil.senhasNaoCoincidem')}</span>
                         </>
                       )}
                     </div>
@@ -356,7 +372,7 @@ export default function Profile({
           );
         })()}
 
-        {!isReadOnly && <button type="submit" style={styles.button}>Guardar Alterações do Perfil</button>}
+        {!isReadOnly && <button type="submit" style={styles.button}>{t('perfil.guardar')}</button>}
       </form>
     </div>
   );

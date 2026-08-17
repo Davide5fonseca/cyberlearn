@@ -2,20 +2,24 @@ import { useState, useEffect, useMemo } from 'react';
 import Profile from './Profile';
 import { apiFetch } from '../api';
 import { useUI } from './ui/UIProvider';
+import { useTranslation } from '../i18n';
 
 export default function AdminProfessores({ theme }) {
+  const t = useTranslation();
   const { notify, confirm } = useUI();
   const [professores, setProfessores] = useState([]);
   const [professorSelecionado, setProfessorSelecionado] = useState(null);
-  
+  const [erro, setErro] = useState(false); // falha de rede ou resposta !ok
+
   // Novo estado para a barra de pesquisa
   const [searchTerm, setSearchTerm] = useState('');
 
   const carregarProfessores = () => {
+    setErro(false);
     apiFetch('/professores')
       .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
       .then(data => { if (Array.isArray(data)) setProfessores(data); })
-      .catch(err => console.error("Ups, problema ao carregar a equipa:", err));
+      .catch(err => { console.error("Ups, problema ao carregar a equipa:", err); setErro(true); });
   };
 
   useEffect(() => {
@@ -24,9 +28,9 @@ export default function AdminProfessores({ theme }) {
 
   const handleEliminar = async (id, nome) => {
     const confirmacao = await confirm({
-      title: 'Remover professor',
-      message: `Queres mesmo remover o professor ${nome} da plataforma?\n\nAtenção: todos os cursos, materiais e quizzes que esta pessoa criou vão desaparecer para sempre. Esta ação é irreversível.`,
-      confirmLabel: 'Remover',
+      title: t('adminx.profConfirmTitle'),
+      message: t('adminx.profConfirmMsg').replace('{nome}', nome),
+      confirmLabel: t('adminx.profRemove'),
       danger: true,
     });
     if (!confirmacao) return;
@@ -36,13 +40,13 @@ export default function AdminProfessores({ theme }) {
       const data = await response.json();
 
       if (response.ok) {
-        notify(data.mensagem || 'Professor removido.', 'success');
+        notify(data.mensagem || t('adminx.profRemoved'), 'success');
         carregarProfessores(); // Atualizamos a montra para refletir a saída
       } else {
-        notify(data.erro || 'Algo correu mal.', 'error');
+        notify(data.erro || t('adminx.genericError'), 'error');
       }
     } catch {
-      notify("Não conseguimos ligar ao servidor. Verifica a tua ligação e tenta de novo.", 'error');
+      notify(t('adminx.networkError'), 'error');
     }
   };
 
@@ -75,8 +79,8 @@ export default function AdminProfessores({ theme }) {
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.inputBorder}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.inputBg}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Voltar à Lista
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            {t('adminx.profBack')}
           </button>
         </div>
 
@@ -114,9 +118,10 @@ export default function AdminProfessores({ theme }) {
       <div style={styles.card}>
         
         {/* BARRA DE PESQUISA */}
-        <input 
-          type="text" 
-          placeholder="Procurar professor por nome ou email..." 
+        <input
+          type="text"
+          placeholder={t('adminx.profSearchPlaceholder')}
+          aria-label={t('adminx.profSearchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={styles.searchInput}
@@ -124,22 +129,36 @@ export default function AdminProfessores({ theme }) {
           onBlur={(e) => e.target.style.borderColor = theme.inputBorder}
         />
 
-        {professores.length === 0 ? (
+        {erro ? (
+           /* Bloco de erro com o mesmo visual dos estados vazios + botão de repetir */
+           <div style={{ textAlign: 'center', padding: '40px 0' }}>
+             <p style={{ color: theme.danger, fontWeight: 'bold', fontSize: '15px', margin: 0 }}>
+               {t('adminx.loadError')}
+             </p>
+             <button
+               type="button"
+               onClick={carregarProfessores}
+               style={{ backgroundColor: theme.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', marginTop: '12px' }}
+             >
+               {t('adminx.retry')}
+             </button>
+           </div>
+        ) : professores.length === 0 ? (
            <p style={{ color: theme.textSub, textAlign: 'center', padding: '40px 0', fontSize: '15px' }}>
-             Ainda não tens nenhum professor na tua equipa. Que tal convidar alguém? 🌱
+             {t('adminx.profEmpty')}
            </p>
         ) : professoresFiltrados.length === 0 ? (
            <p style={{ color: theme.textSub, textAlign: 'center', padding: '40px 0', fontSize: '15px' }}>
-             Nenhum professor encontrado com esse nome ou email. 🔍
+             {t('adminx.profSearchEmpty')}
            </p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="cl-table-wrap">
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Professor</th>
-                  <th style={styles.th}>Registo</th>
-                  <th style={{...styles.th, textAlign: 'right'}}>Ações</th>
+                  <th style={styles.th}>{t('admin.user')}</th>
+                  <th style={styles.th}>{t('adminx.profColRegisto')}</th>
+                  <th style={{...styles.th, textAlign: 'right'}}>{t('adminx.profColAcoes')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,7 +170,7 @@ export default function AdminProfessores({ theme }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={styles.avatar}>
                           {prof.avatar ? (
-                            <img src={prof.avatar} alt={`Foto de ${prof.nome}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={prof.avatar} alt={t('adminx.profAvatarAlt').replace('{nome}', prof.nome)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             prof.nome.charAt(0).toUpperCase()
                           )}
@@ -179,8 +198,8 @@ export default function AdminProfessores({ theme }) {
                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.primary}25`}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = `${theme.primary}15`}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                          Ver Perfil
+                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          {t('adminx.profView')}
                         </button>
 
                         <button 
@@ -188,10 +207,10 @@ export default function AdminProfessores({ theme }) {
                           style={styles.deleteButton}
                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}25`}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = `${theme.danger}15`}
-                          title="Remover Professor"
+                          title={t('adminx.profRemoveTitle')}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                          Remover
+                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                          {t('adminx.profRemove')}
                         </button>
 
                       </div>

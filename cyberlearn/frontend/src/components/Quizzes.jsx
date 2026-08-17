@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 import { useUI } from './ui/UIProvider';
+import { useTranslation } from '../i18n';
 
 export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQuizCourse }) {
   const { notify, confirm } = useUI();
+  const t = useTranslation();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -42,10 +44,10 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
               setResultado(null);
               setSelectedOption(null);
             } else {
-              notify("Este quiz ainda não tem perguntas disponíveis!", 'warning');
+              notify(t('quizzes.semPerguntas'), 'warning');
             }
           } else {
-            notify(`Ainda não existe um quiz associado ao curso "${targetQuizCourse}".`, 'info');
+            notify(t('quizzes.semQuizCurso').replace('{curso}', targetQuizCourse), 'info');
           }
           // Limpamos o alvo para não forçar a abertura noutras visitas à página
           if (setTargetQuizCourse) setTargetQuizCourse(null);
@@ -62,7 +64,7 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
 
   const handleStartQuiz = (quiz) => {
     if (quiz.perguntas.length === 0) {
-      notify("Este quiz ainda não tem perguntas disponíveis!", 'warning');
+      notify(t('quizzes.semPerguntas'), 'warning');
       return;
     }
     setActiveQuiz(quiz);
@@ -98,11 +100,11 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
       if (res.ok) {
         setResultado(data);
       } else {
-        notify(data.erro || 'Não foi possível submeter a avaliação.', 'error');
+        notify(data.erro || t('quizzes.erroSubmeter'), 'error');
       }
     } catch (error) {
       console.error("Erro ao submeter avaliação:", error);
-      notify('Erro de ligação ao servidor. A tua avaliação não foi submetida.', 'error');
+      notify(t('quizzes.erroLigacao'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -173,18 +175,18 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
       <div style={styles.centeredWrapper}>
         <div style={styles.resultCard}>
           <div style={{width: '110px', height: '110px', borderRadius: '50%', backgroundColor: passed ? `${theme.success}20` : `${theme.danger}20`, color: passed ? theme.success : theme.danger, display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '30px'}}>
-            {passed ? 
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg> : 
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            {passed ?
+              <svg aria-hidden="true" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg> :
+              <svg aria-hidden="true" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             }
           </div>
-          
+
           <h2 style={{color: theme.textMain, margin: '0 0 10px 0', fontSize: '32px', fontWeight: '900'}}>
-            Quiz Terminado!
+            {t('quizzes.terminado')}
           </h2>
-          
+
           <p style={{color: theme.textSub, fontSize: '18px', margin: '0 0 30px 0'}}>
-            Respondeste corretamente a <strong style={{color: theme.primary, fontSize: '24px'}}>{resultado.acertos}</strong> de {resultado.total} questões.
+            {t('quizzes.resultadoPrefixo')} <strong style={{color: theme.primary, fontSize: '24px'}}>{resultado.acertos}</strong> {t('quizzes.resultadoMeio')} {resultado.total} {t('quizzes.resultadoSufixo')}
           </p>
           
           <div style={{
@@ -194,15 +196,15 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
           }}>
             <span style={{fontSize: '32px'}}>{passed ? '🏆' : '📚'}</span>
             <span style={{color: passed ? theme.success : theme.danger, fontWeight: '800', fontSize: '18px'}}>
-              {passed ? 'Parabéns! Foste aprovado neste módulo.' : 'Não atingiste a pontuação mínima necessária.'}
+              {passed ? t('quizzes.aprovado') : t('quizzes.reprovado')}
             </span>
             <span style={{fontSize: '14px', color: theme.textSub, fontWeight: '500'}}>
-              Ganhaste <strong style={{color: theme.primary}}>{resultado.xpGanho} XP</strong>, validados pelo servidor.
-              {!passed && ' Revê o material e tenta novamente.'}
+              {t('quizzes.xpGanhoAntes')} <strong style={{color: theme.primary}}>{resultado.xpGanho} XP</strong>{t('quizzes.xpGanhoDepois')}
+              {!passed && t('quizzes.reveMaterial')}
             </span>
             {resultado.conquistasNovas?.length > 0 && (
               <span style={{fontSize: '14px', color: theme.textMain, fontWeight: '600'}}>
-                Novos troféus: {resultado.conquistasNovas.map(c => `${c.icone || '🏅'} ${c.nome}`).join(' · ')}
+                {t('quizzes.novosTrofeus')} {resultado.conquistasNovas.map(c => `${c.icone || '🏅'} ${c.nome}`).join(' · ')}
               </span>
             )}
           </div>
@@ -213,7 +215,7 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.filter = 'brightness(1.1)'; }}
              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; }}
           >
-            Voltar ao Dashboard
+            {t('quizzes.voltarDashboard')}
           </button>
         </div>
       </div>
@@ -232,9 +234,10 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
           <div style={{marginBottom: '30px', paddingBottom: '20px', borderBottom: `1px solid ${theme.inputBorder}`}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
               <span style={{color: theme.textSub, fontSize: '14px', fontWeight: 'bold'}}>
-                 Questão <span style={{color: activeColor, fontSize: '18px'}}>{currentQuestion + 1}</span> de {activeQuiz.perguntas.length}
+                 {t('quizzes.questao')} <span style={{color: activeColor, fontSize: '18px'}}>{currentQuestion + 1}</span> {t('quizzes.questaoDe')} {activeQuiz.perguntas.length}
               </span>
-              <span style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', backgroundColor: `${theme.danger}15`, borderRadius: '6px', transition: 'background 0.2s'}} onClick={async () => { if (await confirm({ title: 'Abandonar quiz', message: 'Queres mesmo sair? O teu progresso será perdido.', confirmLabel: 'Abandonar', danger: true })) setActiveQuiz(null); }}>Abandonar</span>
+              {/* Botão real (a11y): antes era um <span> clicável */}
+              <button type="button" style={{color: theme.danger, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', fontFamily: 'inherit', padding: '6px 12px', backgroundColor: `${theme.danger}15`, border: 'none', borderRadius: '6px', transition: 'background 0.2s'}} onClick={async () => { if (await confirm({ title: t('quizzes.abandonarTitulo'), message: t('quizzes.abandonarMsg'), confirmLabel: t('quizzes.abandonar'), danger: true })) setActiveQuiz(null); }}>{t('quizzes.abandonar')}</button>
             </div>
             <div style={styles.progressContainer}>
               <div style={styles.progressBar(progressPercent, activeColor)}></div>
@@ -270,7 +273,7 @@ export default function Quizzes({ theme, setView, targetQuizCourse, setTargetQui
               onMouseEnter={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.filter = 'brightness(1.1)'; } }}
               onMouseLeave={(e) => { if(selectedOption !== null) { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.filter = 'brightness(1)'; } }}
             >
-              {submitting ? 'A submeter...' : currentQuestion + 1 === activeQuiz.perguntas.length ? 'Finalizar Avaliação' : 'Confirmar e Avançar'}
+              {submitting ? t('quizzes.aSubmeter') : currentQuestion + 1 === activeQuiz.perguntas.length ? t('quizzes.finalizar') : t('quizzes.confirmarAvancar')}
             </button>
           </div>
         </div>

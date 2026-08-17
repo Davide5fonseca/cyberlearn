@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from '../i18n';
+import { useTranslation, useI18n } from '../i18n';
 
 export default function Auth({ view, setView, formData, handleInputChange, handleSubmit, theme, isDarkMode, setIsDarkMode, show2FA, setShow2FA }) {
   const t = useTranslation();
+  const { lang, setLang } = useI18n();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   
@@ -100,6 +101,11 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
       boxSizing: 'border-box'
     },
     eyeIcon: {
+      // Reset de <button> para manter o visual do antigo <div>
+      background: 'transparent',
+      border: 'none',
+      padding: 0,
+      font: 'inherit',
       position: 'absolute',
       right: '12px',
       top: '50%',
@@ -144,6 +150,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
       right: '32px',
       display: 'flex',
       alignItems: 'center',
+      gap: '10px',
       zIndex: 10
     },
     // Novo estilo circular para o botão do tema
@@ -163,6 +170,11 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
     },
     link: {
+      // Reset de <button> para manter o visual do antigo <span>
+      background: 'none',
+      border: 'none',
+      padding: 0,
+      font: 'inherit',
       color: theme.primary,
       fontWeight: '600',
       cursor: 'pointer',
@@ -173,13 +185,24 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
 
   const renderHeaderActions = () => (
     <div style={styles.headerActions}>
-      <button 
+      {/* Alternador de idioma PT ↔ EN */}
+      <button
         type="button"
-        style={styles.themeToggleBtn} 
+        style={{ ...styles.themeToggleBtn, fontSize: '13px', fontWeight: '700', fontFamily: 'inherit' }}
+        onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.backgroundColor = theme.cardBg; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.backgroundColor = theme.inputBg; }}
+        title={t('auth.switchLang')}
+      >
+        {lang === 'pt' ? 'EN' : 'PT'}
+      </button>
+      <button
+        type="button"
+        style={styles.themeToggleBtn}
         onClick={() => setIsDarkMode(!isDarkMode)}
         onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.backgroundColor = theme.cardBg; }}
         onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.backgroundColor = theme.inputBg; }}
-        title={isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
+        title={isDarkMode ? t('auth.themeLight') : t('auth.themeDark')}
       >
         {isDarkMode ? 
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> : 
@@ -235,7 +258,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 flexShrink: 0,
                 overflow: 'hidden' /* Garante que a imagem respeita os cantos arredondados */
               }}>
-                 <img src="/security.png" alt="CyberLearn Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                 <img src="/security.png" alt={t('auth.logoAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <span style={{ fontSize: '18px', fontWeight: '800', color: theme.textMain, letterSpacing: '-0.5px' }}>CyberLearn</span>
             </div>
@@ -247,25 +270,25 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <p style={styles.subtitle}>{t('auth.subtitleLogin')}</p>
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.email')}</label>
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
+                    <label style={styles.label} htmlFor="login-email">{t('auth.email')}</label>
+                    <input style={styles.input} id="login-email" type="email" name="email" placeholder={t('auth.emailPlaceholder')} value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
                   <div style={styles.inputGroup}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <label style={{...styles.label, margin: 0}}>{t('auth.password')}</label>
-                      <span style={{...styles.link, fontSize: '12px'}} onClick={() => handleSwitchView('forgot')}>{t('auth.forgot')}</span>
+                      <label style={{...styles.label, margin: 0}} htmlFor="login-password">{t('auth.password')}</label>
+                      <button type="button" style={{...styles.link, fontSize: '12px'}} onClick={() => handleSwitchView('forgot')}>{t('auth.forgot')}</button>
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <input style={styles.passwordInput} type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" value={formData.password || ''} onChange={handleInputChange} required />
-                      <div style={styles.eyeIcon} onClick={() => setShowPassword(!showPassword)}>
+                      <input style={styles.passwordInput} id="login-password" type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" value={formData.password || ''} onChange={handleInputChange} required />
+                      <button type="button" style={styles.eyeIcon} aria-label={t('auth.togglePassword')} onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </div>
+                      </button>
                     </div>
                   </div>
                   <button type="submit" style={styles.button}>{t('auth.signIn')}</button>
                 </form>
                 <div style={{ marginTop: '20px', textAlign: 'center', color: theme.textSub, fontSize: '13px' }}>
-                  {t('auth.noAccount')} <span style={styles.link} onClick={() => handleSwitchView('register')}>{t('auth.signUp')}</span>
+                  {t('auth.noAccount')} <button type="button" style={styles.link} onClick={() => handleSwitchView('register')}>{t('auth.signUp')}</button>
                 </div>
               </>
             )}
@@ -277,42 +300,43 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <p style={styles.subtitle}>{t('auth.subtitleRegister')}</p>
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.fullName')}</label>
-                    <input style={styles.input} type="text" name="nome" placeholder="Ex: Tomás Tavares" value={formData.nome || ''} onChange={handleInputChange} required />
+                    <label style={styles.label} htmlFor="register-nome">{t('auth.fullName')}</label>
+                    <input style={styles.input} id="register-nome" type="text" name="nome" placeholder={t('auth.namePlaceholder')} value={formData.nome || ''} onChange={handleInputChange} required />
                   </div>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.email')}</label>
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
+                    <label style={styles.label} htmlFor="register-email">{t('auth.email')}</label>
+                    <input style={styles.input} id="register-email" type="email" name="email" placeholder={t('auth.emailPlaceholder')} value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
-                  
+
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.password')}</label>
+                    <label style={styles.label} htmlFor="register-password">{t('auth.password')}</label>
                     <div style={{ position: 'relative' }}>
-                      <input 
-                        style={styles.passwordInput} 
-                        type={showPassword ? "text" : "password"} 
-                        name="password" 
-                        placeholder="••••••••" 
-                        value={formData.password || ''} 
-                        onChange={handleInputChange} 
-                        required 
+                      <input
+                        style={styles.passwordInput}
+                        id="register-password"
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        placeholder="••••••••"
+                        value={formData.password || ''}
+                        onChange={handleInputChange}
+                        required
                         pattern="(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}"
                         title={t('auth.passwordHint')}
                       />
-                      <div style={styles.eyeIcon} onClick={() => setShowPassword(!showPassword)}>
+                      <button type="button" style={styles.eyeIcon} aria-label={t('auth.togglePassword')} onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </div>
+                      </button>
                     </div>
                     <p style={{ fontSize: '11px', color: theme.textSub, marginTop: '6px', marginBottom: 0 }}>{t('auth.passwordHint')}</p>
                   </div>
 
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.confirmPassword')}</label>
+                    <label style={styles.label} htmlFor="register-confirmar">{t('auth.confirmPassword')}</label>
                     <div style={{ position: 'relative' }}>
-                      <input style={styles.passwordInput} type={showConfirmPassword ? "text" : "password"} name="confirmarPassword" placeholder="••••••••" value={formData.confirmarPassword || ''} onChange={handleInputChange} required />
-                      <div style={styles.eyeIcon} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <input style={styles.passwordInput} id="register-confirmar" type={showConfirmPassword ? "text" : "password"} name="confirmarPassword" placeholder="••••••••" value={formData.confirmarPassword || ''} onChange={handleInputChange} required />
+                      <button type="button" style={styles.eyeIcon} aria-label={t('auth.togglePassword')} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </div>
+                      </button>
                     </div>
                   </div>
 
@@ -330,7 +354,7 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   <button type="submit" style={styles.button}>{t('auth.createBtn')}</button>
                 </form>
                 <div style={{ marginTop: '20px', textAlign: 'center', color: theme.textSub, fontSize: '13px' }}>
-                  {t('auth.hasAccount')} <span style={styles.link} onClick={() => handleSwitchView('login')}>{t('auth.signIn')}</span>
+                  {t('auth.hasAccount')} <button type="button" style={styles.link} onClick={() => handleSwitchView('login')}>{t('auth.signIn')}</button>
                 </div>
               </>
             )}
@@ -342,15 +366,15 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <p style={styles.subtitle}>{t('auth.resetSub')}</p>
                 <form onSubmit={handleSubmit}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.email')}</label>
-                    <input style={styles.input} type="email" name="email" placeholder="Ex: nome@gmail.com" value={formData.email || ''} onChange={handleInputChange} required />
+                    <label style={styles.label} htmlFor="forgot-email">{t('auth.email')}</label>
+                    <input style={styles.input} id="forgot-email" type="email" name="email" placeholder={t('auth.emailPlaceholder')} value={formData.email || ''} onChange={handleInputChange} required />
                   </div>
                   <button type="submit" style={styles.button}>{t('auth.sendLink')}</button>
                 </form>
                 <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
+                  <button type="button" style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> {t('auth.backLogin')}
-                  </span>
+                  </button>
                 </div>
               </>
             )}
@@ -364,11 +388,15 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   
                   <input type="hidden" name="codigoReset" value={otp.join('')} />
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.code')}</label>
+                    <label style={styles.label} htmlFor="reset-otp-0">{t('auth.code')}</label>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
                       {otp.map((data, index) => (
                         <input
                           style={styles.otpInput} type="text" name="otp" maxLength="1" key={index} value={data}
+                          id={`reset-otp-${index}`}
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                          aria-label={`Dígito ${index + 1} de 6`}
                           onChange={e => handleOtpChange(e.target, index)} onKeyDown={e => handleOtpKeyDown(e, index)} onFocus={e => e.target.select()}
                         />
                       ))}
@@ -376,44 +404,45 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   </div>
 
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.newPass')}</label>
+                    <label style={styles.label} htmlFor="reset-password">{t('auth.newPass')}</label>
                     <div style={{ position: 'relative' }}>
-                      <input 
-                        style={styles.passwordInput} 
-                        type={showPassword ? "text" : "password"} 
-                        name="password" 
-                        placeholder="••••••••" 
-                        value={formData.password || ''} 
-                        onChange={handleInputChange} 
-                        required 
+                      <input
+                        style={styles.passwordInput}
+                        id="reset-password"
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        placeholder="••••••••"
+                        value={formData.password || ''}
+                        onChange={handleInputChange}
+                        required
                         pattern="(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}"
                         title={t('auth.passwordHint')}
                       />
-                      <div style={styles.eyeIcon} onClick={() => setShowPassword(!showPassword)}>
+                      <button type="button" style={styles.eyeIcon} aria-label={t('auth.togglePassword')} onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </div>
+                      </button>
                     </div>
                     <p style={{ fontSize: '11px', color: theme.textSub, marginTop: '6px', marginBottom: 0 }}>{t('auth.passwordHint')}</p>
                   </div>
 
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.confirmNewPass')}</label>
+                    <label style={styles.label} htmlFor="reset-confirmar">{t('auth.confirmNewPass')}</label>
                     <div style={{ position: 'relative' }}>
-                      <input style={styles.passwordInput} type={showConfirmPassword ? "text" : "password"} name="confirmarPassword" placeholder="••••••••" value={formData.confirmarPassword || ''} onChange={handleInputChange} required />
-                      <div style={styles.eyeIcon} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <input style={styles.passwordInput} id="reset-confirmar" type={showConfirmPassword ? "text" : "password"} name="confirmarPassword" placeholder="••••••••" value={formData.confirmarPassword || ''} onChange={handleInputChange} required />
+                      <button type="button" style={styles.eyeIcon} aria-label={t('auth.togglePassword')} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </div>
+                      </button>
                     </div>
                   </div>
-                  
+
                   <button type="submit" style={styles.button}>{t('auth.resetBtn')}</button>
                 </form>
-                
+
                 <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
+                  <button type="button" style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => handleSwitchView('login')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Cancelar
-                  </span>
+                    {t('auth.cancel')}
+                  </button>
                 </div>
               </>
             )}
@@ -426,11 +455,15 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                 <form onSubmit={handleSubmit}>
                   <input type="hidden" name="codigo2FA" value={otp.join('')} />
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>{t('auth.code')}</label>
+                    <label style={styles.label} htmlFor="twofa-otp-0">{t('auth.code')}</label>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
                       {otp.map((data, index) => (
                         <input
                           style={styles.otpInput} type="text" name="otp" maxLength="1" key={index} value={data}
+                          id={`twofa-otp-${index}`}
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                          aria-label={`Dígito ${index + 1} de 6`}
                           onChange={e => handleOtpChange(e.target, index)} onKeyDown={e => handleOtpKeyDown(e, index)} onFocus={e => e.target.select()}
                         />
                       ))}
@@ -439,10 +472,10 @@ export default function Auth({ view, setView, formData, handleInputChange, handl
                   <button type="submit" style={styles.button}>{t('auth.verifyBtn')}</button>
                 </form>
                 <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                  <span style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => setShow2FA(false)}>
+                  <button type="button" style={{...styles.link, display: 'inline-flex', alignItems: 'center', gap: '8px'}} onClick={() => setShow2FA(false)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Voltar ao Login
-                  </span>
+                    {t('auth.backLogin')}
+                  </button>
                 </div>
               </>
             )}
